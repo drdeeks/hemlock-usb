@@ -1,19 +1,22 @@
 ---
 name: skill-installer
-description: "Graceful skill installation and lifecycle manager. Handles .skill zip archives, directory-based skills, and remote packages with automatic validation against skill-creator. Use when: installing new skills, updating skills, extracting .skill files, importing skill packages, or validating skill integrity before deployment."
-version: 1.0.11
+description: 'Graceful skill installation and lifecycle manager. Handles .skill zip
+  archives, directory-based skills, and remote packages with automatic validation
+  against skill-creator. Use when: installing new skills, updating skills, extracting
+  .skill files, importing skill packages, or validating skill integrity before deployment.'
+version: 1.0.12
 license: MIT
 metadata:
   author: skill-creator
   category: skill-management
   tags:
-    - install a skill
-    - skill installation
-    - extract skill archive
-    - import skill package
-    - batch install skills
-    - skill lifecycle management
-    - validate before install
+  - install a skill
+  - skill installation
+  - extract skill archive
+  - import skill package
+  - batch install skills
+  - skill lifecycle management
+  - validate before install
 ---
 
 # Skill Installer

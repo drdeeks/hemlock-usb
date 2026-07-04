@@ -30,7 +30,7 @@ from pathlib import Path
 # ─── Package metadata (importable) ────────────────────────────────────────
 
 NAME = "skill-creator"
-VERSION = "3.0.8"
+VERSION = "3.0.9"
 PREVIOUS_VERSION = "2.1.1"
 FORK_ORIGIN = "_curated/skill-creator@2.1.1"
 FORK_NOTE = ("Every mutating script is directly invokable. skill_enhance.py "
