@@ -48,6 +48,21 @@ run from a Docker image or a Ventoy USB, on hardware as small as a 4 GB / 1.87 G
 
 ## Quick start
 
+**One installer, every variation** — Hemlock is always the combined runtime (control plane +
+cognition over MCP, one system); the variants only differ in what's baked in:
+
+```bash
+./install.sh                      # interactive picker
+./install.sh --variant full       # everything baked, plug ready       (~4.2GB)
+./install.sh --variant lean       # no baked toolchain, adaptable      (~870MB)
+./install.sh --variant minimal    # daemon + brain + access/menu/health (~2GB)
+./install.sh --variant full --usb # build + copy image onto USB persistence
+./install.sh --load hemlock.tar.gz  # load a prebuilt image
+./install.sh --native             # run with no container at all
+```
+
+Or by hand:
+
 ```bash
 # Build the runtime image (plain builder; this machine target is intentionally modest)
 DOCKER_BUILDKIT=0 docker build -t hemlock:latest -f Dockerfile.runtime .
