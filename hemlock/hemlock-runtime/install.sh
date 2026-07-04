@@ -111,28 +111,76 @@ else
     log "built: $IMAGE ($(docker images "$IMAGE" --format '{{.Size}}'))"
 fi
 
-# ── Optional: copy the image onto USB persistence ────────────────────────────
+# ── USB install: the portable system lives on the USB FREE SPACE; the image
+#    goes into persistence. Selecting USB means set the USB up — completely. ──
 if [ "$TO_USB" -eq 1 ]; then
     [ -n "$IMAGE" ] || die "no image to deploy"
-    # discover the largest persistence .dat under any mounted Ventoy volume
-    DAT=$(find /media/*/*/persistence /run/media/*/*/persistence -maxdepth 1 -name '*.dat' -printf '%s %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
-    [ -n "$DAT" ] || die "no persistence .dat found on a mounted USB (mount the Ventoy volume first)"
-    log "target persistence: $DAT"
-    confirm "Save $IMAGE and copy into $DAT? (needs sudo to mount)" || die "aborted"
-    TAR="$(mktemp -u /tmp/hemlock-image-XXXX).tar.gz"
-    log "saving + compressing image (few minutes) ..."
-    docker save "$IMAGE" | gzip -1 > "$TAR" || die "docker save failed"
-    log "tarball: $(du -h "$TAR" | cut -f1)"
-    MNT=$(mktemp -d /tmp/hemlock-persist-XXXX)
-    sudo mount -o loop "$DAT" "$MNT" || { rm -f "$TAR"; die "mount failed"; }
-    sudo mkdir -p "$MNT/hemlock"
-    if sudo cp "$TAR" "$MNT/hemlock/$(basename "$TAR")" && sync; then
-        sudo df -h "$MNT" | tail -1
-        log "copied. On the booted USB:  docker load -i /hemlock/$(basename "$TAR")"
-    else
-        warn "copy failed — persistence may be full"
+
+    # 1. Find the mounted USB volume (Ventoy root — where the portable system lives)
+    USB_ROOT=""
+    for cand in /media/*/* /run/media/*/*; do
+        [ -d "$cand" ] || continue
+        if [ -d "$cand/persistence" ] || [ -d "$cand/ventoy" ] || [ -f "$cand/menu.sh" ]; then
+            USB_ROOT="$cand"; break
+        fi
+    done
+    if [ -z "$USB_ROOT" ]; then
+        # fall back to any mounted removable volume the user confirms
+        for cand in /media/*/* /run/media/*/*; do
+            [ -d "$cand" ] || continue
+            confirm "Use $cand as the USB target?" && USB_ROOT="$cand" && break
+        done
     fi
-    sudo umount "$MNT" && rmdir "$MNT"; rm -f "$TAR"
+    [ -n "$USB_ROOT" ] || die "no mounted USB volume found — plug it in / mount it, then rerun"
+    log "USB volume: $USB_ROOT"
+
+    # 2. Portable system onto the USB FREE SPACE (source tree — the system itself,
+    #    not container internals). Skipped silently if it's already this tree.
+    USB_SYS="$USB_ROOT/hemlock/hemlock-runtime"
+    if [ "$(readlink -f "$USB_SYS" 2>/dev/null)" != "$(readlink -f "$SCRIPT_DIR")" ]; then
+        if confirm "Copy the runtime system onto the USB free space ($USB_SYS)?"; then
+            mkdir -p "$USB_SYS"
+            rsync -a --delete \
+                --exclude .git --exclude '__pycache__' --exclude '*.pyc' \
+                --exclude .env --exclude '.secrets' --exclude 'agents/active' \
+                --exclude 'agents/archive' --exclude 'agents/registrar' \
+                --exclude data --exclude logs --exclude volumes \
+                "$SCRIPT_DIR/" "$USB_SYS/" \
+                && log "portable system on USB: $USB_SYS" \
+                || warn "system copy incomplete — check USB free space"
+        fi
+    fi
+
+    # 3. Image into PERSISTENCE. If none exists yet, hand off to the USB
+    #    platform's own setup (it owns persistence creation) — never a dead end.
+    DAT=$(find "$USB_ROOT/persistence" -maxdepth 1 -name '*.dat' -printf '%s %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+    if [ -z "$DAT" ]; then
+        warn "no persistence .dat on $USB_ROOT yet"
+        MENU="$USB_ROOT/menu.sh"; [ -f "$MENU" ] || MENU="$(dirname "$(dirname "$SCRIPT_DIR")")/menu.sh"
+        if [ -f "$MENU" ] && [ -t 0 ] && confirm "Open the USB platform menu to create one now?"; then
+            bash "$MENU" || true
+            DAT=$(find "$USB_ROOT/persistence" -maxdepth 1 -name '*.dat' -printf '%s %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+        fi
+        [ -n "$DAT" ] || { warn "skipping image→persistence (create one via the USB menu, then rerun with --usb)"; DAT=""; }
+    fi
+    if [ -n "$DAT" ]; then
+        log "target persistence: $DAT"
+        confirm "Save $IMAGE and copy into $(basename "$DAT")? (needs sudo to mount)" || die "aborted"
+        TAR="$(mktemp -u /tmp/hemlock-image-XXXX).tar.gz"
+        log "saving + compressing image (few minutes) ..."
+        docker save "$IMAGE" | gzip -1 > "$TAR" || die "docker save failed"
+        log "tarball: $(du -h "$TAR" | cut -f1)"
+        MNT=$(mktemp -d /tmp/hemlock-persist-XXXX)
+        sudo mount -o loop "$DAT" "$MNT" || { rm -f "$TAR"; die "mount failed"; }
+        sudo mkdir -p "$MNT/hemlock"
+        if sudo cp "$TAR" "$MNT/hemlock/$(basename "$TAR")" && sync; then
+            sudo df -h "$MNT" | tail -1
+            log "copied. On the booted USB:  docker load -i /hemlock/$(basename "$TAR")"
+        else
+            warn "copy failed — persistence may be full"
+        fi
+        sudo umount "$MNT" && rmdir "$MNT"; rm -f "$TAR"
+    fi
 fi
 
 log "done. Start it:  docker compose -f docker-compose.runtime.yml up   (or docker run $IMAGE)"
