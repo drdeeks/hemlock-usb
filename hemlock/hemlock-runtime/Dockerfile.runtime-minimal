@@ -84,7 +84,8 @@ COPY health/ /opt/hermes/health/
 
 # Owner menu — stays in every variant
 COPY scripts/ /scripts/
-RUN chmod +x /scripts/*.sh && \
+RUN mkdir -p /opt/hermes/scripts && \
+    chmod +x /scripts/*.sh && \
     ln -sf /scripts/runtime.sh /runtime.sh && \
     ln -sf /scripts/runtime.sh /opt/hermes/scripts/runtime.sh
 

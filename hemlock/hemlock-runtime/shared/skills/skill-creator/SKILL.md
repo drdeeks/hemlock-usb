@@ -1,15 +1,42 @@
 ---
 name: skill-creator
-description: "Author, edit, audit, validate, package, and upgrade AgentSkills. Provides the philosophical guidance for lean skill authoring (concise-is-key, appropriate degrees of freedom, progressive disclosure) alongside the operational toolchain (validator, packager, upgrader, auto-fixer). Use when creating a new skill from scratch, tidying/reviewing/auditing an existing skill, restructuring a skill directory, packaging a .skill archive, or upgrading a basic-tier skill to enterprise. Triggers on phrases like 'create a skill', 'author a skill', 'tidy up a skill', 'audit the skill', 'package this skill', 'upgrade skill to enterprise'. Validator runs enterprise-strict by default; pass --basic for the lighter-count tier. Every script is directly invokable."
+description: Author, edit, audit, validate, package, and upgrade AgentSkills. Provides
+  the philosophical guidance for lean skill authoring (concise-is-key, appropriate
+  degrees of freedom, progressive disclosure) alongside the operational toolchain
+  (validator, packager, upgrader, auto-fixer). Use when creating a new skill from
+  scratch, tidying/reviewing/auditing an existing skill, restructuring a skill directory,
+  packaging a .skill archive, or upgrading a basic-tier skill to enterprise. Triggers
+  on phrases like 'create a skill', 'author a skill', 'tidy up a skill', 'audit the
+  skill', 'package this skill', 'upgrade skill to enterprise'. Validator runs enterprise-strict
+  by default; pass --basic for the lighter-count tier. Every script is directly invokable.
 version: 3.0.8
 license: MIT
 metadata:
   category: skill-authoring
   complexity: enterprise
   previous_version: 2.1.1
-  fork_origin: "_curated/skill-creator@2.1.1"
-  fork_note: "Every script directly invokable; skill_enhance.py sequences the standard pipeline."
+  fork_origin: _curated/skill-creator@2.1.1
+  fork_note: Every script directly invokable; skill_enhance.py sequences the standard
+    pipeline.
   tags:
+  - skill authoring
+  - skill validation
+  - skill packaging
+  - agent skills
+  - progressive disclosure
+  - concise skill design
+  - enterprise standards
+  hermes:
+    tags:
+    - skill authoring
+    - skill validation
+    - skill packaging
+    - agent skills
+    - progressive disclosure
+    - concise skill design
+    - enterprise standards
+  openclaw:
+    tags:
     - skill authoring
     - skill validation
     - skill packaging

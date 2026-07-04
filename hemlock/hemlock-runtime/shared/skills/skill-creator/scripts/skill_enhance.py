@@ -104,6 +104,71 @@ def read_frontmatter(skill_md: Path) -> dict:
                 out[k.strip()] = v.strip()
         return out
 
+# ── Provider tag remapping (see references/provider-tag-remapping.md) ────────
+# Canonical tags live in metadata.tags — the source of truth, never altered.
+# Each supported provider consumes tags from its OWN block; the remap COPIES
+# canonical tags there so the skill is promoted on that platform.
+SUPPORTED_PROVIDERS = ("hermes", "openclaw", "openai")
+
+def detect_providers() -> list:
+    """Detect which provider harnesses are present from environment signals."""
+    env = os.environ
+    found = []
+    mode = env.get("HEMLOCK_MODE", "")
+    if any(k.startswith("OPENCLAW") for k in env) or mode in ("full", "openclaw"):
+        found.append("openclaw")
+    if any(k.startswith("HERMES") for k in env) or mode in ("full", "hermes"):
+        found.append("hermes")
+    if any(k.startswith("OPENAI") for k in env):
+        found.append("openai")
+    return found
+
+def remap_provider_tags(skill_dir: Path, providers: list) -> bool:
+    """Copy metadata.tags into metadata.<provider>.tags for each provider.
+
+    Additive and idempotent: canonical tags are never changed; existing
+    provider blocks keep their other keys. Returns True on success."""
+    skill_md = skill_dir / "SKILL.md"
+    try:
+        import yaml
+    except ImportError:
+        warn("pyyaml not available — provider tag remap skipped")
+        return False
+    try:
+        text = skill_md.read_text(encoding="utf-8")
+        if not text.startswith("---"):
+            warn("SKILL.md has no frontmatter — remap skipped")
+            return False
+        end = text.index("\n---", 3)
+        fm = yaml.safe_load(text[3:end]) or {}
+        meta = fm.get("metadata")
+        if not isinstance(meta, dict):
+            meta = {}
+            fm["metadata"] = meta
+        canonical = meta.get("tags")
+        if not isinstance(canonical, list) or not canonical:
+            warn("no canonical metadata.tags — nothing to remap")
+            return False
+        changed = False
+        for p in providers:
+            if p not in SUPPORTED_PROVIDERS:
+                continue
+            blk = meta.get(p)
+            if not isinstance(blk, dict):
+                blk = {}
+                meta[p] = blk
+            if blk.get("tags") != list(canonical):
+                blk["tags"] = list(canonical)
+                changed = True
+        if changed:
+            new_fm = yaml.safe_dump(fm, sort_keys=False, allow_unicode=True,
+                                    default_flow_style=False).rstrip()
+            skill_md.write_text(f"---\n{new_fm}\n{text[end + 1:]}", encoding="utf-8")
+        return True
+    except Exception as e:
+        warn(f"provider tag remap failed: {e}")
+        return False
+
 def has_replace_me_markers(skill_md: Path) -> bool:
     try:
         return "REPLACE_ME" in skill_md.read_text(encoding="utf-8")
@@ -421,6 +486,18 @@ def run_pipeline(cmd: str, args) -> int:
         run_chain(chain_workdir, chain_name, "verify", str(step_path))
         run_chain(chain_workdir, chain_name, "complete", str(step_path))
 
+        # Provider tag remap — BEFORE packaging so remapped tags ship in the
+        # archive. Additive: canonical metadata.tags is the untouched source of
+        # truth. Providers: --provider flag wins; else detected from env.
+        providers = list(getattr(args, "provider", None) or detect_providers())
+        if providers:
+            info(f"provider tag remap: {', '.join(providers)}")
+            if remap_provider_tags(skill_dir, providers):
+                ok(f"tags remapped into metadata.{{{','.join(providers)}}}.tags")
+        else:
+            info("no provider detected — canonical tags only "
+                 "(references/provider-tag-remapping.md)")
+
         # Gate 10: Package
         step(11, 11, "Gate: package_skills.py (bumps version, emits .skill)")
         step_path = chain_step_dir / "package"
@@ -459,11 +536,15 @@ def main():
     ap_create.add_argument("--tier", choices=["enterprise", "basic"], default="enterprise",
                            help="ENTERPRISE is standard; basic requires explicit flag")
     ap_create.add_argument("--noninteractive", action="store_true", help="Agent mode — no prompts")
+    ap_create.add_argument("--provider", action="append", choices=list(SUPPORTED_PROVIDERS),
+                           help="Remap tags for this provider (repeatable; default: auto-detect from env)")
 
     ap_update = sub.add_parser("update", help="Update existing skill through enforced pipeline")
     ap_update.add_argument("--path", required=True, help="Path to existing skill dir")
     ap_update.add_argument("--tier", choices=["enterprise", "basic"], default="enterprise")
     ap_update.add_argument("--noninteractive", action="store_true")
+    ap_update.add_argument("--provider", action="append", choices=list(SUPPORTED_PROVIDERS),
+                           help="Remap tags for this provider (repeatable; default: auto-detect from env)")
 
     args = ap.parse_args()
     sys.exit(run_pipeline(args.cmd, args))
