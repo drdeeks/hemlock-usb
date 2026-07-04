@@ -142,6 +142,23 @@ if [ -z "$VARIANT" ] && [ -z "$LOAD_TAR" ] && [ "$NATIVE" -eq 0 ] && [ -t 0 ]; t
     fi
 fi
 
+# ── HOST AWARENESS: users may run their own OpenClaw or Hermes on this host.
+#    Hemlock is a separate combined system — inform, never interfere. ─────────
+HOST_NOTES=()
+[ -d "$HOME/.openclaw" ] && HOST_NOTES+=("~/.openclaw exists — a host OpenClaw install")
+env | grep -q '^OPENCLAW_' && HOST_NOTES+=("OPENCLAW_* env vars are set in this shell")
+env | grep -qE '^HERMES_(HOME|USB)=' && HOST_NOTES+=("HERMES_* env vars are set in this shell")
+pgrep -f "openclaw gateway" >/dev/null 2>&1 && HOST_NOTES+=("an openclaw gateway process is RUNNING")
+if [ ${#HOST_NOTES[@]} -gt 0 ]; then
+    warn "detected on this host:"
+    for n in "${HOST_NOTES[@]}"; do warn "  • $n"; done
+    warn "Hemlock stays fully isolated from it: containers are namespaced, native"
+    warn "mode scopes all env to HEMLOCK_HOME, and nothing of yours is touched."
+    warn "ONE thing can still collide: pointing BOTH at the same Telegram bot"
+    warn "token makes them steal each other's messages (409 Conflict) — use a"
+    warn "separate bot for Hemlock."
+fi
+
 # ── Native path (no container) ────────────────────────────────────────────────
 if [ "$NATIVE" -eq 1 ]; then
     log "native install — no container. Handing off to scripts/run-native.sh"

@@ -20,8 +20,20 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 log()  { echo "[hemlock-native] $*"; }
 warn() { echo "[hemlock-native][warn] $*" >&2; }
 
-# ── Base dirs: everything mutable under HEMLOCK_HOME, repo stays read-only ────
+# ── HOST ISOLATION: users may run their OWN OpenClaw or Hermes on this host.
+#    Hemlock is its own combined system — it NEVER adopts host OPENCLAW_*/
+#    HERMES_* values and NEVER touches the host install. Everything Hemlock
+#    is namespaced under HEMLOCK_HOME; foreign env is warned about and
+#    overridden FOR THIS PROCESS TREE ONLY (the host shell is untouched).
 export HEMLOCK_HOME="${HEMLOCK_HOME:-$HOME/.hemlock}"
+_is_ours() { case "$1" in "$HEMLOCK_HOME"*|"$REPO_ROOT"*) return 0 ;; *) return 1 ;; esac; }
+for _v in HERMES_HOME OPENCLAW_ROOT RUNTIME_ROOT AGENTS_DIR CREWS_DIR IMPORTS_DIR EXPORTS_DIR; do
+    _cur="${!_v:-}"
+    if [ -n "$_cur" ] && ! _is_ours "$_cur"; then
+        warn "host $_v=$_cur detected (a host OpenClaw/Hermes install?) — Hemlock will not use or touch it; scoping $_v to HEMLOCK_HOME for this run"
+        unset "$_v"
+    fi
+done
 export HERMES_HOME="${HERMES_HOME:-$HEMLOCK_HOME/runtime}"     # legacy alias kept
 export RUNTIME_ROOT="${RUNTIME_ROOT:-$HEMLOCK_HOME/data}"
 export AGENTS_DIR="${AGENTS_DIR:-$RUNTIME_ROOT/agents}"
@@ -32,6 +44,8 @@ export OPENCLAW_ROOT="${OPENCLAW_ROOT:-$REPO_ROOT/docker/openclaw-runtime}"
 export PYTHONPATH="$REPO_ROOT/docker/hermes-agent:${OPENCLAW_ROOT}/lib${PYTHONPATH:+:$PYTHONPATH}"
 export PYTHONUNBUFFERED=1
 unset HEMLOCK_DOCKER 2>/dev/null || true
+# Never let a host openclaw/hermes binary shadow the bundled ones (PATH may
+# lead with a host or USB install; we call ours by absolute path only).
 
 mkdir -p "$HERMES_HOME" "$AGENTS_DIR" "$CREWS_DIR" "$IMPORTS_DIR" "$EXPORTS_DIR" \
          "$RUNTIME_ROOT/knowledge/inbox" "$HEMLOCK_HOME/logs" "$HEMLOCK_HOME/skills"
