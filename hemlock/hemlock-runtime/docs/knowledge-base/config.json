@@ -1,0 +1,66 @@
+{
+  "version": "1.1.0",
+  "indexing": {
+    "enabled": true,
+    "schedule": "manual",
+    "auto_update": false,
+    "interval_hours": 24,
+    "version_management": {
+      "enabled": true,
+      "track_file_versions": true,
+      "store_previous_versions": false,
+      "max_versions": 5
+    }
+  },
+  "sources": {
+    "markdown": true,
+    "text": true,
+    "json": true,
+    "yaml": true,
+    "python": true,
+    "bash": true,
+    "links": true
+  },
+  "excludes": [
+    "node_modules",
+    "__pycache__",
+    ".git",
+    ".git/*",
+    "*.log",
+    "*.tmp",
+    "*~",
+    ".secrets",
+    ".secrets/*",
+    ".hermes",
+    ".hermes/*",
+    ".archive",
+    ".archive/*",
+    ".backups",
+    ".backups/*",
+    ".env",
+    ".env.*",
+    "*.enc",
+    "*.key",
+    "*.pem",
+    "*secret*",
+    "*password*",
+    "*token*",
+    "*api*key*"
+  ],
+  "search": {
+    "min_word_length": 3,
+    "max_results": 20,
+    "fuzzy_search": true
+  },
+  "sensitive_patterns": {
+    "preserve_in_index": false,
+    "warn_on_access": true,
+    "patterns": [
+      ".secret",
+      ".key",
+      ".pem",
+      ".enc",
+      ".env"
+    ]
+  }
+}

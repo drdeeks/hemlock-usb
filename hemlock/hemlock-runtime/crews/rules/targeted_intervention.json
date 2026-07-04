@@ -1,0 +1,54 @@
+{
+  "alwaysApply": true,
+  "ruleName": "Targeted Intervention Strategy",
+  "minimalChangePrinciple": {
+    "coreGuidelines": [
+      "Surgical Precision: Make the smallest possible change that achieves the objective",
+      "Single Responsibility: Each commit should address one specific concern",
+      "Impact Isolation: Changes should be contained to the affected domain/module",
+      "Dependency Preservation: Maintain existing interfaces unless explicitly changing them"
+    ]
+  },
+  "fileModificationHierarchy": {
+    "configurationChanges": {
+      "riskLevel": "LOW",
+      "validationRequired": "Configuration validation, dependency conflict check",
+      "items": [
+        "Environment variables and configuration files",
+        "Build tool configurations (webpack, vite, etc.)",
+        "Package dependencies and versions",
+        "Infrastructure as Code (Terraform, CloudFormation)"
+      ]
+    },
+    "businessLogic": {
+      "riskLevel": "MEDIUM",
+      "validationRequired": "Unit tests, integration tests, business rule validation",
+      "items": [
+        "Service layer implementations",
+        "Business rule modifications",
+        "Data transformation logic",
+        "Workflow and process changes"
+      ]
+    },
+    "dataModels": {
+      "riskLevel": "HIGH",
+      "validationRequired": "Migration testing, data integrity checks, rollback strategy",
+      "items": [
+        "Database schema changes",
+        "Entity relationship modifications",
+        "Data type and constraint changes",
+        "Migration script implementations"
+      ]
+    },
+    "infrastructure": {
+      "riskLevel": "CRITICAL",
+      "validationRequired": "Full system testing, performance validation, security audit",
+      "items": [
+        "Core architecture changes",
+        "Framework upgrades",
+        "Security implementations",
+        "Performance optimizations"
+      ]
+    }
+  }
+}

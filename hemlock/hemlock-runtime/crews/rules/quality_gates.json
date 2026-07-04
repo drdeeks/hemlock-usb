@@ -1,0 +1,66 @@
+{
+  "alwaysApply": true,
+  "ruleName": "Enterprise-Grade Quality Gates",
+  "codeQualityStandards": {
+    "codeReviewChecklist": {
+      "mandatoryReviewCriteria": [
+        {
+          "title": "Code follows established patterns and conventions",
+          "items": [
+            "Consistent naming conventions used throughout",
+            "Code structure follows project architecture patterns",
+            "Proper separation of concerns implemented",
+            "Design patterns used appropriately"
+          ]
+        },
+        {
+          "title": "All functions have appropriate error handling",
+          "items": [
+            "Exceptions are caught and handled properly",
+            "Error messages are informative and actionable",
+            "Fallback mechanisms implemented where appropriate",
+            "Resource cleanup guaranteed in finally blocks"
+          ]
+        },
+        {
+          "title": "Security considerations are addressed",
+          "items": [
+            "Input validation implemented for all user inputs",
+            "SQL injection prevention through parameterized queries",
+            "XSS prevention through proper output encoding",
+            "Authentication and authorization checks in place"
+          ]
+        },
+        {
+          "title": "Performance implications are considered",
+          "items": [
+            "No obvious performance bottlenecks introduced",
+            "Database queries are optimized",
+            "Caching strategies implemented where appropriate",
+            "Memory usage optimized"
+          ]
+        },
+        {
+          "title": "Code is properly documented",
+          "items": [
+            "Complex business logic is commented",
+            "Public APIs have comprehensive documentation",
+            "README files updated for new features",
+            "Inline comments explain \"why\" not just \"what\""
+          ]
+        }
+      ],
+      "advancedReviewCriteria": {
+        "title": "Technical Excellence",
+        "items": [
+          "SOLID principles followed",
+          "DRY principle applied appropriately",
+          "Code is testable and modular",
+          "Dependencies are properly managed",
+          "Configuration is externalized",
+          "Logging is implemented appropriately"
+        ]
+      }
+    }
+  }
+}

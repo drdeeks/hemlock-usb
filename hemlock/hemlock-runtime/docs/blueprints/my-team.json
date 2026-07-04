@@ -1,0 +1,163 @@
+{
+  "blueprint_id": "b3d5cc85",
+  "crew_name": "my-team",
+  "project_name": "my-team",
+  "version": "1.0.0",
+  "created_at": "2026-04-26T14:44:32.128862+00:00",
+  "updated_at": "2026-04-26T14:44:32.128862+00:00",
+  "status": "draft",
+  "current_phase": "planning",
+  "success_criteria": [
+    "Project completed successfully",
+    "All acceptance criteria met",
+    "No critical issues remaining"
+  ],
+  "expected_outcomes": [
+    "Project completed successfully",
+    "All acceptance criteria met",
+    "Documentation up to date",
+    "No critical issues"
+  ],
+  "success_measures": [
+    "All success criteria met",
+    "All agents completed tasks",
+    "Checkpoints created at key milestones"
+  ],
+  "agent_types": [
+    "lead",
+    "ui",
+    "integration",
+    "blockchain"
+  ],
+  "agents": [
+    {
+      "agent_id": "lead-1",
+      "agent_type": "lead",
+      "display_name": "Lead",
+      "description": "Lead agent - Coordinator and manager",
+      "workflow": [
+        "Create project blueprint",
+        "Coordinate agent activities",
+        "Monitor progress",
+        "Validate results",
+        "Create checkpoints"
+      ],
+      "status": "ready",
+      "joined_at": null,
+      "completed_tasks": 0
+    },
+    {
+      "agent_id": "ui-1",
+      "agent_type": "ui",
+      "display_name": "Ui",
+      "description": "UI/UX Specialist - Design and user experience",
+      "workflow": [
+        "Analyze UI requirements",
+        "Design user interface",
+        "Implement UI components",
+        "Test UI functionality",
+        "Optimize user experience"
+      ],
+      "status": "ready",
+      "joined_at": null,
+      "completed_tasks": 0
+    },
+    {
+      "agent_id": "integration-1",
+      "agent_type": "integration",
+      "display_name": "Integration",
+      "description": "Integration Architect - System integration and data flow",
+      "workflow": [
+        "Analyze system architecture",
+        "Design integration points",
+        "Implement connections",
+        "Test data flow",
+        "Optimize performance"
+      ],
+      "status": "ready",
+      "joined_at": null,
+      "completed_tasks": 0
+    },
+    {
+      "agent_id": "blockchain-1",
+      "agent_type": "blockchain",
+      "display_name": "Blockchain",
+      "description": "Blockchain & Security - Security implementation and blockchain",
+      "workflow": [
+        "Analyze security requirements",
+        "Implement security measures",
+        "Integrate blockchain features",
+        "Test security",
+        "Validate encryption"
+      ],
+      "status": "ready",
+      "joined_at": null,
+      "completed_tasks": 0
+    }
+  ],
+  "workflow_steps": [
+    {
+      "phase": "planning",
+      "steps": [
+        "Analyze project requirements",
+        "Define success criteria",
+        "Identify agent assignments",
+        "Create detailed plan"
+      ]
+    },
+    {
+      "phase": "confirmation",
+      "steps": [
+        "Review blueprint",
+        "Validate agent assignments",
+        "Establish communication protocols",
+        "Set up checkpoints"
+      ]
+    },
+    {
+      "phase": "acting",
+      "steps": [
+        "lead agent: Create project blueprint",
+        "lead agent: Coordinate agent activities",
+        "lead agent: Monitor progress",
+        "lead agent: Validate results",
+        "lead agent: Create checkpoints",
+        "ui agent: Analyze UI requirements",
+        "ui agent: Design user interface",
+        "ui agent: Implement UI components",
+        "ui agent: Test UI functionality",
+        "ui agent: Optimize user experience",
+        "integration agent: Analyze system architecture",
+        "integration agent: Design integration points",
+        "integration agent: Implement connections",
+        "integration agent: Test data flow",
+        "integration agent: Optimize performance",
+        "blockchain agent: Analyze security requirements",
+        "blockchain agent: Implement security measures",
+        "blockchain agent: Integrate blockchain features",
+        "blockchain agent: Test security",
+        "blockchain agent: Validate encryption"
+      ]
+    },
+    {
+      "phase": "validation",
+      "steps": [
+        "End-to-end testing",
+        "Documentation review",
+        "Blueprint vs actual comparison",
+        "Changelog validation"
+      ]
+    },
+    {
+      "phase": "completed",
+      "steps": []
+    }
+  ],
+  "checkpoints": [],
+  "changelog": [],
+  "metadata": {
+    "created_by": "crew_blueprint.py",
+    "framework": "Hemlock Enterprise",
+    "source": "autonomous-crew inspired"
+  }
+}

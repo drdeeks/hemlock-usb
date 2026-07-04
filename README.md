@@ -12,6 +12,14 @@
 > **Enterprise-grade portable Linux + AI agent orchestration on a single USB.**
 > Boots anywhere. No traces on the host after initial bridge setup.
 
+> **Two separate, individually owned systems live in this repo — each usable on its own, for
+> more than one purpose:**
+> 1. **The USB compute platform** (this root: `menu.sh`, `usb/`, `blueprint/`) — a portable
+>    multi-boot Linux workstation. Works with or without any AI runtime on it.
+> 2. **The Hemlock agent runtime** ([`hemlock/hemlock-runtime/`](hemlock/hemlock-runtime/)) —
+>    a self-hosted multi-agent Docker runtime with its own README, docs, and lifecycle.
+>    Runs on any Docker host; it does not need the USB.
+>
 > **Two isolated ways to run the AI runtime, your choice:** (A) deploy to a Ventoy USB via the
 > bundled `portable-usb-manager` skill, or (B) just build and run the container directly
 > (`hemlock/hemlock-runtime/`, `docker build`) — a purpose-built rebuild, kept fully isolated on

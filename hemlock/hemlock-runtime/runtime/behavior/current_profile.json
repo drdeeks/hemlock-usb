@@ -1,0 +1,35 @@
+{
+  "created_at": "2026-05-13T17:19:06.861860",
+  "updated_at": "2026-05-13T17:19:06.862560",
+  "communication_style": {
+    "verbosity": "balanced",
+    "formality": "neutral",
+    "directness": "moderate"
+  },
+  "response_patterns": {
+    "avg_response_length": 4.7,
+    "question_ratio": 0.03333333333333333,
+    "example_usage": 0
+  },
+  "adaptation_history": [
+    {
+      "timestamp": "2026-05-13T17:19:06.862610",
+      "feedback": {
+        "type": "too_verbose"
+      },
+      "action": {
+        "type": "reduce_length",
+        "magnitude": 0.1,
+        "duration": "10_interactions"
+      }
+    }
+  ],
+  "active_adaptations": [
+    {
+      "type": "reduce_length",
+      "magnitude": 0.1,
+      "duration": "10_interactions",
+      "applied_at": "2026-05-13T17:19:06.863708"
+    }
+  ]
+}

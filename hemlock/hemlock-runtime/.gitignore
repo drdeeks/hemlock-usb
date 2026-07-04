@@ -1,0 +1,131 @@
+# =============================================================================
+# Hemlock runtime — .gitignore  (prestige tier)
+#
+# Contract: SECRETS and RUNTIME STATE can NEVER be committed, at any depth or
+# naming — while the vendored openclaw/hermes runtime (node_modules) stays fully
+# tracked for reproducible builds, and structure markers (.gitkeep / *.example /
+# *.template) always survive. Rules are surgical: we ignore secret/state *data*,
+# never source directories that merely share a name (e.g. an SDK `sessions/` of
+# TypeScript defs).
+#
+# Precedence: last match wins, so all re-includes (!) live at the bottom.
+# =============================================================================
+
+# ── 1. SECRETS / CREDENTIALS — never, anywhere ───────────────────────────────
+.env
+**/.env
+.env.*
+**/.env.*
+.secrets/
+**/.secrets/
+*.secret-key
+**/*.secret-key
+.secret-key
+**/.secret-key
+.backup-key
+**/.backup-key
+*.key
+**/*.key
+*.pem
+**/*.pem
+*.pfx
+*.p12
+*.keystore
+*.jks
+id_rsa
+id_ecdsa
+id_ed25519
+**/id_rsa
+**/id_ed25519
+auth.json
+**/auth.json
+credentials.json
+**/credentials.json
+*.credentials
+*.json.enc
+**/*.json.enc
+*.gpg
+.netrc
+.npmrc
+*.token
+**/*.token
+*apikey*
+*api_key*
+
+# ── 2. RUNTIME STATE — regenerated at run time (has leaked keys before) ───────
+# Session transcripts / request dumps — the DATA, not any source dir named so.
+**/sessions/*.json
+**/sessions/*.jsonl
+**/sessions/dumps/
+**/request_dump*
+**/*_dump_*.json
+agents/*/sessions/
+crews/*/sessions/
+runtime/sessions/
+# SQLite + WAL
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+# Per-run gateway/agent state caches (specific filenames)
+**/gateway_state.json
+**/channel_directory.json
+**/models_dev_cache.json
+**/registered_skills.json
+# Crash-safe context dumps + live context
+**/context.md
+# Backups (may hold encrypted whole-state archives)
+backups/
+**/backups/
+
+# ── 3. LOGS ──────────────────────────────────────────────────────────────────
+*.log
+**/*.log
+logs/*.gz
+**/logs/*.gz
+
+# ── 4. CACHES / TRANSIENT ─────────────────────────────────────────────────────
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+*.tmp
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# ── 5. AGENT/CREW RUNTIME (real agents are volumes; only workspace-template is
+#      baked). Their live logs/secrets stay out of the SOURCE repo.
+agents/*/logs/
+agents/*/.secrets/
+crews/*/logs/
+
+# ── 6. NODE debug noise (vendored node_modules itself is KEPT — see re-includes)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+
+# ── 7. DOWNLOADED MODEL WEIGHTS (re-downloadable; never committed) ────────────
+scripts/models/huggingface/
+**/*.gguf
+**/*.safetensors
+
+# =============================================================================
+# RE-INCLUDES (last match wins) — nothing needed is ever dropped
+# =============================================================================
+# Vendored runtime is tracked wholesale for reproducible builds: no secret/state
+# pattern above may drop anything under a node_modules tree.
+!**/node_modules/**
+# Structure & scaffold markers always survive.
+!**/.gitkeep
+!**/*.example
+!**/*.template
+!**/.env.example
+!**/.env.template

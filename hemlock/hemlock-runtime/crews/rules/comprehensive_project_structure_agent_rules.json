@@ -1,0 +1,24 @@
+{
+  "alwaysApply": true,
+  "ruleName": "Comprehensive Project Structure Agent Rules",
+  "overview": "This document defines comprehensive rules for an automated agent that validates and enforces proper file structure and required files across different project types. The agent must scan, validate, and create necessary files based on project type detection and scalability requirements.",
+  "coreDetectionValidationRules": {
+    "projectTypeDetectionAlgorithm": [
+      "Check for framework indicators (package.json dependencies, config files)",
+      "Scan for blockchain artifacts (contracts/, hardhat.config.js, foundry.toml)",
+      "Detect monorepo patterns (workspace configurations, multiple package.json)",
+      "Identify desktop app frameworks (tauri.conf.json, electron configs)",
+      "Analyze scalability tooling (docker files, k8s configs, CI/CD)"
+    ]
+  },
+  "baseProjectTypes": {
+    "webApplicationFrontendOnly": {
+      "coreRequiredFiles": "project-root/\n├── package.json                    # NPM package configuration\n├── index.html                      # Entry HTML file\n├── favicon.ico                     # Browser icon\n├── src/\n│   ├── main.js|ts                  # Application entry point\n│   ├── App.vue|jsx|tsx             # Main application component\n│   ├── assets/                     # Static assets\n│   │   ├── logo.svg|png\n│   │   └── styles/\n│   │       └── main.css|scss\n│   ├── components/                 # Reusable components\n│   │   └── README.md\n│   ├── views/                      # Page components\n│   │   └── Home.vue|jsx|tsx\n│   ├── router/ (if SPA)            # Routing configuration\n│   │   └── index.js|ts\n│   ├── store/ (if state management)  # State management\n│   │   └── index.js|ts\n│   └── utils/                      # Utility functions\n│       └── helpers.js|ts\n├── public/                         # Static public assets\n│   ├── robots.txt\n│   ├── sitemap.xml\n│   └── manifest.json (PWA)\n├── .env.example                    # Environment variables template\n├── .gitignore                      # Git ignore rules\n├── README.md                       # Project documentation\n├── LICENSE                         # License file\n└── CHANGELOG.md                    # Version history",
+      "frameworkSpecificAdditions": {
+        "react": "├── src/\n│   ├── index.js|tsx                # React entry point\n│   ├── App.jsx|tsx                 # Main React component\n│   ├── hooks/                      # Custom React hooks\n│   │   └── useCustomHook.js|ts\n│   └── context/                    # React context providers\n│       └── AppContext.js|tsx\n├── jsconfig.json|tsconfig.json     # TypeScript/JavaScript config\n└── .eslintrc.js                    # ESLint configuration",
+        "vue": "├── src/\n│   ├── main.js|ts                  # Vue entry point\n│   ├── App.vue                     # Root Vue component\n│   ├── composables/                # Vue 3 composables\n│   │   └── useApi.js|ts\n│   └── plugins/                    # Vue plugins\n│       └── index.js|ts\n├── vue.config.js                   # Vue CLI configuration\n└── .eslintrc.js                    # ESLint configuration",
+        "angular": "├── src/\n│   ├── main.ts                     # Angular bootstrap\n│   ├── app/\n│   │   ├── app.module.ts           # Root module\n│   │   ├── app.component.ts        # Root component\n│   │   ├── app.component.html      # Root template\n│   │   ├── app.component.scss      # Root styles\n│   │   ├── app-routing.module.ts   # Routing module\n│   │   ├── core/                   # Core services\n│   │   ├── shared/                 # Shared components\n│   │   └── features/               # Feature modules\n│   ├── environments/               # Environment configs\n│   │   ├── environment.ts\n│   │   └── environment.prod.ts\n│   └── styles.scss                 # Global styles\n├── angular.json                    # Angular CLI config\n├── tsconfig.json                   # TypeScript configuration\n├── tsconfig.app.json              # App-specific TS config\n└── tsconfig.spec.json             # Test-specific TS config"
+      }
+    }
+  }
+}

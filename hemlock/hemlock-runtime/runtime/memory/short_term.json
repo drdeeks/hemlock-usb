@@ -1,0 +1,32 @@
+[
+  {
+    "type": "message",
+    "session_id": "test_session",
+    "role": "user",
+    "content": "Testing memory write",
+    "timestamp": "2026-05-13T17:19:06.855576",
+    "priority": "normal"
+  },
+  {
+    "type": "message",
+    "session_id": "test_test_user",
+    "role": "unknown",
+    "content": "Hello, this is a test message",
+    "timestamp": "2026-05-13T17:27:10.758656",
+    "priority": "normal"
+  },
+  {
+    "type": "test",
+    "content": "Persistence test memory",
+    "test_id": "172935",
+    "timestamp": "2026-05-13T17:29:35.109538",
+    "priority": "normal"
+  },
+  {
+    "type": "test",
+    "content": "Persistence test memory",
+    "test_id": "173004",
+    "timestamp": "2026-05-13T17:30:04.278340",
+    "priority": "normal"
+  }
+]

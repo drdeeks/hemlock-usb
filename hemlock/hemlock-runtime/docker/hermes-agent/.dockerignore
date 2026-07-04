@@ -1,0 +1,187 @@
+# =============================================================================
+# Hemlock Framework - hermes-agent/ Docker Ignore File
+# Only gateway, MCP, agent loop, entrypoint, patches, and shared skills go in image
+# Agent/crew data is mounted at runtime via volumes
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Documentation (not needed in runtime images)
+# -----------------------------------------------------------------------------
+*.md
+README*
+LICENSE*
+CHANGELOG*
+CHANGES*
+CONTRIBUTING*
+CODE_OF_CONDUCT*
+SYSTEM*
+
+# -----------------------------------------------------------------------------
+# Git and Version Control
+# -----------------------------------------------------------------------------
+.git/
+.gitignore
+.gitmodules
+.gitconfig
+.gitattributes
+
+# -----------------------------------------------------------------------------
+# Build Artifacts
+# -----------------------------------------------------------------------------
+*.egg-info/
+*.egg-info
+*.egg
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+.Python
+__pyinstaller__/
+
+# Virtual environments
+env/
+venv/
+ENV/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# -----------------------------------------------------------------------------
+# Dependency lock files
+# -----------------------------------------------------------------------------
+uv.lock
+poetry.lock
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+
+# -----------------------------------------------------------------------------
+# Node.js
+# -----------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# -----------------------------------------------------------------------------
+# Testing and Coverage
+# -----------------------------------------------------------------------------
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+.mypy_cache/
+*test*
+*benchmark*
+*datagen*
+
+# -----------------------------------------------------------------------------
+# Logs and Temporary Files
+# -----------------------------------------------------------------------------
+*.log
+*.tmp
+*.temp
+.cache/
+
+# -----------------------------------------------------------------------------
+# Optional subprojects (not needed in base image)
+# -----------------------------------------------------------------------------
+tinker-atropos/
+
+# -----------------------------------------------------------------------------
+# IDE and Editor Files
+# -----------------------------------------------------------------------------
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.swo
+*~
+
+# -----------------------------------------------------------------------------
+# OS and System Files
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+.Trashes
+ehthumbs.db
+Thumbs.db
+._*
+
+# -----------------------------------------------------------------------------
+# Local Configuration Overrides
+# -----------------------------------------------------------------------------
+.env
+.env.*
+*.env
+*.secret
+*.key
+*.pem
+*.enc
+*token*
+*secret*
+*password*
+*private*key*
+*api*key*
+.envrc
+
+# -----------------------------------------------------------------------------
+# Docker Files (prevent circular builds)
+# -----------------------------------------------------------------------------
+Dockerfile*
+docker-compose*.yml
+docker-compose*.yaml
+
+# -----------------------------------------------------------------------------
+# Backup Files
+# -----------------------------------------------------------------------------
+*.bak
+*.backup
+*.old
+*.orig
+
+# -----------------------------------------------------------------------------
+# Script Output and Generated Files
+# -----------------------------------------------------------------------------
+*.out
+*.output
+*.result
+*.report
+
+# =============================================================================
+# Exceptions: Files that SHOULD be included in docker/hermes-agent/ builds
+# These lines MUST start with ! and have NO leading whitespace
+# =============================================================================
+!Dockerfile
+!docker/entrypoint.sh
+!.dockerignore
+!agent/
+!gateway/
+!hermes_cli/
+!hermes_constants.py
+!hermes_logging.py
+!hermes_state.py
+!hermes_time.py
+!cli.py
+!mcp_serve.py
+!mini_swe_runner.py
+!model_tools.py
+!rl_cli.py
+!run_agent.py
+!toolset_distributions.py
+!toolsets.py
+!trajectory_compressor.py
+!utils.py
+!hermes
+!tools/

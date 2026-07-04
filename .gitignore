@@ -1,3 +1,37 @@
-# nested repo — versioned on its own
-hemlock/hemlock-runtime/
+# ── Secrets / credentials — never in the repo ─────────────────────────────────
+.env
+**/.env
+!**/.env.example
+**/.secrets/
+**/*.key
+**/*.pem
+*.secret-key
+.backup-key
+**/.backup-key
+**/auth.json
+*.json.enc
+
+# ── GitHub hard limit: files >100MB. Vendored node binary is re-fetchable ─────
+# (restore: copy bin/node from any Node 22 install, or re-run tools bootstrap)
+hemlock/hemlock-runtime/docker/openclaw-runtime/tools/node/bin/node
+
+# ── Runtime/agent LOCAL state (regenerated; agents are volumes) ───────────────
+hemlock/hemlock-runtime/agents/active/
+hemlock/hemlock-runtime/agents/archive/
+hemlock/hemlock-runtime/agents/registrar/
+hemlock/hemlock-runtime/data/
+hemlock/hemlock-runtime/logs/
+hemlock/hemlock-runtime/volumes/
+**/__pycache__/
+**/*.pyc
+**/*.log
+
+# ── Editor / OS junk ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*~
 .claude/
+
+# ── Large fetched-on-demand blobs (portable-usb-manager re-downloads) ─────────
+usb/volumes/ventoy/ventoy-*-linux.tar.gz

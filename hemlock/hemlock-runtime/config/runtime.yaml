@@ -1,0 +1,19 @@
+# OpenClaw Runtime Configuration
+runtime:
+  gateway:
+    port: 18789
+    token: "change_this_to_a_secure_token"
+    bind: "lan"
+  agents:
+    default_model: "ollama/qwen3:0.6b"
+    default_network: "agents_net"
+  security:
+    read_only: true
+    cap_drop: true
+    icc: false
+    tmpfs: true
+    tmpfs_size: "64m"
+  logging:
+    level: "info"
+    max_size: "10m"
+    max_files: 5

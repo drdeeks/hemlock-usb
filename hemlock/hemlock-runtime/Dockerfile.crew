@@ -1,0 +1,132 @@
+# =============================================================================
+# OpenClaw Crew Export Dockerfile
+# 
+# Exports a crew with all its agents, configurations, and workflows
+# Creates a self-contained, portable crew image that can be:
+#   - Deployed anywhere with Docker
+#   - Imported into another OpenClaw instance
+#   - Shared via Docker Hub or private registry
+# 
+# Usage:
+#   # Export a crew
+#   docker build -t my-exported-crew \
+#     --build-arg CREW_ID=my-crew \
+#     --build-arg CREW_SOURCE_DIR=./crews \
+#     -f Dockerfile.crew \
+#     .
+# 
+#   # Run exported crew
+#   docker run -d \
+#     -e OPENCLAW_GATEWAY_URL=ws://host:18789 \
+#     -e OPENCLAW_GATEWAY_TOKEN=your_token \
+#     --name my-crew \
+#     my-exported-crew
+# =============================================================================
+
+FROM python:3.11-slim
+
+# =============================================================================
+# Build Arguments
+# =============================================================================
+ARG CREW_ID
+ARG CREW_SOURCE_DIR=./crews
+ARG INCLUDE_AGENTS=true
+ARG INCLUDE_SKILLS=true
+ARG INCLUDE_MEMORY=false
+
+# =============================================================================
+# Install system dependencies
+# =============================================================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    git \
+    jq \
+    tar \
+    gzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# =============================================================================
+# Install OpenClaw components from local docker/ directory
+# =============================================================================
+COPY docker/hermes-agent /tmp/hermes-agent
+COPY docker/openclaw-runtime /tmp/openclaw-runtime
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir /tmp/hermes-agent && \
+    pip install --no-cache-dir /tmp/openclaw-runtime && \
+    rm -rf /tmp/hermes-agent /tmp/openclaw-runtime
+
+# =============================================================================
+# Create crew directory structure
+# =============================================================================
+RUN mkdir -p /app/{crews,agents,config,skills,tools,logs,data,scripts,lib}
+
+# =============================================================================
+# Copy entrypoint script
+# =============================================================================
+COPY entrypoint.sh /app/entrypoint.sh
+COPY lib/common.sh /app/lib/common.sh
+RUN chmod +x /app/entrypoint.sh /app/lib/common.sh
+
+# =============================================================================
+# Copy crew configuration and all agent configurations
+# =============================================================================
+# Copy the specific crew's configuration
+COPY ${CREW_SOURCE_DIR}/${CREW_ID}/crew.yaml /app/crews/${CREW_ID}/crew.yaml 2>/dev/null || true
+COPY ${CREW_SOURCE_DIR}/${CREW_ID}/SOUL.md /app/crews/${CREW_ID}/SOUL.md 2>/dev/null || true
+
+# Copy crew workflows and rules if they exist
+COPY ${CREW_SOURCE_DIR}/${CREW_ID}/workflows/ /app/crews/${CREW_ID}/workflows/ 2>/dev/null || true
+COPY ${CREW_SOURCE_DIR}/${CREW_ID}/rules/ /app/crews/${CREW_ID}/rules/ 2>/dev/null || true
+COPY ${CREW_SOURCE_DIR}/${CREW_ID}/blueprints/ /app/crews/${CREW_ID}/blueprints/ 2>/dev/null || true
+
+# =============================================================================
+# Copy agent configurations for crew members
+# =============================================================================
+# This COPY command needs to be done at build time from the actual agent directories
+# We'll use a script to extract agent IDs from crew.yaml and copy their configs
+RUN mkdir -p /app/agents
+
+# =============================================================================
+# Set environment variables
+# =============================================================================
+ENV CREW_ID=${CREW_ID} \
+    CREW_SOURCE_DIR=${CREW_SOURCE_DIR} \
+    CREW_CONFIG=/app/crews/${CREW_ID}/crew.yaml \
+    INCLUDE_AGENTS=${INCLUDE_AGENTS} \
+    INCLUDE_SKILLS=${INCLUDE_SKILLS} \
+    INCLUDE_MEMORY=${INCLUDE_MEMORY} \
+    OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:18789 \
+    OPENCLAW_GATEWAY_TOKEN=change_this_to_a_secure_token
+
+# =============================================================================
+# Metadata labels for exported crew
+# =============================================================================
+LABEL org.opencontainers.image.title="OpenClaw Crew: ${CREW_ID}" \
+      org.opencontainers.image.description="Exported OpenClaw Crew with ID ${CREW_ID}" \
+      org.opencontainers.image.version="1.0.0" \
+      com.openclaw.crew.id="${CREW_ID}" \
+      com.openclaw.crew.type="crew-export" \
+      com.openclaw.include.agents="${INCLUDE_AGENTS}" \
+      com.openclaw.include.skills="${INCLUDE_SKILLS}" \
+      com.openclaw.include.memory="${INCLUDE_MEMORY}"
+
+# =============================================================================
+# Working directory
+# =============================================================================
+WORKDIR /app
+
+# =============================================================================
+# Expose gateway port
+# =============================================================================
+EXPOSE 18789
+
+# =============================================================================
+# Health check
+# =============================================================================
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD pgrep -x "hermes" > /dev/null || exit 1
+
+# =============================================================================
+# Entrypoint - crew-specific entrypoint needed
+# =============================================================================
+ENTRYPOINT ["/app/entrypoint.sh"]

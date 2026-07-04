@@ -1,0 +1,17 @@
+# Per-volume git snapshot excludes.
+# The ENTIRE volume is a git repo, committed daily, so the agent can roll back
+# any change in any directory. We exclude only regenerable/ephemeral churn so the
+# history stays lean — every meaningful piece of agent state is still tracked
+# (including .secrets/, which is stored ENCRYPTED, so rollback is complete).
+__pycache__/
+*.pyc
+*.pyo
+*.tmp
+*.swp
+# Ephemeral crash-safety snapshots — the authoritative transcripts in
+# sessions/*.jsonl ARE tracked; the dump copies under sessions/dumps/ are not.
+sessions/dumps/
+# Regenerated at each session start by inject-context.sh
+context.md
+# Rotated log archives (current .log files ARE tracked)
+logs/*.gz

@@ -1,0 +1,17 @@
+{
+  "id": "refl_20260513_171906",
+  "conversation_id": "test_conv",
+  "timestamp": "2026-05-13T17:19:06.852247",
+  "type": "learning",
+  "summary": "User asked about: Can you show me an example?. Assistant responded: Here is an example: def my_function(): pass",
+  "patterns": [
+    {
+      "type": "technical_content",
+      "description": "Technical discussion detected",
+      "confidence": 0.7
+    }
+  ],
+  "insights": [],
+  "adaptations": [],
+  "context": {}
+}

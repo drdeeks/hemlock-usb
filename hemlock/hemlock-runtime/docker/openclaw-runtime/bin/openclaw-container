@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# OpenClaw wrapper — container-compatible
+# Uses OPENCLAW_ROOT env var (default: /opt/openclaw)
+OPENCLAW_ROOT="${OPENCLAW_ROOT:-/opt/openclaw}"
+exec "${OPENCLAW_ROOT}/tools/node/bin/node" "${OPENCLAW_ROOT}/lib/node_modules/openclaw/openclaw.mjs" "$@"

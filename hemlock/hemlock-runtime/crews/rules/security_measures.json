@@ -1,0 +1,54 @@
+{
+  "alwaysApply": true,
+  "ruleName": "Security Measures",
+  "securityFirstDevelopment": {
+    "inputValidationAndSanitization": {
+      "comprehensiveInputValidation": [
+        "Server-Side Validation: Always validate inputs on the server side",
+        "Client-Side Validation: Implement for user experience, not security",
+        "Type Validation: Enforce strict data type requirements",
+        "Length Validation: Set appropriate minimum and maximum lengths",
+        "Format Validation: Use regex patterns for structured data (email, phone, etc.)",
+        "Whitelist Approach: Prefer whitelisting valid inputs over blacklisting"
+      ],
+      "sanitizationStrategies": {
+        "title": "Sanitization Requirements",
+        "items": [
+          "HTML encoding for web output contexts",
+          "URL encoding for URL parameters and paths",
+          "SQL parameterization for database queries",
+          "JSON encoding for JSON responses",
+          "XML encoding for XML outputs",
+          "Command injection prevention for system calls"
+        ]
+      },
+      "contextAwareEncoding": [
+        "HTML Context: Use HTML entity encoding",
+        "JavaScript Context: Use JavaScript string escaping",
+        "CSS Context: Use CSS value encoding",
+        "URL Context: Use URL encoding",
+        "SQL Context: Use parameterized queries exclusively"
+      ]
+    },
+    "authenticationAndAuthorization": {
+      "strongAuthenticationMechanisms": [
+        "Multi-Factor Authentication (MFA): Implement MFA for sensitive accounts",
+        "Password Policies: Enforce strong password requirements",
+        "Password Hashing: Use bcrypt, Argon2, or similar secure hashing",
+        "Account Lockout: Implement account lockout after failed attempts",
+        "Session Management: Use secure session handling practices"
+      ],
+      "roleBasedAccessControl": {
+        "title": "RBAC Implementation",
+        "items": [
+          "Define clear roles and permissions",
+          "Implement principle of least privilege",
+          "Use hierarchical role structures where appropriate",
+          "Regularly audit and review role assignments",
+          "Implement role-based UI hiding/showing",
+          "Log all authorization decisions"
+        ]
+      }
+    }
+  }
+}

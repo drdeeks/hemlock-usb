@@ -1,0 +1,14 @@
+.git
+node_modules
+models
+*.gguf
+*.safetensors
+venv
+.venv
+dist
+build
+tmp
+cache
+*.log
+*.zip
+*.tar.gz

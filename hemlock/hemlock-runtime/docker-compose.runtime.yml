@@ -1,0 +1,152 @@
+# =============================================================================
+# Hemlock Runtime — Portable Compose Configuration
+#
+# All paths resolved by PathResolver via environment variables.
+# No hardcoded /home/ paths anywhere. Mount volumes as needed.
+#
+# Quick start:
+#   docker compose up                    # start runtime
+#   docker compose run agent             # start agent with fresh container
+#   docker compose run runtime --doctor  # health check
+#   docker compose run runtime --setup   # non-interactive setup
+# =============================================================================
+
+x-hemlock-env: &hemlock-env
+  HEMLOCK_DOCKER: "1"
+  HERMES_MANAGED: "false"
+  HERMES_HOME: /runtime
+  HERMES_AGENTS: /data/agents
+  HERMES_CREWS: /data/crews
+  HERMES_PROJECTS: /projects
+  HERMES_SKILLS: /skills
+  HERMES_LOGS: /logs
+  HERMES_MEMORY: /memory
+  HERMES_PLUGINS: /plugins
+  HERMES_CONFIG: /config
+  HERMES_SCRIPTS: /scripts
+  HERMES_MODELS: /models
+  HERMES_KNOWLEDGE: /knowledge_base
+  # Shell script path vars (used by agent-create.sh, helpers.sh, etc.)
+  AGENTS_DIR: /data/agents
+  CREWS_DIR: /data/crews
+  PROJECTS_DIR: /projects
+  PLUGINS_DIR: /plugins
+  CONFIG_DIR: /config
+  LOGS_DIR: /logs
+  MEMORY_DIR: /memory
+  SKILLS_DIR: /skills
+  KNOWLEDGE_BASE_DIR: /knowledge_base
+  SCRIPTS_DIR: /scripts
+  IMPORTS_DIR: /data/imports
+  EXPORTS_DIR: /data/exports
+  PYTHONPATH: /opt/hermes
+  ENABLE_PERSISTENT_MEMORY: "true"
+  ENABLE_AGENT_RESURRECTION: "true"
+  ENABLE_CONTINUOUS_RUNTIME: "true"
+  ENABLE_SKILL_LEARNING: "true"
+  ENABLE_MEMORY_FEEDBACK: "true"
+  ENABLE_SESSION_RECOVERY: "true"
+
+services:
+  runtime:
+    build:
+      context: .
+      dockerfile: Dockerfile.runtime
+    image: hemlock:latest
+    container_name: hemlock_runtime
+    restart: unless-stopped
+    volumes:
+      - runtime_data:/runtime
+      - agents_data:/data/agents
+      - crews_data:/data/crews
+      - projects_data:/projects
+      - logs_data:/logs
+      - memory_data:/memory
+      - skills_data:/skills
+      - plugins_data:/plugins
+      - config_data:/config
+      - knowledge_data:/knowledge_base:ro
+      - ./volumes/imports:/data/imports
+      - ./volumes/exports:/data/exports
+    environment:
+      <<: *hemlock-env
+    ports:
+      - "18789:18789"
+    healthcheck:
+      test: ["CMD", "python3", "-m", "health.doctor_bridge", "--quick", "--json"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: []
+
+  agent:
+    image: hemlock:latest
+    container_name: hemlock_agent
+    restart: unless-stopped
+    profiles: ["agent"]
+    volumes:
+      - runtime_data:/runtime
+      - agents_data:/data/agents
+      - skills_data:/skills
+      - logs_data:/logs
+      - memory_data:/memory
+      - ./volumes/imports:/data/imports
+      - ./volumes/exports:/data/exports
+    environment:
+      <<: *hemlock-env
+      AGENT_ID: ${AGENT_ID:-hermes}
+      ENABLE_MCP_BRAIN: "true"
+    depends_on:
+      runtime:
+        condition: service_healthy
+    entrypoint: ["/opt/hermes/docker/entrypoint.sh"]
+
+  # Doctor service: run health checks and exit
+  doctor:
+    image: hemlock:latest
+    container_name: hemlock_doctor
+    profiles: ["ops"]
+    volumes:
+      - runtime_data:/runtime
+      - agents_data:/data/agents
+      - crews_data:/data/crews
+      - config_data:/config
+      - skills_data:/skills
+      - knowledge_data:/knowledge_base:ro
+    environment:
+      <<: *hemlock-env
+    command: ["--doctor", "--fix"]
+
+  # Setup service: non-interactive setup from config
+  setup:
+    image: hemlock:latest
+    container_name: hemlock_setup
+    profiles: ["ops"]
+    volumes:
+      - runtime_data:/runtime
+      - config_data:/config
+      - agents_data:/data/agents
+      - knowledge_data:/knowledge_base:ro
+      # Mount config for key injection (read-only)
+      - ${OPENCLAW_CONFIG_PATH:-/dev/null}:/opt/hermes/openclaw_config.json:ro
+    environment:
+      <<: *hemlock-env
+      OPENCLAW_CONFIG: /opt/hermes/openclaw_config.json
+    command: ["--setup"]
+
+volumes:
+  runtime_data:
+  agents_data:
+  crews_data:
+  projects_data:
+  logs_data:
+  memory_data:
+  # Skills: baked into the image as /opt/skills_seed (a clone of
+  # github.com/drdeeks/skills) and rsync'd into this named volume on first
+  # container start. Daily `git pull` runs inside the container via cron
+  # (see Dockerfile.runtime + docker/entrypoint.sh).
+  skills_data:
+  plugins_data:
+  config_data:
+  knowledge_data:

@@ -1,0 +1,84 @@
+{
+  "alwaysApply": true,
+  "ruleName": "Error Handling Enterprise Standards",
+  "errorClassificationSystem": {
+    "severityLevels": {
+      "CRITICAL": "System-breaking errors that prevent application startup",
+      "HIGH": "Feature-breaking errors that affect core functionality",
+      "MEDIUM": "Non-critical errors that degrade user experience",
+      "LOW": "Minor issues that don't affect functionality",
+      "INFO": "Warnings and optimization opportunities"
+    }
+  },
+  "errorHandlingImplementation": {
+    "structuredErrorResponseFormat": {
+      "standardErrorObject": {
+        "error": {
+          "code": "ERROR_CODE",
+          "message": "User-friendly error message",
+          "details": "Technical details for debugging",
+          "timestamp": "2025-01-01T12:00:00Z",
+          "requestId": "uuid-correlation-id",
+          "path": "/api/endpoint",
+          "method": "POST",
+          "statusCode": 400,
+          "category": "VALIDATION_ERROR",
+          "severity": "MEDIUM",
+          "retryable": false,
+          "userActions": ["Check input format", "Contact support"]
+        }
+      },
+      "errorCodeStandards": {
+        "Authentication": "AUTH_001 - AUTH_999",
+        "Authorization": "AUTHZ_001 - AUTHZ_999",
+        "Validation": "VAL_001 - VAL_999",
+        "Business Logic": "BIZ_001 - BIZ_999",
+        "Database": "DB_001 - DB_999",
+        "External Services": "EXT_001 - EXT_999",
+        "System": "SYS_001 - SYS_999"
+      }
+    },
+    "loggingStrategy": {
+      "logLevelsAndUsage": {
+        "ERROR": "System errors, exceptions, failures",
+        "WARN": "Potential issues, deprecation warnings",
+        "INFO": "Important business events, system state changes",
+        "DEBUG": "Detailed execution flow (development only)"
+      },
+      "structuredLoggingFormat": {
+        "timestamp": "2025-01-01T12:00:00Z",
+        "level": "ERROR",
+        "message": "Database connection failed",
+        "correlationId": "uuid",
+        "userId": "user-id",
+        "service": "user-service",
+        "operation": "getUserProfile",
+        "error": {
+          "type": "DatabaseConnectionError",
+          "message": "Connection timeout",
+          "stack": "sanitized-stack-trace"
+        },
+        "context": {
+          "retryAttempt": 3,
+          "maxRetries": 5
+        }
+      },
+      "sensitiveDataProtection": {
+        "neverLog": [
+          "Passwords or API keys",
+          "Personal identification information",
+          "Credit card numbers or financial data",
+          "Session tokens or authentication credentials",
+          "Full email addresses (use masked versions)"
+        ],
+        "safeToLog": [
+          "Sanitized user IDs",
+          "Request paths and methods",
+          "Error codes and categories",
+          "Performance metrics",
+          "Feature usage statistics"
+        ]
+      }
+    }
+  }
+}

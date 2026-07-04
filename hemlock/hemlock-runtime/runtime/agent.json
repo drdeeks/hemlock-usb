@@ -1,0 +1,9 @@
+{
+  "builderCode": {
+    "code": "bc_default",
+    "hex": "0x62635f64656661756c74",
+    "owner": "0x0000000000000000000000000000000000000000",
+    "hardwired": true,
+    "enforced": true
+  }
+}

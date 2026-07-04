@@ -1,0 +1,66 @@
+{
+  "alwaysApply": true,
+  "ruleName": "Enterprise Workflow",
+  "phases": {
+    "designAndArchitecture": {
+      "title": "Phase 2: Design & Architecture (CONDITIONAL)",
+      "riskCondition": "Execute if MEDIUM+ risk",
+      "duration": "10-30 minutes",
+      "deliverables": "Technical design, security plan, performance considerations",
+      "sections": {
+        "architectureDesign": {
+          "title": "Architecture Design",
+          "checklist": [
+            {
+              "title": "System Design Validation",
+              "items": [
+                "Ensure alignment with existing architecture patterns",
+                "Validate component interaction design",
+                "Confirm interface design consistency",
+                "Plan for scalability and performance"
+              ]
+            },
+            {
+              "title": "Security Design Review",
+              "items": [
+                "Input validation strategy defined",
+                "Authentication/authorization approach planned",
+                "Data protection measures designed",
+                "Compliance requirements addressed"
+              ]
+            }
+          ]
+        },
+        "performanceAndScalabilityPlanning": {
+          "title": "Performance & Scalability Planning",
+          "checklist": [
+            {
+              "title": "Performance Considerations",
+              "items": [
+                "Performance impact assessment completed",
+                "Optimization opportunities identified",
+                "Caching strategy planned",
+                "Database impact evaluated"
+              ]
+            }
+          ]
+        },
+        "integrationPlanning": {
+          "title": "Integration Planning",
+          "checklist": [
+            {
+              "title": "External Dependencies",
+              "items": [
+                "Third-party service impacts assessed",
+                "API contract changes evaluated",
+                "Database schema changes planned",
+                "Message queue impacts considered"
+              ]
+            }
+          ]
+        }
+      },
+      "stopGate": "Architecture review required for HIGH/CRITICAL risk changes"
+    }
+  }
+}

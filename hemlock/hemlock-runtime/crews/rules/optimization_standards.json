@@ -1,0 +1,58 @@
+{
+  "alwaysApply": true,
+  "ruleName": "Optimization Standards",
+  "performanceOptimization": {
+    "databaseOptimization": {
+      "queryPerformance": [
+        "Index Strategy: Create indexes for frequently queried columns",
+        "Query Analysis: Use EXPLAIN/ANALYZE to identify slow queries",
+        "N+1 Prevention: Identify and eliminate N+1 query problems",
+        "Batch Operations: Use batch inserts/updates where possible",
+        "Query Optimization: Rewrite inefficient queries and joins"
+      ],
+      "connectionManagement": {
+        "title": "Best Practices",
+        "items": [
+          "Use connection pooling for database connections",
+          "Set appropriate pool sizes based on load testing",
+          "Implement connection timeout and retry logic",
+          "Monitor connection pool health and utilization",
+          "Use read replicas for read-heavy operations"
+        ]
+      },
+      "cachingStrategy": [
+        "Query Caching: Cache frequently executed queries",
+        "Result Caching: Cache expensive computation results",
+        "Application-Level Caching: Implement Redis/Memcached where appropriate",
+        "Database Caching: Utilize database-level caching features",
+        "Cache Invalidation: Implement proper cache invalidation strategies"
+      ]
+    },
+    "codeOptimization": {
+      "algorithmOptimization": [
+        "Time Complexity: Choose algorithms with optimal time complexity",
+        "Space Complexity: Minimize memory usage in computations",
+        "Data Structures: Use appropriate data structures for use cases",
+        "Sorting and Searching: Implement efficient sorting and searching",
+        "Dynamic Programming: Use memoization for recursive problems"
+      ],
+      "memoryManagement": {
+        "title": "Best Practices",
+        "items": [
+          "Implement proper resource cleanup (connections, files, streams)",
+          "Use object pooling for frequently created objects",
+          "Minimize object allocation in hot paths",
+          "Implement garbage collection tuning",
+          "Monitor memory usage and identify leaks"
+        ]
+      },
+      "asynchronousProgramming": [
+        "Non-Blocking I/O: Use async/await for I/O operations",
+        "Concurrency: Implement proper concurrency patterns",
+        "Thread Safety: Ensure thread-safe operations",
+        "Parallel Processing: Use parallel processing for CPU-intensive tasks",
+        "Resource Management: Manage thread pools and async resources"
+      ]
+    }
+  }
+}

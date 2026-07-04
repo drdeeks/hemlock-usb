@@ -1,0 +1,871 @@
+{
+  "name": "Multi-Agent Coding Crew",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "8bb6aae4-1b17-45df-b3e6-4eb24d688612",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        1936
+      ],
+      "webhookId": "9cca444b-0577-4b1d-8bad-eb532f863d67",
+      "credentials": {
+        "telegramApi": {
+          "id": "RzMNNCZ7TCOvuNww",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "chatId",
+              "value": "={{ $json.message.chat.id }}",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "userId",
+              "value": "={{ $json.message.from.id }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "username",
+              "value": "={{ $json.message.from.username }}",
+              "type": "string"
+            },
+            {
+              "id": "4",
+              "name": "task",
+              "value": "={{ $json.message.text }}",
+              "type": "string"
+            },
+            {
+              "id": "5",
+              "name": "messageId",
+              "value": "={{ $json.message.message_id }}",
+              "type": "number"
+            },
+            {
+              "id": "6",
+              "name": "sessionId",
+              "value": "={{ $json.message.chat.id }}_{{ $now.toMillis() }}",
+              "type": "string"
+            },
+            {
+              "id": "7",
+              "name": "planningComplete",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "8",
+              "name": "iterationCount",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "9",
+              "name": "maxIterations",
+              "value": 20,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "25e7dfec-41f3-4b2e-9d48-ece4ad03118f",
+      "name": "Extract Task Info",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        464,
+        1936
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.task }}",
+        "options": {
+          "systemMessage": "You are the Lead Architect Agent managing a team of 4 specialist coding agents:\n\n1. Frontend Specialist (React/Vue/Angular expert)\n2. Backend Specialist (Node.js/Python/API expert)\n3. Database Specialist (SQL/NoSQL/data modeling expert)\n4. DevOps Specialist (deployment/CI-CD/infrastructure expert)\n\nYour role:\n- Break down the coding task into clear, actionable subtasks\n- Assign subtasks to the appropriate specialist agents\n- Coordinate the team and ensure all parts integrate properly\n- Review outputs and provide feedback\n- Make final decisions on architecture and implementation\n\nPLANNING PHASE:\n1. Analyze the task thoroughly\n2. Create a detailed plan with specific subtasks\n3. Identify dependencies between subtasks\n4. Define success criteria for each subtask\n5. Output your plan in JSON format:\n{\n  \"plan\": \"overall strategy\",\n  \"subtasks\": [\n    {\"id\": 1, \"agent\": \"frontend|backend|database|devops\", \"task\": \"description\", \"dependencies\": [], \"successCriteria\": \"criteria\"}\n  ],\n  \"integrationStrategy\": \"how components will work together\"\n}\n\nAfter planning, coordinate execution and validate results.",
+          "maxIterations": 15,
+          "returnIntermediateSteps": true
+        }
+      },
+      "id": "c248411a-a4e3-40a5-a325-99e039623c05",
+      "name": "Lead Agent - Architect",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        688,
+        1936
+      ]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.sessionId }}",
+        "contextWindowLength": 10
+      },
+      "id": "ef4ed0d0-5590-4fdb-849e-8cfb5a4042df",
+      "name": "Shared Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2416,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "description": "Execute JavaScript code to test, validate, or transform data",
+        "jsCode": "return query;"
+      },
+      "id": "2747c8f3-a927-444a-bf57-bd9aa44fad85",
+      "name": "Code Execution Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        2544,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst leadOutput = input.output;\n\nlet plan;\ntry {\n  const jsonMatch = leadOutput.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    plan = JSON.parse(jsonMatch[0]);\n  } else {\n    plan = { plan: leadOutput, subtasks: [], integrationStrategy: \"Sequential execution\" };\n  }\n} catch (e) {\n  plan = { plan: leadOutput, subtasks: [], integrationStrategy: \"Sequential execution\" };\n}\n\nreturn [\n  {\n    json: {\n      ...input,\n      plan: plan.plan || leadOutput,\n      subtasks: plan.subtasks || [],\n      integrationStrategy: plan.integrationStrategy || \"Sequential execution\",\n      planningComplete: true,\n      currentSubtaskIndex: 0\n    }\n  }\n];"
+      },
+      "id": "8c5e677c-facd-419b-8630-eb64bcfea0fe",
+      "name": "Parse Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        1936
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "=📋 *Planning Complete*\n\n*Plan:* {{ $json.plan }}\n\n*Subtasks:* {{ $json.subtasks.length }}\n\n*Strategy:* {{ $json.integrationStrategy }}\n\nStarting execution...",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "e3c71d68-0f66-4b70-a351-d5887af8a7e7",
+      "name": "Notify Plan Complete",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1264,
+        1936
+      ],
+      "webhookId": "1fd21aed-1de3-456f-8ed4-298530e13b1e",
+      "credentials": {
+        "telegramApi": {
+          "id": "RzMNNCZ7TCOvuNww",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.currentSubtaskIndex }}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              },
+              "rightValue": "={{ $json.subtasks.length }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "637e0778-a804-404b-aeb6-a4428a9c5354",
+      "name": "Check All Complete",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1712,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Review all completed subtasks and provide final integration guidance for: {{ $json.task }}",
+        "options": {
+          "systemMessage": "You are the Lead Architect performing final review.\n\nReview all completed work from your specialist agents and:\n1. Verify all subtasks are complete\n2. Check integration points\n3. Identify any gaps or issues\n4. Provide final recommendations\n5. Create deployment checklist\n\nOutput format:\n{\n  \"review\": \"overall assessment\",\n  \"integrationStatus\": \"ready|needs-work\",\n  \"recommendations\": [\"list of recommendations\"],\n  \"deploymentChecklist\": [\"checklist items\"]\n}",
+          "maxIterations": 10
+        }
+      },
+      "id": "98e554db-d63b-4d58-99a8-8718a46ef185",
+      "name": "Final Review by Lead",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1936,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Task Info').item.json.chatId }}",
+        "text": "=🎉 *Project Complete!*\n\n*Task:* {{ $('Extract Task Info').item.json.task }}\n\n*Review:* {{ $json.output }}\n\nAll specialist agents have completed their work. Check the conversation history for detailed implementations.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "3b593ea5-83ec-4b02-ba14-374958cc2936",
+      "name": "Send Final Report",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2416,
+        1808
+      ],
+      "webhookId": "e18ddc13-af98-4b5d-8cf5-5358daa3fa54",
+      "credentials": {
+        "telegramApi": {
+          "id": "RzMNNCZ7TCOvuNww",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "8a84ee3b-7940-4969-b8b1-a927fbf787d0",
+      "name": "Loop Subtasks",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1488,
+        1936
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst subtasks = input.subtasks || [];\nconst currentIndex = input.currentSubtaskIndex || 0;\n\nif (currentIndex >= subtasks.length) {\n  return [{ json: { ...input, allSubtasksComplete: true } }];\n}\n\nconst currentSubtask = subtasks[currentIndex];\n\nreturn [{\n  json: {\n    ...input,\n    currentSubtask: currentSubtask,\n    allSubtasksComplete: false\n  }\n}];"
+      },
+      "id": "cd9fad5c-b999-4a33-a798-acd70b2bbb2e",
+      "name": "Get Current Subtask",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst agent = input.currentSubtask?.agent || \"backend\";\n\nreturn [{\n  json: {\n    ...input,\n    targetAgent: agent\n  }\n}];"
+      },
+      "id": "e4f7b459-9f12-48c4-89e5-126318b5ea42",
+      "name": "Route to Agent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.currentSubtask.task }}",
+        "options": {
+          "systemMessage": "You are a Frontend Specialist expert in React, Vue, Angular, and modern web development.\n\nYour expertise:\n- Component architecture and state management\n- Responsive design and CSS frameworks\n- Performance optimization\n- Accessibility and UX best practices\n\nWhen given a task:\n1. Analyze requirements thoroughly\n2. Propose the best frontend approach\n3. Write clean, maintainable code\n4. Include comments and documentation\n5. Consider edge cases and error handling\n\nUse the Code Execution Tool to test your implementations.\n\nOutput format:\n{\n  \"implementation\": \"your code here\",\n  \"explanation\": \"how it works\",\n  \"testResults\": \"validation results\",\n  \"status\": \"complete|needs-review|blocked\"\n}",
+          "maxIterations": 10
+        }
+      },
+      "id": "7fcda80b-8de4-4430-a9b5-a4b4c067d8f1",
+      "name": "Frontend Specialist",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2352,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (items.length === 0) return [];\n\nconst firstItem = items[0].json;\nconst agentOutput = firstItem.output || \"{}\";\n\nlet result;\ntry {\n  const jsonMatch = agentOutput.match(/\\{[\\s\\S]*\\}/);\n  result = jsonMatch ? JSON.parse(jsonMatch[0]) : { implementation: agentOutput, status: \"complete\" };\n} catch (e) {\n  result = { implementation: agentOutput, status: \"complete\" };\n}\n\nreturn [{\n  json: {\n    ...firstItem,\n    agentResult: result,\n    subtaskComplete: true\n  }\n}];"
+      },
+      "id": "2a889f1e-3283-4691-8b76-97c1181c3ae4",
+      "name": "Merge Agent Outputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "=✅ *Subtask {{ $json.currentSubtask.id }} Complete*\n\n*Agent:* {{ $json.currentSubtask.agent }}\n*Task:* {{ $json.currentSubtask.task }}\n\n*Status:* {{ $json.agentResult.status }}\n\n*Explanation:* {{ $json.agentResult.explanation }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "1ea2de2a-2e62-4e72-b650-118a04277fb5",
+      "name": "Log Progress",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2976,
+        912
+      ],
+      "webhookId": "552a4b5c-02bd-4dc9-9e37-af31a118a207",
+      "credentials": {
+        "telegramApi": {
+          "id": "RzMNNCZ7TCOvuNww",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst currentIndex = input.currentSubtaskIndex || 0;\n\nreturn [{\n  json: {\n    ...input,\n    currentSubtaskIndex: currentIndex + 1\n  }\n}];"
+      },
+      "id": "943901f5-5d09-4f9a-9296-384ee2a720f3",
+      "name": "Increment Subtask Index",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        1392
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.currentSubtask.task }}",
+        "options": {
+          "systemMessage": "You are a Backend Specialist expert in Node.js, Python, APIs, and server-side development.\n\nYour expertise:\n- RESTful and GraphQL API design\n- Authentication and authorization\n- Data validation and error handling\n- Performance and scalability\n\nWhen given a task:\n1. Design robust API endpoints\n2. Implement secure authentication\n3. Write efficient, scalable code\n4. Include comprehensive error handling\n5. Document API contracts\n\nUse the Code Execution Tool to test your implementations.\n\nOutput format:\n{\n  \"implementation\": \"your code here\",\n  \"explanation\": \"how it works\",\n  \"testResults\": \"validation results\",\n  \"status\": \"complete|needs-review|blocked\"\n}",
+          "maxIterations": 10
+        }
+      },
+      "id": "df1bb9ab-fee0-44f7-ba44-76e3c2f40dfb",
+      "name": "Backend Specialist",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2352,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.currentSubtask.task }}",
+        "options": {
+          "systemMessage": "You are a Database Specialist expert in SQL, NoSQL, data modeling, and optimization.\n\nYour expertise:\n- Database schema design\n- Query optimization\n- Indexing strategies\n- Data integrity and relationships\n\nWhen given a task:\n1. Design efficient database schemas\n2. Write optimized queries\n3. Consider scalability and performance\n4. Implement proper indexing\n5. Document data models\n\nUse the Code Execution Tool to test your implementations.\n\nOutput format:\n{\n  \"implementation\": \"your code/schema here\",\n  \"explanation\": \"how it works\",\n  \"testResults\": \"validation results\",\n  \"status\": \"complete|needs-review|blocked\"\n}",
+          "maxIterations": 10
+        }
+      },
+      "id": "eef0a650-aa1f-4504-9cc9-b29836fc2f5b",
+      "name": "Database Specialist",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2352,
+        1008
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.currentSubtask.task }}",
+        "options": {
+          "systemMessage": "You are a DevOps Specialist expert in deployment, CI/CD, infrastructure, and automation.\n\nYour expertise:\n- Docker and containerization\n- CI/CD pipeline design\n- Cloud infrastructure (AWS, GCP, Azure)\n- Monitoring and logging\n\nWhen given a task:\n1. Design deployment strategies\n2. Create CI/CD pipelines\n3. Configure infrastructure as code\n4. Implement monitoring and alerts\n5. Document deployment processes\n\nUse the Code Execution Tool to test your implementations.\n\nOutput format:\n{\n  \"implementation\": \"your config/scripts here\",\n  \"explanation\": \"how it works\",\n  \"testResults\": \"validation results\",\n  \"status\": \"complete|needs-review|blocked\"\n}",
+          "maxIterations": 10
+        }
+      },
+      "id": "f9051e0f-57b3-41ab-b207-8030367a922a",
+      "name": "DevOps Specialist",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2352,
+        1408
+      ]
+    },
+    {
+      "parameters": {
+        "model": "<__PLACEHOLDER_VALUE__Lead agent model (e.g., qwen2.5-coder:32b)__>",
+        "options": {
+          "temperature": 0.7,
+          "numCtx": 8192
+        }
+      },
+      "id": "9c2593d0-6843-4bf6-beb0-0d2e543696ac",
+      "name": "Ollama Lead Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        2032
+      ]
+    },
+    {
+      "parameters": {
+        "model": "<__PLACEHOLDER_VALUE__Frontend specialist model (e.g., qwen2.5-coder:14b)__>",
+        "options": {
+          "temperature": 0.6,
+          "numCtx": 8192
+        }
+      },
+      "id": "9df20220-602c-45aa-ad97-d2846d1fbb36",
+      "name": "Ollama Frontend Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        2288,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "model": "<__PLACEHOLDER_VALUE__Backend specialist model (e.g., deepseek-coder-v2:16b)__>",
+        "options": {
+          "temperature": 0.5,
+          "numCtx": 8192
+        }
+      },
+      "id": "954ce919-0f4d-45d9-9e66-4335b3c36aca",
+      "name": "Ollama Backend Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        2416,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "model": "<__PLACEHOLDER_VALUE__Database specialist model (e.g., codellama:13b)__>",
+        "options": {
+          "temperature": 0.3,
+          "numCtx": 4096
+        }
+      },
+      "id": "7f101c32-3367-4d59-b905-dcb4389866dd",
+      "name": "Ollama Database Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        2416,
+        1232
+      ]
+    },
+    {
+      "parameters": {
+        "model": "<__PLACEHOLDER_VALUE__DevOps specialist model (e.g., mistral:7b)__>",
+        "options": {
+          "temperature": 0.4,
+          "numCtx": 4096
+        }
+      },
+      "id": "417f6990-8286-4dd5-8034-7925d20eeca6",
+      "name": "Ollama DevOps Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        2416,
+        1632
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Model Selection\n\n**Choose ONE set of models:**\n\n**Option 1: Ollama** (ollama_*_Model)\n- Uses local Ollama server\n- Models: qwen2.5-coder, deepseek-coder-v2, codellama, mistral, etc.\n\n**Option 2: Llama.cpp** (llamacpp_*_Model)\n- Uses llama.cpp server with OpenAI-compatible API\n- Configure baseURL to point to your llama.cpp server\n- Supports GGUF models directly\n\n**To switch:** Update the model references in each agent node (Lead Agent, Frontend Specialist, Backend Specialist, Database Specialist, DevOps Specialist) to use either ollama_* or llamacpp_* variants.",
+        "height": 320,
+        "width": 400,
+        "color": 4
+      },
+      "id": "253f3434-dbc2-46ed-80e7-1e3d472f7887",
+      "name": "Sticky Note fb67c5af",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        2032
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Task Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Task Info": {
+      "main": [
+        [
+          {
+            "node": "Lead Agent - Architect",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Agent - Architect": {
+      "main": [
+        [
+          {
+            "node": "Parse Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shared Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Lead Agent - Architect",
+            "type": "ai_memory",
+            "index": 0
+          },
+          {
+            "node": "Final Review by Lead",
+            "type": "ai_memory",
+            "index": 0
+          },
+          {
+            "node": "Frontend Specialist",
+            "type": "ai_memory",
+            "index": 0
+          },
+          {
+            "node": "Backend Specialist",
+            "type": "ai_memory",
+            "index": 0
+          },
+          {
+            "node": "Database Specialist",
+            "type": "ai_memory",
+            "index": 0
+          },
+          {
+            "node": "DevOps Specialist",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Execution Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "Lead Agent - Architect",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Frontend Specialist",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Backend Specialist",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Database Specialist",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "DevOps Specialist",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Plan": {
+      "main": [
+        [
+          {
+            "node": "Notify Plan Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Plan Complete": {
+      "main": [
+        [
+          {
+            "node": "Loop Subtasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check All Complete": {
+      "main": [
+        [
+          {
+            "node": "Final Review by Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Subtasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Review by Lead": {
+      "main": [
+        [
+          {
+            "node": "Send Final Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Subtasks": {
+      "main": [
+        [
+          {
+            "node": "Check All Complete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Current Subtask",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current Subtask": {
+      "main": [
+        [
+          {
+            "node": "Route to Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Agent": {
+      "main": [
+        [
+          {
+            "node": "Frontend Specialist",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Backend Specialist",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Database Specialist",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "DevOps Specialist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Frontend Specialist": {
+      "main": [
+        [
+          {
+            "node": "Merge Agent Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Agent Outputs": {
+      "main": [
+        [
+          {
+            "node": "Log Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Progress": {
+      "main": [
+        [
+          {
+            "node": "Increment Subtask Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Subtask Index": {
+      "main": [
+        [
+          {
+            "node": "Loop Subtasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backend Specialist": {
+      "main": [
+        [
+          {
+            "node": "Merge Agent Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Database Specialist": {
+      "main": [
+        [
+          {
+            "node": "Merge Agent Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DevOps Specialist": {
+      "main": [
+        [
+          {
+            "node": "Merge Agent Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Lead Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Lead Agent - Architect",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Final Review by Lead",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Frontend Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Frontend Specialist",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Backend Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Backend Specialist",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Database Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Database Specialist",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama DevOps Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "DevOps Specialist",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1cd7faa4-22e7-4058-83f2-7242e80b6d6f",
+  "meta": {
+    "instanceId": "475b43ccb9ab60303754feff96de6e9e2c480936566d8f6879d98366db8edbd5"
+  },
+  "id": "q1bMPJGZa5QAZqki",
+  "tags": []
+}

@@ -1,0 +1,16 @@
+{
+  "links": [
+    {
+      "url": "https://github.com/hemlock-framework/docs",
+      "title": "Hemlock Framework Documentation",
+      "category": "core",
+      "added_at": "2026-04-26T14:33:34.621327",
+      "last_accessed": null,
+      "indexed": false
+    }
+  ],
+  "categories": {
+    "core": 1
+  },
+  "last_updated": "2026-04-26T14:33:34.621352"
+}

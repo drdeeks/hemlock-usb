@@ -1,0 +1,69 @@
+{
+  "alwaysApply": true,
+  "ruleName": "Project Structure Analysis & Review Protocol",
+  "overview": "Before making ANY changes, Agents MUST perform a comprehensive analysis of the project structure to understand the architecture, dependencies, and potential impact areas.",
+  "initialProjectAssessment": {
+    "completeStructureScan": {
+      "title": "Complete Structure Scan",
+      "tasks": [
+        "Map Directory Structure: Document the entire project hierarchy",
+        "Identify Architecture Patterns: Recognize MVC, MVP, MVVM, microservices, monolithic structures",
+        {
+          "title": "Catalog Configuration Files",
+          "items": [
+            "package.json, requirements.txt, composer.json",
+            "Dockerfile, docker-compose.yml",
+            ".env files and configuration templates",
+            "Build files (webpack.config.js, vite.config.js, Makefile)"
+          ]
+        },
+        "Technology Stack Identification: Framework versions, language versions, key dependencies",
+        "Dependency Mapping: Understand relationships and potential conflicts"
+      ]
+    },
+    "architecturePatternRecognition": {
+      "title": "Architecture Pattern Recognition",
+      "tasks": [
+        "Design Patterns: Factory, Observer, Singleton, Strategy, etc.",
+        "Data Flow Mapping: Understand how data moves through the application",
+        "Component Relationships: Identify coupling and dependencies",
+        "Separation of Concerns: Evaluate how well responsibilities are separated"
+      ]
+    },
+    "criticalQuestionsFramework": {
+      "title": "Critical Questions Framework",
+      "sections": {
+        "scopeAnalysis": {
+          "title": "SCOPE ANALYSIS",
+          "questions": [
+            "What is the specific business logic being affected?",
+            "Which layers of the architecture will be impacted?",
+            "Are there downstream dependencies that could break?",
+            "What is the blast radius of this change?",
+            "How does this fit into the overall application workflow?"
+          ]
+        },
+        "technicalImpact": {
+          "title": "TECHNICAL IMPACT",
+          "questions": [
+            "Will this change affect database schemas or migrations?",
+            "Are there API contracts that could be broken?",
+            "How will this impact existing integrations?",
+            "What testing strategies need to be updated?",
+            "Are there performance implications?"
+          ]
+        },
+        "riskAssessment": {
+          "title": "RISK ASSESSMENT",
+          "questions": [
+            "Is this change backward compatible?",
+            "What rollback strategy exists if issues arise?",
+            "Are there security implications?",
+            "How will this affect scalability?",
+            "What are the monitoring requirements?"
+          ]
+        }
+      }
+    }
+  }
+}

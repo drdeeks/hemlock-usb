@@ -1,0 +1,1610 @@
+{
+  "version": "1.0.0",
+  "last_indexed": "2026-04-26T16:26:27.365465",
+  "document_count": 1,
+  "documents": {
+    "04c6e90faac2675aa89e2176d2eec7d8": {
+      "id": "04c6e90faac2675aa89e2176d2eec7d8",
+      "path": "README.md",
+      "type": "markdown",
+      "size": 17177,
+      "last_modified": "2026-04-26T16:26:27.365150",
+      "content_hash": "d20c0ca3d616f62896f829617c749725",
+      "keywords": [
+        "plugin",
+        "stub",
+        "demand",
+        "quick",
+        "https",
+        "validates",
+        "applies",
+        "self",
+        "nonexistent",
+        "health",
+        "tooling",
+        "skips",
+        "during",
+        "export",
+        "nous",
+        "enhancements",
+        "flag",
+        "background",
+        "push",
+        "networks",
+        "openclaw",
+        "built",
+        "bridge",
+        "communication",
+        "cleanup",
+        "variable",
+        "enterprise",
+        "then",
+        "compose",
+        "spawn",
+        "badge",
+        "validation",
+        "handles",
+        "listings",
+        "this",
+        "archive",
+        "hyphen",
+        "limit",
+        "usage",
+        "large",
+        "starts",
+        "listed",
+        "proper",
+        "requires",
+        "function",
+        "portable",
+        "commands",
+        "template",
+        "reporting",
+        "examples",
+        "contents",
+        "timeout",
+        "copys",
+        "running",
+        "deleted",
+        "maintenance",
+        "argument",
+        "mounts",
+        "prerequisites",
+        "first",
+        "purpose",
+        "mounted",
+        "python",
+        "fixed",
+        "framework",
+        "updating",
+        "multi",
+        "recent",
+        "exceptions",
+        "improvements",
+        "exports",
+        "backup",
+        "calls",
+        "management",
+        "templates",
+        "hermes",
+        "edit",
+        "automation",
+        "handling",
+        "force",
+        "memory",
+        "troubleshooting",
+        "arguments",
+        "create",
+        "runs",
+        "dest",
+        "deployment",
+        "network",
+        "direct",
+        "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510",
+        "bash",
+        "configure",
+        "functionality",
+        "table",
+        "utilities",
+        "error",
+        "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510",
+        "workflow",
+        "complete",
+        "unlimited",
+        "without",
+        "healing",
+        "common",
+        "binding",
+        "pull",
+        "check",
+        "isolated",
+        "plugins",
+        "handle",
+        "info",
+        "properly",
+        "prompt",
+        "fast",
+        "provides",
+        "your",
+        "settings",
+        "docs",
+        "blocked",
+        "have",
+        "environment",
+        "safety",
+        "confirmation",
+        "access",
+        "license",
+        "architecture",
+        "parsing",
+        "compliance",
+        "comprehensive",
+        "private",
+        "daemon",
+        "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518",
+        "dropping",
+        "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510",
+        "true",
+        "deprecations",
+        "manage",
+        "variables",
+        "clean",
+        "hidden",
+        "currently",
+        "exec",
+        "intelligent",
+        "contained",
+        "updated",
+        "makefile",
+        "allow",
+        "space",
+        "images",
+        "service",
+        "includes",
+        "name",
+        "hardened",
+        "services",
+        "view",
+        "maintaining",
+        "works",
+        "data",
+        "inter",
+        "authentication",
+        "channel",
+        "persistent",
+        "every",
+        "workflows",
+        "only",
+        "crews",
+        "shift",
+        "runtime",
+        "monitoring",
+        "suite",
+        "documentation",
+        "rebuild",
+        "lifecycle",
+        "volumes",
+        "delete",
+        "manual",
+        "design",
+        "fixes",
+        "identity",
+        "capabilities",
+        "note",
+        "individual",
+        "managed",
+        "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518",
+        "that",
+        "stored",
+        "checks",
+        "solution",
+        "suites",
+        "support",
+        "deletion",
+        "recovery",
+        "connection",
+        "latest",
+        "elevated",
+        "full",
+        "contributions",
+        "preservation",
+        "from",
+        "root",
+        "yaml",
+        "references",
+        "user",
+        "across",
+        "operation",
+        "containers",
+        "detection",
+        "import",
+        "remove",
+        "validated",
+        "conflict",
+        "single",
+        "verify",
+        "directory",
+        "testing",
+        "rules",
+        "owner",
+        "licenses",
+        "errors",
+        "workspaces",
+        "prompts",
+        "tests",
+        "verified",
+        "token",
+        "docker",
+        "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518",
+        "orchestration",
+        "auto",
+        "tmpfs",
+        "driver",
+        "command",
+        "coordination",
+        "retries",
+        "blue",
+        "based",
+        "main",
+        "duplicate",
+        "tool",
+        "specific",
+        "dockerignore",
+        "automatically",
+        "injection",
+        "registry",
+        "copies",
+        "gateway",
+        "issues",
+        "credentials",
+        "toolkit",
+        "soul",
+        "structure",
+        "crew",
+        "avoid",
+        "creates",
+        "\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524",
+        "port",
+        "myuser",
+        "copy",
+        "stop",
+        "features",
+        "after",
+        "validate",
+        "make",
+        "logs",
+        "security",
+        "shields",
+        "contexts",
+        "generates",
+        "supports",
+        "internal",
+        "parent",
+        "attached",
+        "collaboration",
+        "source",
+        "agent",
+        "permissions",
+        "tools",
+        "model",
+        "false",
+        "changed",
+        "itself",
+        "review",
+        "start",
+        "drop",
+        "level",
+        "caution",
+        "section",
+        "default",
+        "builds",
+        "fallbacks",
+        "version",
+        "description",
+        "improved",
+        "operations",
+        "adds",
+        "corruption",
+        "accessible",
+        "skills",
+        "shared",
+        "passing",
+        "inject",
+        "read",
+        "privileges",
+        "container",
+        "base",
+        "pass",
+        "target",
+        "failed",
+        "managing",
+        "configurations",
+        "permanently",
+        "maintains",
+        "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518",
+        "writes",
+        "updates",
+        "down",
+        "show",
+        "interactive",
+        "readme",
+        "rich",
+        "scalable",
+        "restart",
+        "files",
+        "library",
+        "centric",
+        "configuration",
+        "integration",
+        "opensource",
+        "preserved",
+        "custom",
+        "file",
+        "shell",
+        "scripts",
+        "list",
+        "secrets",
+        "details",
+        "bind",
+        "volume",
+        "grade",
+        "capability",
+        "backups",
+        "disabled",
+        "with",
+        "skill",
+        "definitions",
+        "follow",
+        "help",
+        "opts",
+        "removes",
+        "conflicting",
+        "script",
+        "logo",
+        "mistral",
+        "context",
+        "including",
+        "hours",
+        "production",
+        "filesystems",
+        "automatic",
+        "duration",
+        "missing",
+        "available",
+        "hemlock",
+        "secure",
+        "test",
+        "none",
+        "dockerfile",
+        "filesystem",
+        "correctly",
+        "unit",
+        "removed",
+        "required",
+        "system",
+        "categories",
+        "entrypoint",
+        "zero",
+        "enable",
+        "build",
+        "ready",
+        "config",
+        "added",
+        "directories",
+        "path",
+        "committed",
+        "changelog",
+        "each",
+        "definition",
+        "orchestrator",
+        "agents",
+        "category",
+        "core",
+        "misconfigurations",
+        "questions",
+        "recommended",
+        "hardcoded",
+        "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510",
+        "preserve",
+        "image",
+        "deploying"
+      ],
+      "preview": "# Hemlock - Enterprise Agent Framework\n\n> **Self-Maintaining, Self-Healing, Production-Ready Agent Framework**\n\n[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)\n[![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](https://www.docker.com/)\n[![Python 3.11](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)\n\n**Hemlock** is an enterprise-grade framework for deploying and managing **OpenClaw*",
+      "version": "1.0"
+    }
+  },
+  "keywords": {
+    "plugin": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "stub": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "demand": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "quick": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "https": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "validates": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "applies": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "self": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "nonexistent": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "health": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "tooling": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "skips": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "during": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "export": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "nous": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "enhancements": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "flag": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "background": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "push": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "networks": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "openclaw": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "built": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "bridge": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "communication": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "cleanup": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "variable": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "enterprise": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "then": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "compose": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "spawn": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "badge": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "validation": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "handles": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "listings": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "this": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "archive": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "hyphen": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "limit": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "usage": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "large": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "starts": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "listed": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "proper": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "requires": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "function": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "portable": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "commands": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "template": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "reporting": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "examples": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "contents": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "timeout": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "copys": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "running": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "deleted": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "maintenance": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "argument": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "mounts": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "prerequisites": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "first": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "purpose": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "mounted": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "python": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "fixed": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "framework": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "updating": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "multi": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "recent": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "exceptions": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "improvements": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "exports": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "backup": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "calls": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "management": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "templates": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "hermes": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "edit": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "automation": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "handling": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "force": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "memory": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "troubleshooting": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "arguments": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "create": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "runs": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "dest": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "deployment": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "network": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "direct": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "bash": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "configure": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "functionality": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "table": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "utilities": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "error": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "workflow": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "complete": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "unlimited": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "without": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "healing": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "common": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "binding": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "pull": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "check": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "isolated": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "plugins": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "handle": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "info": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "properly": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "prompt": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "fast": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "provides": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "your": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "settings": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "docs": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "blocked": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "have": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "environment": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "safety": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "confirmation": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "access": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "license": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "architecture": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "parsing": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "compliance": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "comprehensive": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "private": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "daemon": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "dropping": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "true": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "deprecations": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "manage": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "variables": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "clean": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "hidden": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "currently": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "exec": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "intelligent": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "contained": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "updated": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "makefile": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "allow": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "space": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "images": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "service": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "includes": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "name": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "hardened": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "services": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "view": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "maintaining": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "works": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "data": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "inter": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "authentication": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "channel": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "persistent": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "every": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "workflows": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "only": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "crews": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "shift": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "runtime": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "monitoring": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "suite": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "documentation": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "rebuild": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "lifecycle": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "volumes": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "delete": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "manual": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "design": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "fixes": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "identity": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "capabilities": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "note": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "individual": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "managed": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "that": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "stored": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "checks": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "solution": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "suites": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "support": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "deletion": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "recovery": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "connection": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "latest": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "elevated": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "full": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "contributions": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "preservation": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "from": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "root": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "yaml": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "references": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "user": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "across": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "operation": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "containers": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "detection": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "import": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "remove": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "validated": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "conflict": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "single": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "verify": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "directory": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "testing": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "rules": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "owner": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "licenses": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "errors": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "workspaces": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "prompts": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "tests": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "verified": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "token": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "docker": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "orchestration": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "auto": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "tmpfs": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "driver": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "command": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "coordination": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "retries": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "blue": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "based": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "main": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "duplicate": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "tool": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "specific": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "dockerignore": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "automatically": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "injection": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "registry": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "copies": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "gateway": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "issues": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "credentials": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "toolkit": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "soul": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "structure": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "crew": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "avoid": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "creates": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "port": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "myuser": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "copy": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "stop": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "features": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "after": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "validate": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "make": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "logs": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "security": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "shields": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "contexts": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "generates": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "supports": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "internal": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "parent": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "attached": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "collaboration": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "source": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "agent": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "permissions": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "tools": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "model": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "false": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "changed": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "itself": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "review": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "start": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "drop": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "level": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "caution": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "section": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "default": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "builds": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "fallbacks": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "version": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "description": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "improved": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "operations": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "adds": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "corruption": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "accessible": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "skills": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "shared": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "passing": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "inject": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "read": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "privileges": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "container": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "base": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "pass": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "target": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "failed": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "managing": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "configurations": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "permanently": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "maintains": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "writes": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "updates": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "down": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "show": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "interactive": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "readme": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "rich": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "scalable": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "restart": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "files": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "library": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "centric": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "configuration": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "integration": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "opensource": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "preserved": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "custom": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "file": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "shell": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "scripts": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "list": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "secrets": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "details": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "bind": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "volume": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "grade": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "capability": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "backups": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "disabled": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "with": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "skill": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "definitions": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "follow": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "help": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "opts": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "removes": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "conflicting": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "script": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "logo": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "mistral": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "context": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "including": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "hours": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "production": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "filesystems": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "automatic": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "duration": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "missing": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "available": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "hemlock": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "secure": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "test": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "none": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "dockerfile": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "filesystem": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "correctly": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "unit": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "removed": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "required": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "system": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "categories": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "entrypoint": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "zero": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "enable": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "build": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "ready": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "config": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "added": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "directories": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "path": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "committed": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "changelog": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "each": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "definition": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "orchestrator": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "agents": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "category": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "core": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "misconfigurations": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "questions": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "recommended": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "hardcoded": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "preserve": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "image": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ],
+    "deploying": [
+      "04c6e90faac2675aa89e2176d2eec7d8"
+    ]
+  },
+  "categories": {}
+}

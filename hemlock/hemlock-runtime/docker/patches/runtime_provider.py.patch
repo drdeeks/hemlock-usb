@@ -1,0 +1,9 @@
+--- runtime_provider.py
++++ runtime_provider.py
+@@ -42,7 +42,7 @@
+     def __init__(self, provider_config):
+         self.name = provider_config["name"]
+         self.api_mode = provider_config["api_mode"]
+-        self.api_key = os.getenv(provider_config.get("api_key", ""))
++        self.api_key = os.getenv(provider_config.get("key_env", ""))
+         self.base_url = provider_config.get("base_url", "")

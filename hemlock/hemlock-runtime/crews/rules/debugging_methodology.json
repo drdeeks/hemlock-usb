@@ -1,0 +1,49 @@
+{
+  "alwaysApply": true,
+  "ruleName": "Debugging Methodology",
+  "systematicDebuggingApproach": {
+    "problemIsolation": {
+      "initialProblemAnalysis": [
+        "Reproduce the Issue: Create consistent steps to reproduce the problem",
+        "Environment Identification: Determine which environments are affected",
+        "Scope Assessment: Identify if issue affects all users or specific conditions",
+        "Timeline Analysis: Determine when the issue first appeared",
+        "Impact Assessment: Evaluate the severity and business impact"
+      ],
+      "minimalReproduction": "Process:\n1. Start with the simplest case that reproduces the issue\n2. Remove variables until you find the core problem\n3. Identify the minimum code path that triggers the issue\n4. Document exact steps and conditions required\n5. Create automated test cases for the issue",
+      "classificationFramework": [
+        "Environment-Specific: Only occurs in certain environments",
+        "Data-Dependent: Issue depends on specific data conditions",
+        "Load-Related: Problems under high load or concurrent access",
+        "Configuration-Based: Related to configuration or setup issues",
+        "Integration Issues: Problems with external services or dependencies"
+      ]
+    },
+    "rootCauseAnalysis": {
+      "debuggingToolsAndTechniques": {
+        "applicationDebugging": [
+          "Debugger Usage: Use IDE debuggers for step-through debugging",
+          "Breakpoint Strategy: Set strategic breakpoints at key decision points",
+          "Variable Inspection: Monitor variable state changes during execution",
+          "Call Stack Analysis: Understand the execution flow and method calls",
+          "Memory Debugging: Use memory profilers to identify leaks and usage"
+        ],
+        "loggingAnalysis": "Effective Logging Strategy:\n- Add strategic debug logging around the problem area\n- Use correlation IDs to trace requests across services\n- Log input parameters, intermediate values, and outputs\n- Include timing information for performance issues\n- Log error conditions and exception details",
+        "performanceAnalysis": [
+          "Profiling Tools: Use performance profilers to identify bottlenecks",
+          "Database Query Analysis: Use EXPLAIN plans and query profilers",
+          "Network Analysis: Monitor network calls and response times",
+          "Resource Monitoring: Track CPU, memory, and I/O usage",
+          "APM Tools: Use Application Performance Monitoring tools"
+        ]
+      }
+    },
+    "issueCategoriesAndDebuggingStrategies": {
+      "logicErrors": [
+        "Condition Checking: Verify boolean conditions and branching logic",
+        "Loop Analysis: Check loop conditions and termination criteria",
+        "State Management: Verify object and application state consistency"
+      ]
+    }
+  }
+}

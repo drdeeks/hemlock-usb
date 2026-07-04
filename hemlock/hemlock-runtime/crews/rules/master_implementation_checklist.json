@@ -1,0 +1,81 @@
+{
+  "alwaysApply": true,
+  "ruleName": "Master Implementation Checklist for Cline",
+  "preTaskAnalysisPhase": {
+    "projectStructureAssessment": {
+      "title": "Project Structure Assessment",
+      "checklist": [
+        {
+          "title": "Complete Structure Scan Performed",
+          "items": [
+            "Directory structure mapped and documented",
+            "Architecture patterns identified (MVC, microservices, etc.)",
+            "Configuration files cataloged and analyzed",
+            "Framework/technology stack documented with versions",
+            "Dependency relationships mapped"
+          ]
+        },
+        {
+          "title": "Critical Questions Answered",
+          "items": [
+            "What specific business logic will be affected?",
+            "Which architecture layers will be impacted?",
+            "What downstream dependencies could break?",
+            "What is the blast radius of this change?",
+            "Are there API contracts that could be broken?",
+            "How will this impact existing integrations?"
+          ]
+        },
+        {
+          "title": "Risk Assessment Completed",
+          "items": [
+            "Change classified by risk level (Low/Medium/High/Critical)",
+            "Backward compatibility implications identified",
+            "Rollback strategy planned",
+            "Security implications assessed",
+            "Performance impact evaluated"
+          ]
+        }
+      ]
+    }
+  },
+  "planningPhase": {
+    "changeStrategyDefinition": {
+      "title": "Change Strategy Definition",
+      "checklist": [
+        {
+          "title": "Minimal Change Strategy Defined",
+          "items": [
+            "Smallest possible change identified to achieve objective",
+            "Single responsibility principle applied to change scope",
+            "Impact isolation strategy planned",
+            "Dependency preservation approach defined"
+          ]
+        },
+        {
+          "title": "Implementation Approach Selected",
+          "items": [
+            "File modification hierarchy respected",
+            "Change validation process planned",
+            "Testing strategy established",
+            "Documentation update plan created"
+          ]
+        }
+      ]
+    },
+    "securityPlanning": {
+      "title": "Security Planning",
+      "checklist": [
+        {
+          "title": "Security Requirements Identified",
+          "items": [
+            "Input validation requirements defined",
+            "Authentication/authorization impact assessed",
+            "Data protection requirements identified",
+            "Compliance requirements considered (GDPR, HIPAA, etc.)"
+          ]
+        }
+      ]
+    }
+  }
+}

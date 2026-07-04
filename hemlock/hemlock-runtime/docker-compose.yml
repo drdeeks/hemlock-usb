@@ -1,0 +1,36 @@
+services:
+  framework:
+    build:
+      context: .
+      dockerfile: Dockerfile.runtime
+    container_name: hermes_framework
+    restart: unless-stopped
+    volumes:
+      - ./runtime:/runtime
+      - ./agents:/data/agents
+      - ./crews:/data/crews
+      - ./models:/models
+      - ./backups:/backups
+      # /skills is a writable NAMED volume seeded on first run from the
+      # image-baked /opt/skills_seed (shared/skills). Self-contained: no host
+      # skills dir, no network — portable to any machine running the image.
+      - skills_data:/skills
+    environment:
+      - ENABLE_PERSISTENT_MEMORY=true
+      - ENABLE_AGENT_RESURRECTION=true
+      - ENABLE_CONTINUOUS_RUNTIME=true
+      - ENABLE_SKILL_LEARNING=true
+      - ENABLE_MEMORY_FEEDBACK=true
+      - ENABLE_SESSION_RECOVERY=true
+      - PYTHONPATH=/opt/hermes
+    healthcheck:
+      test: ["CMD", "python3", "-m", "health.doctor_bridge", "--quick"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    # Phase 13: Run continuous runtime daemon instead of idle
+    command: []
+
+volumes:
+  skills_data:

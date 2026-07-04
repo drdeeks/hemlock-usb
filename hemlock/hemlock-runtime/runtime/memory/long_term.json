@@ -1,0 +1,13 @@
+[
+  {
+    "type": "event",
+    "event_type": "skill_learned",
+    "data": {
+      "skill_name": "test_skill"
+    },
+    "priority": "high",
+    "timestamp": "2026-05-13T17:19:06.856259",
+    "consolidated_at": "2026-05-13T17:19:06.858615",
+    "source": "short_term"
+  }
+]

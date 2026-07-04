@@ -1,0 +1,185 @@
+# =============================================================================
+# Hemlock Runtime Dockerfile
+#
+# Control plane (OpenClaw) + Cognition layer (Hermes)
+# Backend frameworks managed by Hemlock — user sees only Hemlock branding.
+#
+# Dual mode:
+#   Default: Full stack (control plane + cognition)
+#   HERMES_ONLY=1: Cognition layer only
+#   OPENCLAW_ONLY=1: Control plane only
+#
+# Build:  DOCKER_BUILDKIT=0 docker build -t hemlock:latest -f Dockerfile.runtime .
+# Run:    docker compose -f docker-compose.runtime.yml up
+# =============================================================================
+
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+# Install build deps only
+COPY docker/hermes-agent/pyproject.toml /build/
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir --prefix=/install . && \
+    pip install --no-cache-dir --prefix=/install python-telegram-bot>=20.0 && \
+    pip install --no-cache-dir --prefix=/install edge-tts>=6.1
+
+# =============================================================================
+# Runtime stage — Hemlock (control plane + cognition)
+# =============================================================================
+FROM python:3.12-slim
+
+# Portability: all paths via env vars, resolved by PathResolver
+# CL-029: AGENTS_DIR + CREWS_DIR + IMPORTS_DIR exported at build time so
+# helpers.sh + agent-create.sh resolve to /data/* without requiring callers
+# to set them explicitly (workspace-template lookup bug surfaced 2026-06-30).
+ENV HEMLOCK_DOCKER=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/opt/hermes:/opt/openclaw/lib \
+    HERMES_HOME=/runtime \
+    OPENCLAW_ROOT=/opt/openclaw \
+    RUNTIME_ROOT=/data \
+    AGENTS_DIR=/data/agents \
+    CREWS_DIR=/data/crews \
+    IMPORTS_DIR=/data/imports \
+    EXPORTS_DIR=/data/exports
+
+# Baked shared toolchain — installed ONCE, global, shared read-only by every agent
+# inside the container (agents are isolated by their own volumes, not by lacking tools).
+# Self-contained: the host installs NOTHING; running lean-on-host is the option, never
+# a forced install. Kept to a sensible dev baseline — not "48k packages".
+#   runtime deps : procps bash unzip ffmpeg git cron rsync
+#   build/dev    : build-essential (make/gcc/g++) jq wget less ca-certificates
+#                  openssh-client nano
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        procps bash unzip ffmpeg git cron rsync \
+        build-essential jq wget less ca-certificates openssh-client nano && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy installed packages from builder
+COPY --from=builder /install /usr/local
+
+# ── Control plane ─────────────────────────────────────────────────────────
+# Install node and npm first
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy control plane source (lib)
+COPY docker/openclaw-runtime/lib/ /opt/openclaw/lib/
+COPY docker/openclaw-runtime/package.json /opt/openclaw/lib/node_modules/openclaw/
+RUN cd /opt/openclaw/lib/node_modules/openclaw && npm install --omit=dev --legacy-peer-deps --ignore-scripts
+
+# Copy control plane binary and tools
+COPY docker/openclaw-runtime/bin/ /opt/openclaw/bin/
+COPY docker/openclaw-runtime/tools/node/ /opt/openclaw/tools/node/
+
+RUN chmod +x /opt/openclaw/bin/openclaw-container && \
+    ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/openclaw
+
+# ── Hermes (cognition layer) ─────────────────────────────────────────────────
+COPY docker/hermes-agent/ /opt/hermes/
+
+# Ensure patched gateway/run.py is not stale (overrides cached layer above)
+COPY docker/hermes-agent/gateway/run.py /opt/hermes/gateway/run.py
+
+# Agent brain MCP server — accessible at both /opt/hermes and /app paths
+# The /app path is used by openclaw.json mcp.servers config and entrypoint.sh
+RUN mkdir -p /app && \
+    ln -sf /opt/hermes/agent_brain_mcp.py /app/agent_brain_mcp.py && \
+    ln -sf /opt/hermes /app/hermes-agent
+
+# Override entrypoint with our OpenClaw-driven version (must come after hermes-agent copy)
+COPY docker/entrypoint.sh /opt/hermes/docker/entrypoint.sh
+COPY docker/skills-auto-update.sh /opt/hermes/docker/skills-auto-update.sh
+COPY docker/gen-openclaw-config.py /opt/hermes/docker/gen-openclaw-config.py
+COPY docker/volume-git-daemon.sh /opt/hermes/docker/volume-git-daemon.sh
+COPY docker/knowledge-watcher.sh /opt/hermes/docker/knowledge-watcher.sh
+COPY docker/docker-config.yaml /opt/hermes/docker/docker-config.yaml
+# Skills updater is root-owned, root-only writable (self-healing daemon + control
+# artifact hardening must not be tamperable by non-root inside the container).
+RUN chmod +x /opt/hermes/docker/entrypoint.sh /opt/hermes/docker/gen-openclaw-config.py \
+        /opt/hermes/docker/volume-git-daemon.sh /opt/hermes/docker/knowledge-watcher.sh && \
+    chown root:root /opt/hermes/docker/skills-auto-update.sh && \
+    chmod 755 /opt/hermes/docker/skills-auto-update.sh
+
+# Copy health validators
+COPY health/ /opt/hermes/health/
+
+# Copy key injection script
+COPY scripts/key_inject.py /opt/hermes/scripts/key_inject.py
+
+# Copy runtime orchestrator and scripts (for exec-based management)
+COPY scripts/ /scripts/
+COPY agents/workspace-template/ /data/agents/workspace-template/
+RUN chmod +x /scripts/*.sh && \
+    ln -sf /scripts/runtime.sh /runtime.sh && \
+    ln -sf /scripts/runtime.sh /opt/hermes/scripts/runtime.sh
+
+# Create runtime directories (PathResolver will use /runtime, /agents, etc.)
+RUN mkdir -p /runtime /data/agents /data/crews /data/imports /data/exports /projects /skills /logs /memory /plugins /config /models /scripts /knowledge_base /data/knowledge/inbox
+
+# ── Skills (CL-016) ──────────────────────────────────────────────────────────
+# CL-027 DISABLED: skills auto-pull from drdeeks/skills is OFF until the
+# upstream repo is brought up to the new enterprise standard. The curated
+# skills now live at hemlock/hemlock-runtime/skills/_curated/ on the host
+# and are COPIED into the image during build (see step below) — no git,
+# no daily pull, no cron.
+#
+# To re-enable when the repo is ready, restore the two RUN blocks below.
+# Original ARG defaults kept for future use:
+#   ARG SKILLS_REPO=https://github.com/drdeeks/skills.git
+#   ARG SKILLS_BRANCH=main
+# Original git-clone block: RUN git clone --depth 1 --branch ... /opt/skills_seed && ...
+# Original cron block:      RUN echo '17 3 * * * root ... git pull ...' > /etc/cron.d/hemlock-skills-sync
+
+# Copy the curated skill set into /opt/skills_seed (replaces git clone).
+# Source path: hemlock-runtime/shared/skills/ — the canonical, self-contained
+# skill location. Baked into the image at build time so the container needs
+# NO network and NO host skills dir at runtime (entrypoint seeds /skills from
+# this on first start). CL-027: no git clone, no cron pull.
+RUN mkdir -p /opt/skills_seed
+COPY shared/skills/ /opt/skills_seed/
+RUN find /opt/skills_seed -type d -exec chmod 755 {} + && \
+    find /opt/skills_seed -type f -exec chmod 644 {} +
+
+# Normalize permissions — NEVER 700/600 (scoped to our files, not node_modules)
+RUN find /opt/openclaw/bin -type d -exec chmod 755 {} + && \
+    find /opt/openclaw/bin -type f -exec chmod 755 {} + && \
+    find /opt/openclaw/tools -type d -exec chmod 755 {} + && \
+    find /opt/openclaw/tools -type f -exec chmod 644 {} + && \
+    find /opt/openclaw/tools/node/bin -type f -exec chmod 755 {} + && \
+    find /opt/openclaw/tools -name "*.sh" -o -name "*.mjs" -o -name "*.cjs" | xargs chmod 755 && \
+    find /opt/hermes -type d -exec chmod 755 {} + && \
+    find /opt/hermes -type f -exec chmod 644 {} + && \
+    find /opt/hermes -name "*.sh" -o -name "*.py" | xargs chmod 755 && \
+    find /opt/hermes/docker -type f -exec chmod 755 {} +
+
+# Health check — verify core imports work and paths resolve
+RUN python3 -c "\
+from paths import resolver; \
+print(f'PathResolver: root={resolver.root}, docker={resolver.is_docker}'); \
+print(f'  agents={resolver.agents_dir}'); \
+print(f'  skills={resolver.skills_root}'); \
+print(f'  knowledge_base={resolver.knowledge_base_dir}'); \
+print(f'  hermes_home={resolver.hermes_home}'); \
+" && \
+    python3 -c "import gateway.protocol; import autonomy.protocol; import crew.lifecycle" && \
+    python3 -c "from health.doctor_bridge import run_all_checks; report = run_all_checks(quick=True); print(f'Health: {report.ok_count} ok, {report.warn_count} warn, {report.fail_count} fail')" && \
+    echo "Core imports OK" && \
+    openclaw --version 2>/dev/null || echo "OpenClaw binary ready"
+
+WORKDIR /
+
+EXPOSE 18789
+
+# Health check via doctor bridge
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD python3 -m health.doctor_bridge --quick --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('healthy') else 1)" || exit 1
+
+# Entrypoint: dual mode — OpenClaw-driven (default), Hermes-only, or OpenClaw-only
+ENTRYPOINT ["/opt/hermes/docker/entrypoint.sh"]
+CMD []

@@ -1,0 +1,129 @@
+# =============================================================================
+# OpenClaw Agent Export Dockerfile
+# 
+# Exports an agent with all its dependencies, configuration, and skills
+# Creates a self-contained, portable agent image that can be:
+#   - Deployed anywhere with Docker
+#   - Imported into another OpenClaw instance
+#   - Shared via Docker Hub or private registry
+# 
+# Usage:
+#   # Export an agent
+#   docker build -t my-exported-agent \
+#     --build-arg AGENT_ID=my-agent \
+#     --build-arg AGENT_SOURCE_DIR=./agents/my-agent \
+#     -f Dockerfile.export \
+#     .
+# 
+#   # Run exported agent
+#   docker run -d \
+#     -e OPENCLAW_GATEWAY_URL=ws://host:18789 \
+#     -e OPENCLAW_GATEWAY_TOKEN=your_token \
+#     --name my-agent \
+#     my-exported-agent
+# =============================================================================
+
+FROM python:3.11-slim
+
+# =============================================================================
+# Build Arguments
+# =============================================================================
+ARG AGENT_ID
+ARG AGENT_SOURCE_DIR=./agents
+ARG MODEL=nous/mistral-large
+ARG INCLUDE_SKILLS=true
+ARG INCLUDE_TOOLS=true
+ARG INCLUDE_MEMORY=true
+
+# =============================================================================
+# Install system dependencies
+# =============================================================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    git \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
+
+# =============================================================================
+# Install OpenClaw components from local docker/ directory
+# =============================================================================
+COPY docker/hermes-agent /tmp/hermes-agent
+COPY docker/openclaw-runtime /tmp/openclaw-runtime
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir /tmp/hermes-agent && \
+    pip install --no-cache-dir /tmp/openclaw-runtime && \
+    rm -rf /tmp/hermes-agent /tmp/openclaw-runtime
+
+# =============================================================================
+# Create agent directory structure
+# =============================================================================
+RUN mkdir -p /app/{data,config,logs,skills,tools,memory}
+
+# =============================================================================
+# Copy entrypoint script
+# =============================================================================
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# =============================================================================
+# Copy agent configuration and dependencies
+# =============================================================================
+# Copy the specific agent's configuration
+COPY ${AGENT_SOURCE_DIR}/${AGENT_ID}/config.yaml /app/config/agent.yaml
+
+# Copy additional config files if they exist
+COPY ${AGENT_SOURCE_DIR}/${AGENT_ID}/config/ /app/config/ 2>/dev/null || true
+
+# Copy agent data directory (SOUL.md, MEMORY.md, USER.md, IDENTITY.md, AGENTS.md, tools/, etc.)
+COPY ${AGENT_SOURCE_DIR}/${AGENT_ID}/data/ /app/data/
+
+# Copy agent tools directory (memory-context.md, etc.)
+COPY ${AGENT_SOURCE_DIR}/${AGENT_ID}/tools/ /app/tools/
+
+# Optionally copy skills (for now, just create directory - skills can be mounted at runtime)
+RUN if [ "${INCLUDE_SKILLS}" = "true" ]; then \
+    echo "Skills directory ready for mount or copy"; \
+    fi
+
+# =============================================================================
+# Set environment variables
+# =============================================================================
+ENV AGENT_ID=${AGENT_ID} \
+    MODEL=${MODEL} \
+    OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:18789 \
+    OPENCLAW_GATEWAY_TOKEN=change_this_to_a_secure_token \
+    AGENT_CONFIG=/app/config/agent.yaml \
+    INCLUDE_SKILLS=${INCLUDE_SKILLS} \
+    INCLUDE_TOOLS=${INCLUDE_TOOLS} \
+    INCLUDE_MEMORY=${INCLUDE_MEMORY}
+
+# =============================================================================
+# Metadata labels for exported agent
+# =============================================================================
+LABEL org.opencontainers.image.title="OpenClaw Agent: ${AGENT_ID}" \
+      org.opencontainers.image.description="Exported OpenClaw Agent with ID ${AGENT_ID}" \
+      org.opencontainers.image.version="1.0.0" \
+      com.openclaw.agent.id="${AGENT_ID}" \
+      com.openclaw.agent.model="${MODEL}" \
+      com.openclaw.type="agent-export"
+
+# =============================================================================
+# Working directory
+# =============================================================================
+WORKDIR /app
+
+# =============================================================================
+# Expose gateway port
+# =============================================================================
+EXPOSE 18789
+
+# =============================================================================
+# Health check
+# =============================================================================
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD pgrep -x "hermes" > /dev/null || exit 1
+
+# =============================================================================
+# Entrypoint
+# =============================================================================
+ENTRYPOINT ["/app/entrypoint.sh"]

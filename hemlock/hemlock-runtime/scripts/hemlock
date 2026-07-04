@@ -1,0 +1,103 @@
+#!/bin/bash
+# =============================================================================
+# hemlock — Host-side entry point for Hemlock runtime management
+#
+# Runs the interactive menu and a background staging watcher concurrently.
+# When the menu writes a .request file to the bind mount, the watcher
+# reads it, stages the file, and the menu picks it up automatically.
+# =============================================================================
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+COMPOSE_FILE="$PROJECT_ROOT/docker-compose.runtime.yml"
+CONTAINER_NAME="${HEMLOCK_CONTAINER:-hemlock_runtime}"
+IMPORTS_HOST="$PROJECT_ROOT/volumes/imports"
+EXPORTS_HOST="$PROJECT_ROOT/volumes/exports"
+REQUEST_FILE="$IMPORTS_HOST/.request"
+
+is_container_running() {
+    docker ps -q -f name="$CONTAINER_NAME" 2>/dev/null | grep -q .
+}
+
+start_container() {
+    echo "  Starting Hemlock runtime..."
+    docker compose -f "$COMPOSE_FILE" up -d 2>&1
+    echo ""
+    echo "  Waiting for container to be healthy..."
+    local attempts=0
+    while ! is_container_running && [[ $attempts -lt 30 ]]; do
+        sleep 2
+        attempts=$((attempts + 1))
+    done
+    if is_container_running; then
+        echo "  Container started."
+    else
+        echo "  Container failed to start. Check logs:"
+        echo "    docker compose -f $COMPOSE_FILE logs"
+        return 1
+    fi
+}
+
+# ── Background watcher: fulfills staging requests from the container ──────────
+watch_requests() {
+    while true; do
+        if [[ -f "$REQUEST_FILE" ]]; then
+            local action host_path target_id
+            action="$(sed -n '1p' "$REQUEST_FILE" 2>/dev/null || echo '')"
+            host_path="$(sed -n '2p' "$REQUEST_FILE" 2>/dev/null || echo '')"
+            target_id="$(sed -n '3p' "$REQUEST_FILE" 2>/dev/null || echo '')"
+            rm -f "$REQUEST_FILE"
+
+            if [[ -z "$host_path" ]]; then
+                continue
+            fi
+
+            local bn
+            bn="$(basename "$host_path")"
+
+            case "$action" in
+                IMPORT_AGENT|IMPORT_CREW)
+                    if [[ -d "$host_path" ]]; then
+                        tar -czf "$IMPORTS_HOST/$bn.tar.gz" -C "$(dirname "$host_path")" "$bn" 2>/dev/null
+                    elif [[ -f "$host_path" ]]; then
+                        cp -a "$host_path" "$IMPORTS_HOST/$bn"
+                    fi
+                    ;;
+                EXPORT_AGENT|EXPORT_CREW)
+                    # Export: copy from exports dir to host destination
+                    local src="$EXPORTS_HOST/$bn"
+                    if [[ -f "$src" ]]; then
+                        cp -a "$src" "$host_path"
+                    fi
+                    ;;
+            esac
+        fi
+        sleep 1
+    done
+}
+
+# ── No args or "menu" → interactive menu with staging watcher ──────────────────
+if [[ -z "${1:-}" ]] || [[ "${1:-}" == "menu" ]] || [[ "${1:-}" == "m" ]]; then
+    if ! is_container_running; then
+        start_container || exit 1
+    fi
+
+    mkdir -p "$IMPORTS_HOST" "$EXPORTS_HOST"
+
+    # Start background staging watcher
+    watch_requests &
+    WATCHER_PID=$!
+
+    # Run menu — when it needs a host file, it writes .request and polls
+    set +e
+    docker exec -it "$CONTAINER_NAME" /scripts/runtime.sh
+    local_rc=$?
+    set -e
+
+    kill $WATCHER_PID 2>/dev/null
+    exit $local_rc
+fi
+
+# ── Everything else → delegate to hemlock-stage.sh ─────────────────────────────
+exec "$SCRIPT_DIR/hemlock-stage.sh" "$@"

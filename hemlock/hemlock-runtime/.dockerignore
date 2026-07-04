@@ -1,0 +1,60 @@
+# =============================================================================
+# Build-context hygiene — send ONLY what Dockerfile.runtime actually COPYs:
+#   docker/  health/  scripts/  agents/workspace-template/  shared/skills/
+# Everything else (secrets, real agent data, VCS, caches, weights, stale dirs)
+# is kept OUT of the build context so the image is foundationally clean.
+# =============================================================================
+
+# ── Secrets / credentials — never in the context ─────────────────────────────
+.env
+**/.env
+!**/.env.example
+**/.secrets/
+*.secret-key
+.secret-key
+.backup-key
+**/.backup-key
+**/*.key
+**/*.pem
+**/auth.json
+*.json.enc
+
+# ── VCS / caches / editor / logs ─────────────────────────────────────────────
+.git
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+.pytest_cache
+.mypy_cache
+**/*.log
+**/*.gz
+.DS_Store
+*.swp
+*~
+
+# ── Runtime data & dirs NOT used by the build (agents/crews are volumes) ──────
+agents/*
+!agents/workspace-template
+config/
+crews/
+data/
+docs/
+lib/
+logs/
+models/
+orchestration/
+plugins/
+runtime/
+srv/
+volumes/
+backups/
+**/backups/
+
+# ── shared/: only shared/skills is baked (into /opt/skills_seed) ──────────────
+shared/*
+!shared/skills
+
+# ── Model weights (re-downloadable; never baked) ─────────────────────────────
+scripts/models/
+**/*.gguf
+**/*.safetensors

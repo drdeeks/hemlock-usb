@@ -1,0 +1,17 @@
+{
+  "project": "Hemlock Enterprise Agent Framework",
+  "slug": "hemlock-enterprise-agent-framework",
+  "phases": [
+    "Foundation",
+    "Core",
+    "Gateway",
+    "Agents",
+    "Security",
+    "Launch"
+  ],
+  "version": "1.0",
+  "created_at": "2026-06-11T00:51:50.421645+00:00",
+  "blueprint": "/home/drdeek/projects/hemlock/docs/blueprint/blueprint.md",
+  "checklist": "/home/drdeek/projects/hemlock/docs/blueprint/checklist.md",
+  "assignments": "/home/drdeek/projects/hemlock/docs/blueprint/assignments.json"
+}

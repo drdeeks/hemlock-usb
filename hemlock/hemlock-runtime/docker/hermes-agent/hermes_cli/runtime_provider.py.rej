@@ -1,0 +1,11 @@
+--- runtime_provider.py
++++ runtime_provider.py
+@@ -300,6 +300,8 @@
+         result = {
+             "name": name.strip(),
+             "base_url": base_url.strip(),
++            "api_key": os.getenv(str(entry.get("key_env", "") or "").strip(), ""),
++            "key_env": str(entry.get("key_env", "") or "").strip(),
+         }
+         api_mode = _parse_api_mode(entry.get("api_mode"))
+         if api_mode:

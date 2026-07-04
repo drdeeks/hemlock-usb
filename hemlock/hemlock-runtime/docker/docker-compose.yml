@@ -1,0 +1,48 @@
+version: "3.8"
+
+x-agent-defaults: &agent-defaults
+  build:
+    context: .
+    args:
+      USER_ID: "1000"
+      GROUP_ID: "1000"
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "python3 -c \"from gateway.run import GatewayRunner; print('OK')\""]
+    interval: 60s
+    timeout: 10s
+    retries: 3
+    start_period: 30s
+  environment:
+    - TZ=America/Chicago
+
+services:
+  # ===========================================================================
+  # TEMPLATE: Agent services are defined dynamically at runtime.
+  # ===========================================================================
+  # For local development, create docker-compose.override.yml (NOT tracked in git).
+  #
+  # Example agent service template:
+  #   my-agent:
+  #     <<: *agent-defaults
+  #     container_name: oc-my-agent
+  #     volumes:
+  #       - ${AGENTS_HOME}/my-agent:/data/agents/my-agent
+  #       - ${AGENTS_HOME}/my-agent/.env:/data/agents/my-agent/.env:ro
+  #       - ~/.hermes/plugins:/data/agents/my-agent/plugins:ro
+  #     environment:
+  #       - HERMES_HOME=/data/agents/my-agent
+  #       - AGENT_ID=my-agent
+  #       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}  # Use environment variables
+  #     networks:
+  #       - net-my-agent
+  #
+  # networks:
+  #   net-my-agent:
+  #     driver: bridge
+  #     driver_opts:
+  #       com.docker.network.bridge.enable_icc: "false"
+  # ===========================================================================
+
+networks:
+  # Define networks here as needed in docker-compose.override.yml

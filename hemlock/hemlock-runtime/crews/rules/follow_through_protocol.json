@@ -1,0 +1,76 @@
+{
+  "alwaysApply": true,
+  "ruleName": "Follow-Through Protocol",
+  "implementationVerification": {
+    "immediateValidation": {
+      "title": "Immediate Validation",
+      "checklist": [
+        {
+          "title": "Syntax and Compilation",
+          "items": [
+            "Code Compilation: Verify all code compiles without errors",
+            "Syntax Validation: Check for syntax errors across all modified files",
+            "Type Checking: Validate type safety (TypeScript, Flow, etc.)",
+            "Linting: Run linters and fix any violations",
+            "Formatting: Ensure code follows project formatting standards"
+          ]
+        },
+        {
+          "title": "Dependency Validation",
+          "items": [
+            "Import Resolution: Verify all imports resolve correctly",
+            "Dependency Updates: Check for any new dependencies added",
+            "Version Compatibility: Ensure dependency versions are compatible",
+            "Lock File Updates: Update package-lock.json, yarn.lock, etc.",
+            "Circular Dependencies: Check for and resolve circular dependencies"
+          ]
+        },
+        {
+          "title": "Configuration Integrity",
+          "items": [
+            "Config File Validation: Verify configuration file syntax",
+            "Environment Variables: Check for required environment variables",
+            "Build Configuration: Validate build tool configurations",
+            "Database Connections: Test database connectivity if applicable",
+            "External Services: Validate external service configurations"
+          ]
+        }
+      ]
+    },
+    "testingValidation": {
+      "title": "Testing Validation",
+      "checklist": [
+        {
+          "title": "Unit Testing",
+          "items": [
+            "Affected Tests: Run all unit tests for modified components",
+            "New Test Coverage: Ensure new code has appropriate test coverage",
+            "Test Updates: Update existing tests if behavior changed",
+            "Mock Validation: Verify mocks and stubs are still accurate",
+            "Coverage Threshold: Maintain minimum coverage requirements"
+          ]
+        },
+        {
+          "title": "Integration Testing",
+          "items": [
+            "API Endpoints: Test all affected API endpoints",
+            "Database Operations: Verify database queries and transactions",
+            "External Integrations: Test third-party service integrations",
+            "Message Queues: Validate message processing if applicable",
+            "File Operations: Test file upload/download functionality"
+          ]
+        },
+        {
+          "title": "End-to-End Testing",
+          "items": [
+            "Critical User Flows: Test primary user journeys",
+            "Cross-Browser: Validate functionality across browsers",
+            "Mobile Responsiveness: Test mobile compatibility",
+            "Performance: Run performance tests on critical paths",
+            "Accessibility: Validate accessibility standards compliance"
+          ]
+        }
+      ]
+    }
+  }
+}

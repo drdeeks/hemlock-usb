@@ -1,0 +1,97 @@
+# =============================================================================
+# Docker Build Configuration for OpenClaw Enterprise Framework
+# 
+# This YAML file contains build-time configuration parsed by build.sh
+# It separates configuration from the build script logic.
+# 
+# Usage in build.sh:
+#   Parse with yq or python to extract values
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Registry Configuration
+# -----------------------------------------------------------------------------
+registry:
+  name: "${REGISTRY:-openclaw}"
+  
+# -----------------------------------------------------------------------------
+# Version Configuration
+# -----------------------------------------------------------------------------
+version:
+  framework: "${FRAMEWORK_VERSION:-1.0.0}"
+  default: "latest"
+
+# -----------------------------------------------------------------------------
+# Image Configuration
+# -----------------------------------------------------------------------------
+images:
+  framework:
+    dockerfile: "Dockerfile"
+    target: "framework"
+    tags:
+      - "${REGISTRY:-openclaw}/framework:${FRAMEWORK_VERSION:-1.0.0}"
+      - "${REGISTRY:-openclaw}/framework:latest"
+    build_args:
+      FRAMEWORK_VERSION: "${FRAMEWORK_VERSION:-1.0.0}"
+      FRAMEWORK_NAME: "${FRAMEWORK_NAME:-openclaw-enterprise}"
+
+  # Agent images - built from Dockerfile.agent
+  # AGENT_ID should be passed at build time, not hardcoded here
+  agent:
+    dockerfile: "Dockerfile.agent"
+    context: "."
+    build_args_template:
+      USER_ID: "1000"
+      GROUP_ID: "1000"
+      MODEL: "${DEFAULT_AGENT_MODEL:-nous/mistral-large}"
+      # AGENT_ID: passed at build time
+    tags_template:
+      - "${REGISTRY:-openclaw}/agent-<AGENT_ID>:${FRAMEWORK_VERSION:-1.0.0}"
+      - "${REGISTRY:-openclaw}/agent-<AGENT_ID>:latest"
+
+# -----------------------------------------------------------------------------
+# Agent Source Directories
+# 
+# build.sh will scan these directories for agent configurations
+# Each directory should contain at minimum:
+#   - config.yaml (optional, for default model override)
+# -----------------------------------------------------------------------------
+agent_sources:
+  - "agents/*/"
+  - "docker/agents/*/"
+
+# -----------------------------------------------------------------------------
+# Default Agent Configuration
+# -----------------------------------------------------------------------------
+defaults:
+  agent:
+    model: "${DEFAULT_AGENT_MODEL:-nous/mistral-large}"
+    user_id: "1000"
+    group_id: "1000"
+  framework:
+    name: "${FRAMEWORK_NAME:-openclaw-enterprise}"
+    version: "${FRAMEWORK_VERSION:-1.0.0}"
+
+# -----------------------------------------------------------------------------
+# Build Profiles
+# -----------------------------------------------------------------------------
+profiles:
+  dev:
+    description: "Development build - all images with cache"
+    images:
+      - framework
+      - agents
+    cache: true
+    
+  prod:
+    description: "Production build - no cache, optimized"
+    images:
+      - framework
+      - agents
+    cache: false
+    
+  framework-only:
+    description: "Build only the framework base image"
+    images:
+      - framework
+    cache: true

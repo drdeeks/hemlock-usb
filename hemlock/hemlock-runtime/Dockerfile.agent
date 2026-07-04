@@ -1,0 +1,107 @@
+# =============================================================================
+# OpenClaw Agent Dockerfile
+# 
+#Builds an individual agent image with specific configuration
+# Can be extended for custom agents or used standalone
+# 
+# Usage:
+#   docker build -t my-agent --build-arg AGENT_ID=my-agent --build-arg MODEL=my-model .
+# 
+# Environment Variables:
+#   AGENT_ID       - Unique agent identifier (required)
+#   MODEL          - LLM model to use (required)
+#   CREW_CHANNEL   - Crew channel for multi-agent mode (optional)
+#   OPENCLAW_GATEWAY_URL    - Gateway WebSocket URL (default: ws://openclaw-gateway:18789)
+#   OPENCLAW_GATEWAY_TOKEN  - Gateway authentication token (required)
+# =============================================================================
+
+FROM python:3.11-slim
+
+# =============================================================================
+# Build Arguments - Must be provided at build time
+# =============================================================================
+ARG AGENT_ID
+ARG MODEL=nous/mistral-large
+ARG AGENT_CONFIG=default
+
+# =============================================================================
+# Runtime Arguments - Can be overridden at runtime
+# =============================================================================
+ARG OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:18789
+ARG OPENCLAW_GATEWAY_TOKEN=change_this_to_a_secure_token
+ARG CREW_CHANNEL=""
+
+# =============================================================================
+# Install system dependencies
+# =============================================================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    git \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
+
+# =============================================================================
+# Install OpenClaw components from local docker/ directory
+# =============================================================================
+COPY docker/hermes-agent /tmp/hermes-agent
+COPY docker/openclaw-runtime /tmp/openclaw-runtime
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir /tmp/hermes-agent && \
+    pip install --no-cache-dir /tmp/openclaw-runtime && \
+    rm -rf /tmp/hermes-agent /tmp/openclaw-runtime
+
+# =============================================================================
+# Create directory structure
+# =============================================================================
+RUN mkdir -p /app/{data,config,logs,skills,tools}
+
+# =============================================================================
+# Copy entrypoint script
+# =============================================================================
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# =============================================================================
+# Copy agent-specific configuration (if AGENT_CONFIG is provided)
+# =============================================================================
+ARG AGENT_CONFIG_FILE=""
+RUN if [ -n "$AGENT_CONFIG_FILE" ]; then \
+    mkdir -p /app/config && \
+    echo "Agent config will be mounted at runtime or provided via AGENT_CONFIG_FILE arg"; \
+    fi
+
+# =============================================================================
+# Set environment variables
+# =============================================================================
+ENV AGENT_ID=${AGENT_ID} \
+    MODEL=${MODEL} \
+    OPENCLAW_GATEWAY_URL=${OPENCLAW_GATEWAY_URL} \
+    OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN} \
+    CREW_CHANNEL=${CREW_CHANNEL}
+
+# =============================================================================
+# Security configuration - Agents run read-only by default
+# =============================================================================
+ENV READ_ONLY=true \
+    CAP_DROP=true
+
+# =============================================================================
+# Working directory
+# =============================================================================
+WORKDIR /app
+
+# =============================================================================
+# Expose gateway port (for debugging/health checks)
+# =============================================================================
+EXPOSE 18789
+
+# =============================================================================
+# Health check
+# =============================================================================
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD pgrep -x "hermes" > /dev/null || exit 1
+
+# =============================================================================
+# Entrypoint
+# =============================================================================
+ENTRYPOINT ["/app/entrypoint.sh"]

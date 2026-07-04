@@ -1,0 +1,37 @@
+# OpenClaw Gateway Configuration
+gateway:
+  # Server settings
+  host: "0.0.0.0"
+  port: 18789
+  bind: "lan"
+  
+  # Security
+  token: "${OPENCLAW_GATEWAY_TOKEN}"
+  auth:
+    enabled: true
+    required: true
+  
+  # Agent settings
+  agents:
+    default_timeout: 300
+    max_concurrent: 10
+    
+  # Channel settings
+  channels:
+    telegram:
+      enabled: true
+      webhook: false
+    discord:
+      enabled: false
+    
+  # Logging
+  logging:
+    level: "info"
+    file: "/var/log/openclaw/gateway.log"
+    max_size: "10m"
+    max_files: 5
+  
+  # Performance
+  performance:
+    max_memory: "512m"
+    worker_threads: 4
