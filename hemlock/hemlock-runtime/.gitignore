@@ -129,3 +129,15 @@ scripts/models/huggingface/
 !**/*.template
 !**/.env.example
 !**/.env.template
+
+# ── Template EXCEPTIONS: workspace-template is the shipped reference — its
+#    structure READMEs must survive git (empty dirs vanish otherwise).
+!agents/workspace-template/logs/
+agents/workspace-template/logs/*
+!agents/workspace-template/logs/README.md
+!agents/workspace-template/sessions/
+agents/workspace-template/sessions/*
+!agents/workspace-template/sessions/README.md
+!agents/workspace-template/.secrets/
+agents/workspace-template/.secrets/*
+!agents/workspace-template/.secrets/README.md

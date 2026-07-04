@@ -1,0 +1,128 @@
+# =============================================================================
+# Hemlock Runtime — LEAN Dockerfile
+#
+# The ADAPTABLE image. Two builds exist by design:
+#   Dockerfile.runtime       → "plug ready": everything baked (openclaw lib +
+#                              node_modules + node toolchain + dev tools). ~4.2GB.
+#   Dockerfile.runtime-lean  → THIS: Hermes cognition + entrypoint + skills seed
+#                              only. NO vendored node_modules, NO baked toolchain,
+#                              NO ffmpeg/build-essential. For owners who run on
+#                              their own persistent data and don't need the tools
+#                              baked in.
+#
+# OpenClaw in lean mode comes from YOUR data, mounted at runtime (optional —
+# informative, never forced):
+#   docker run -v /your/persist/openclaw:/opt/openclaw ... hemlock:lean
+# Without the mount, the entrypoint falls back to Hermes-only cognition mode.
+# System node 22 IS included (a runtime, not a tool) so mounted OpenClaw runs.
+#
+# Build:  DOCKER_BUILDKIT=0 docker build -t hemlock:lean -f Dockerfile.runtime-lean .
+# =============================================================================
+
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+COPY docker/hermes-agent/pyproject.toml /build/
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir --prefix=/install . && \
+    pip install --no-cache-dir --prefix=/install python-telegram-bot>=20.0 && \
+    pip install --no-cache-dir --prefix=/install edge-tts>=6.1
+
+# =============================================================================
+# Runtime stage — lean
+# =============================================================================
+FROM python:3.12-slim
+
+ENV HEMLOCK_DOCKER=1 \
+    HEMLOCK_LEAN=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/opt/hermes:/opt/openclaw/lib \
+    HERMES_HOME=/runtime \
+    OPENCLAW_ROOT=/opt/openclaw \
+    RUNTIME_ROOT=/data \
+    AGENTS_DIR=/data/agents \
+    CREWS_DIR=/data/crews \
+    IMPORTS_DIR=/data/imports \
+    EXPORTS_DIR=/data/exports
+
+# Lean baseline ONLY — no ffmpeg, no build-essential, no editors.
+# Agents needing heavier tools mount them from persistent data or use the full image.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        procps bash unzip git cron rsync jq wget curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /install /usr/local
+
+# System node 22 (runtime for a data-mounted OpenClaw; no vendored toolchain)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Control plane launcher only — lib/node_modules/tools intentionally NOT baked.
+# /opt/openclaw is the mount point for owner-provided OpenClaw (or stays empty).
+COPY docker/openclaw-runtime/bin/ /opt/openclaw/bin/
+RUN chmod +x /opt/openclaw/bin/openclaw-container && \
+    ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/openclaw
+
+# ── Hermes (cognition layer) ─────────────────────────────────────────────────
+COPY docker/hermes-agent/ /opt/hermes/
+COPY docker/hermes-agent/gateway/run.py /opt/hermes/gateway/run.py
+
+RUN mkdir -p /app && \
+    ln -sf /opt/hermes/agent_brain_mcp.py /app/agent_brain_mcp.py && \
+    ln -sf /opt/hermes /app/hermes-agent
+
+COPY docker/entrypoint.sh /opt/hermes/docker/entrypoint.sh
+COPY docker/skills-auto-update.sh /opt/hermes/docker/skills-auto-update.sh
+COPY docker/gen-openclaw-config.py /opt/hermes/docker/gen-openclaw-config.py
+COPY docker/volume-git-daemon.sh /opt/hermes/docker/volume-git-daemon.sh
+COPY docker/knowledge-watcher.sh /opt/hermes/docker/knowledge-watcher.sh
+COPY docker/docker-config.yaml /opt/hermes/docker/docker-config.yaml
+RUN chmod +x /opt/hermes/docker/entrypoint.sh /opt/hermes/docker/gen-openclaw-config.py \
+        /opt/hermes/docker/volume-git-daemon.sh /opt/hermes/docker/knowledge-watcher.sh && \
+    chown root:root /opt/hermes/docker/skills-auto-update.sh && \
+    chmod 755 /opt/hermes/docker/skills-auto-update.sh
+
+COPY health/ /opt/hermes/health/
+COPY scripts/key_inject.py /opt/hermes/scripts/key_inject.py
+COPY scripts/ /scripts/
+COPY agents/workspace-template/ /data/agents/workspace-template/
+RUN chmod +x /scripts/*.sh && \
+    ln -sf /scripts/runtime.sh /runtime.sh && \
+    ln -sf /scripts/runtime.sh /opt/hermes/scripts/runtime.sh
+
+RUN mkdir -p /runtime /data/agents /data/crews /data/imports /data/exports /projects /skills /logs /memory /plugins /config /models /scripts /knowledge_base /data/knowledge/inbox
+
+# Skills seed — same curated set as the full image (skills are data, not tooling)
+RUN mkdir -p /opt/skills_seed
+COPY shared/skills/ /opt/skills_seed/
+RUN find /opt/skills_seed -type d -exec chmod 755 {} + && \
+    find /opt/skills_seed -type f -exec chmod 644 {} +
+
+# Normalize permissions — NEVER 700/600
+RUN find /opt/openclaw/bin -type f -exec chmod 755 {} + && \
+    find /opt/hermes -type d -exec chmod 755 {} + && \
+    find /opt/hermes -type f -exec chmod 644 {} + && \
+    find /opt/hermes -name "*.sh" -o -name "*.py" | xargs chmod 755 && \
+    find /opt/hermes/docker -type f -exec chmod 755 {} +
+
+# Health check — core imports + path resolution (no openclaw expectation in lean)
+RUN python3 -c "\
+from paths import resolver; \
+print(f'PathResolver: root={resolver.root}, docker={resolver.is_docker}'); \
+" && \
+    python3 -c "import gateway.protocol; import autonomy.protocol; import crew.lifecycle" && \
+    python3 -c "from health.doctor_bridge import run_all_checks; report = run_all_checks(quick=True); print(f'Health: {report.ok_count} ok, {report.warn_count} warn, {report.fail_count} fail')" && \
+    echo "Core imports OK (lean)"
+
+WORKDIR /
+
+EXPOSE 18789
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD python3 -m health.doctor_bridge --quick --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('healthy') else 1)" || exit 1
+
+ENTRYPOINT ["/opt/hermes/docker/entrypoint.sh"]
+CMD []
