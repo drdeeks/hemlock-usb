@@ -1,29 +1,9 @@
 ---
 name: guardrail-enforcement
-description: 'A composable guardrail toolchain: a WATCHER (monitor.py) that fires
-  an action when a condition trips — e.g. auto-committing a ''skill version bumped
-  to vX.Y.Z'' message when a skill''s SKILL.md version changes, discovering newly-added
-  skills dynamically — and a GATE (gate.py) that enforces pre-checks then loop then
-  post-checks and appends an HMAC-signed, hash-chained audit log. Plus an advisory
-  .loop.lock so mid-authoring skills are skipped, git hooks that reject commits without
-  a valid entry, and a manifest verifier that cross-checks the manifest against SKILL.md
-  versions and git hashes. Watcher and gate are independent but compose. Config-driven
-  and domain-agnostic; free-first $0 Python stdlib, path-agnostic, no external services.
-  Triggers on ''guardrail'', ''watch skill versions'', ''auto commit on version bump'',
-  ''gate a workflow'', ''enforce a loop'', ''loop lock'', ''signed audit log'', ''pre-commit
-  enforcement'', ''loop enforcer''.'
+description: "A composable guardrail toolchain: a WATCHER (monitor.py) that fires an action when a condition trips — e.g. auto-committing a 'skill version bumped to vX.Y.Z' message when a skill's SKILL.md version changes, discovering newly-added skills dynamically — and a GATE (gate.py) that enforces pre-checks then loop then post-checks and appends an HMAC-signed, hash-chained audit log. Plus an advisory .loop.lock so mid-authoring skills are skipped, git hooks that reject commits without a valid entry, and a manifest verifier that cross-checks the manifest against SKILL.md versions and git hashes. Watcher and gate are independent but compose. Config-driven and domain-agnostic; free-first $0 Python stdlib, path-agnostic, no external services. Triggers on 'guardrail', 'watch skill versions', 'auto commit on version bump', 'gate a workflow', 'enforce a loop', 'loop lock', 'signed audit log', 'pre-commit enforcement', 'loop enforcer'."
 license: MIT
 metadata:
   tags:
-  - guardrail
-  - enforcement
-  - workflow-gate
-  - audit-log
-  - hmac
-  - git-hooks
-  - devops
-  openclaw:
-    tags:
     - guardrail
     - enforcement
     - workflow-gate
@@ -31,29 +11,31 @@ metadata:
     - hmac
     - git-hooks
     - devops
+  openclaw:
+    tags:
+      - guardrail
+      - enforcement
+      - audit
+      - devops
     category: devops
     priority: high
   hermes:
     tags:
-    - guardrail
-    - enforcement
-    - workflow-gate
-    - audit-log
-    - hmac
-    - git-hooks
-    - devops
+      - enforcement
+      - validation
+      - development
     category: development
     related_skills:
-    - skill-creator
-    - enterprise-blueprint-validation
+      - skill-creator
+      - enterprise-blueprint-validation
   providers:
-  - openai
-  - claude
-  - mistral
-  - gemini
-  - hermes
-  - copilot
-  - any
+    - openai
+    - claude
+    - mistral
+    - gemini
+    - hermes
+    - copilot
+    - any
 version: 0.1.4
 ---
 

@@ -1,36 +1,26 @@
 ---
 name: loop-enforcer
-description: Enforce sequential dependency chains on files, tasks, and services. Locks
-  steps until prior work is verified complete. Interactive menu + agent API. Prevents
-  destructive ops by enforcing additive-only builds with chained verification gates.
-  Use when building projects where files must be created in order, or when agents
-  must not destroy existing work.
+description: "Enforce sequential dependency chains on files, tasks, and services. Locks steps until prior work is verified complete. Interactive menu + agent API. Prevents destructive ops by enforcing additive-only builds with chained verification gates. Use when building projects where files must be created in order, or when agents must not destroy existing work."
 version: 1.0.6
 license: MIT
 metadata:
   openclaw:
-    version: '1.0'
+    version: "1.0"
     category: devops
     complexity: enterprise
-    tags:
-    - chain enforcement
-    - file locking
-    - sequential dependencies
-    - verification gates
-    - destructive prevention
-    - additive builds
-    - audit logging
   openai:
     type: function
     parameters:
-    - name: command
-      type: string
-    - name: project_dir
-      type: string
-    - name: chain_name
-      type: string
+      - name: command
+        type: string
+      - name: project_dir
+        type: string
+      - name: chain_name
+        type: string
   hermes:
-    tags:
+    tags: [automation, devops, enforcement]
+    category: devops
+  tags:
     - chain enforcement
     - file locking
     - sequential dependencies
@@ -38,15 +28,6 @@ metadata:
     - destructive prevention
     - additive builds
     - audit logging
-    category: devops
-  tags:
-  - chain enforcement
-  - file locking
-  - sequential dependencies
-  - verification gates
-  - destructive prevention
-  - additive builds
-  - audit logging
 ---
 
 # Loop Enforcer

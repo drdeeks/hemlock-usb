@@ -1,24 +1,9 @@
 ---
 name: enterprise-blueprint
-description: Enterprise blueprint skill with integrated enforcement and checklist-driven
-  execution. Generates blueprint.md + checklist.md + CHANGELOG.md with full enterprise
-  structure. Validates against 58+ enterprise rules. Integrates loop-enforcer chain
-  for sequential phase enforcement where checklist is the single source of truth.
-  No hand-off to separate skills required — complete lifecycle in one skill.
+description: "Enterprise blueprint skill with integrated enforcement and checklist-driven execution. Generates blueprint.md + checklist.md + CHANGELOG.md with full enterprise structure. Validates against 58+ enterprise rules. Integrates loop-enforcer chain for sequential phase enforcement where checklist is the single source of truth. No hand-off to separate skills required — complete lifecycle in one skill."
 license: MIT
 metadata:
   tags:
-  - blueprint
-  - architecture
-  - enterprise
-  - planning
-  - checklist
-  - validation
-  - testing
-  - phase-gating
-  - devops
-  openclaw:
-    tags:
     - blueprint
     - architecture
     - enterprise
@@ -28,31 +13,31 @@ metadata:
     - testing
     - phase-gating
     - devops
+  openclaw:
+    tags:
+      - blueprint
+      - architecture
+      - enterprise
+      - planning
     category: devops
     priority: high
   hermes:
     tags:
-    - blueprint
-    - architecture
-    - enterprise
-    - planning
-    - checklist
-    - validation
-    - testing
-    - phase-gating
-    - devops
+      - creation
+      - development
+      - planning
     category: development
     related_skills:
-    - portable-linux-usb
-    - backup-protocol
+      - portable-linux-usb
+      - backup-protocol
   providers:
-  - openai
-  - claude
-  - mistral
-  - gemini
-  - hermes
-  - copilot
-  - any
+    - openai
+    - claude
+    - mistral
+    - gemini
+    - hermes
+    - copilot
+    - any
 version: 0.1.0
 ---
 

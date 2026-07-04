@@ -110,6 +110,24 @@ if [[ -d /opt/skills_seed && ! -f /skills/.hemlock_skills_seeded ]]; then
         warn "skills seed rsync failed — /skills may be incomplete"
     date -Iseconds > /skills/.hemlock_skills_seeded
     log "[skills] seeded $(ls /skills | grep -v '^\.' | wc -l) entries (curated)"
+
+    # Install-time provider tag remap: the repo ships STANDARD tags only;
+    # seeding = installing, so remap canonical tags into the provider blocks
+    # this harness actually consumes (see skill-creator
+    # references/provider-tag-remapping.md). Additive + idempotent; fail-soft.
+    if [[ -f /skills/skill-creator/scripts/skill_enhance.py ]]; then
+        python3 - <<'PYEOF' 2>>/var/log/hemlock-skills-sync.log || warn "[skills] provider tag remap failed (non-fatal)"
+import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, "/skills/skill-creator/scripts")
+from pathlib import Path
+from skill_enhance import remap_provider_tags, detect_providers
+providers = detect_providers() or ["hermes", "openclaw"]
+n = sum(1 for d in Path("/skills").iterdir()
+        if (d / "SKILL.md").is_file() and remap_provider_tags(d, providers))
+print(f"[skills] provider tag remap: {n} skills -> {','.join(providers)}")
+PYEOF
+    fi
 fi
 
 # Daily upstream refresh (supersedes the CL-027-disabled cron). The updater

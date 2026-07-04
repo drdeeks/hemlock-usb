@@ -1,41 +1,12 @@
 ---
 name: portable-usb-manager
-description: Comprehensive USB-first portable Linux management. Handles detection,
-  mounting, partitioning, formatting, Ventoy multi-boot setup with persistence, mkusb
-  live/persistent creation, hidden device recovery, chroot install into the persistence
-  volume, boot mode selection (headless SSH or full GUI via QEMU), per-device profile
-  manifests with autoboot, USB-resident profile store with default selection, restart-on-CRUD
-  volume orchestration for agent harnesses, in-persistence essentials installer that
-  mirrors the host dev toolchain (build/edit/net/python/node/crypto/web3/docker/cloud
-  groups with rust/go/ai as opt-in), enhanced bash profile + alias manager, sudo cache
-  + triple-notification consent policy, permission normalization that never uses 0700,
-  cross-OS detection (Linux/macOS/WSL2/Windows), and full plumbing for chroot/QEMU/SSH/Tailscale
-  access. Use for any USB drive whose intent is portable compute rather than file
-  storage.
+description: "Comprehensive USB-first portable Linux management. Handles detection, mounting, partitioning, formatting, Ventoy multi-boot setup with persistence, mkusb live/persistent creation, hidden device recovery, chroot install into the persistence volume, boot mode selection (headless SSH or full GUI via QEMU), per-device profile manifests with autoboot, USB-resident profile store with default selection, restart-on-CRUD volume orchestration for agent harnesses, in-persistence essentials installer that mirrors the host dev toolchain (build/edit/net/python/node/crypto/web3/docker/cloud groups with rust/go/ai as opt-in), enhanced bash profile + alias manager, sudo cache + triple-notification consent policy, permission normalization that never uses 0700, cross-OS detection (Linux/macOS/WSL2/Windows), and full plumbing for chroot/QEMU/SSH/Tailscale access. Use for any USB drive whose intent is portable compute rather than file storage."
 version: 2.0.9
 license: MIT
 metadata:
   category: portable-compute
   complexity: enterprise
   tags:
-  - usb drive management
-  - portable linux usb
-  - ventoy persistence setup
-  - bootable usb creation
-  - usb automount configuration
-  - chroot into usb persistence
-  - usb compute platform
-  hermes:
-    tags:
-    - usb drive management
-    - portable linux usb
-    - ventoy persistence setup
-    - bootable usb creation
-    - usb automount configuration
-    - chroot into usb persistence
-    - usb compute platform
-  openclaw:
-    tags:
     - usb drive management
     - portable linux usb
     - ventoy persistence setup
