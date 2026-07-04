@@ -1,0 +1,102 @@
+# =============================================================================
+# Hemlock Runtime — CORE Dockerfile
+#
+# The third isolated variant (reference: hemlock-isolate / hemlock-essential
+# package in the quarantine archives). Literally two things:
+#   1. The gateway daemon (control plane) — fronts platforms, runs the loop
+#   2. The brain served over MCP (cognition) — spawned by the gateway on demand
+#
+# The comms-opt-in rung: gateway daemon + brain over MCP, menu, health, and
+# the agent workspace template — but telegram/edge-tts/ffmpeg are NOT baked.
+# Install them in-container the moment you want them (your choice, never forced):
+#   pip install python-telegram-bot edge-tts && apt-get update && apt-get install -y ffmpeg
+# CUTS vs minimal: comms extras + ffmpeg. CUTS vs full: all dev tooling too.
+#
+#   Dockerfile.runtime          → plug-ready: everything baked        (~4.2GB)
+#   Dockerfile.runtime-lean     → adaptable: no toolchain/modules bake
+#   Dockerfile.runtime-minimal  → THIS: gateway daemon + brain MCP only
+#
+# Build:  DOCKER_BUILDKIT=0 docker build -t hemlock:core -f Dockerfile.runtime-core .
+# =============================================================================
+
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+# Cognition package ONLY — comms (telegram/voice) install in-container on demand.
+COPY docker/hermes-agent/pyproject.toml /build/
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir --prefix=/install .
+
+# =============================================================================
+FROM python:3.12-slim
+
+ENV HEMLOCK_DOCKER=1 \
+    HEMLOCK_CORE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/opt/hermes:/opt/openclaw/lib \
+    HERMES_HOME=/runtime \
+    OPENCLAW_ROOT=/opt/openclaw \
+    RUNTIME_ROOT=/data \
+    AGENTS_DIR=/data/agents \
+    CREWS_DIR=/data/crews
+
+# Bare survival set — comms/transcoding installable in-container when wanted
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends procps curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /install /usr/local
+
+# node = the engine the gateway daemon runs on
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# ── Gateway daemon ────────────────────────────────────────────────────────────
+COPY docker/openclaw-runtime/lib/ /opt/openclaw/lib/
+COPY docker/openclaw-runtime/package.json /opt/openclaw/lib/node_modules/openclaw/
+RUN cd /opt/openclaw/lib/node_modules/openclaw && \
+    npm install --omit=dev --omit=optional --legacy-peer-deps --ignore-scripts && \
+    npm cache clean --force
+
+COPY docker/openclaw-runtime/bin/ /opt/openclaw/bin/
+RUN chmod +x /opt/openclaw/bin/openclaw-container && \
+    ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/openclaw
+
+# ── Brain over MCP ────────────────────────────────────────────────────────────
+# Cognition source (the brain's dependency closure lives here); heavy runtime
+# features are simply never started — the ONLY processes are gateway + brain MCP.
+COPY docker/hermes-agent/ /opt/hermes/
+COPY docker/gen-openclaw-config.py /opt/hermes/docker/gen-openclaw-config.py
+COPY docker/entrypoint-minimal.sh /opt/hermes/docker/entrypoint-minimal.sh
+RUN mkdir -p /app /runtime /data/agents /data/crews /skills /logs /config && \
+    ln -sf /opt/hermes/agent_brain_mcp.py /app/agent_brain_mcp.py && \
+    chmod +x /opt/hermes/docker/entrypoint-minimal.sh /opt/hermes/docker/gen-openclaw-config.py
+
+# Health suite — stays in every variant
+COPY health/ /opt/hermes/health/
+
+# Owner menu — stays in every variant
+COPY scripts/ /scripts/
+RUN mkdir -p /opt/hermes/scripts && \
+    chmod +x /scripts/*.sh && \
+    ln -sf /scripts/runtime.sh /runtime.sh && \
+    ln -sf /scripts/runtime.sh /opt/hermes/scripts/runtime.sh
+
+# Agent workspace template — every agent spawned adheres to the Hemlock
+# per-agent contract (memory tree, tools, secrets rules) in every variant
+COPY agents/workspace-template/ /data/agents/workspace-template/
+
+# Health: brain imports + config generator present
+RUN python3 -c "import agent_brain_mcp" 2>/dev/null || python3 -c "import sys; sys.path.insert(0,'/opt/hermes'); import agent_brain_mcp; print('brain MCP import OK')"
+
+WORKDIR /
+
+EXPOSE 18789
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD python3 -m health.doctor_bridge --quick --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('healthy') else 1)" || exit 1
+
+ENTRYPOINT ["/opt/hermes/docker/entrypoint-minimal.sh"]
+CMD []
