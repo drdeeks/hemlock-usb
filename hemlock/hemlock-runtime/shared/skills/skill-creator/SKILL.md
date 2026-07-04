@@ -202,7 +202,18 @@ python3 scripts/skill_enhance.py create --name my-skill --tier basic
 python3 scripts/skill_enhance.py update --path ./my-skill
 ```
 
-**CHAIN ENFORCEMENT:** Every pipeline gate (scaffold → frontmatter → scripts → refs → validate → auto_fix → re_validate → test → verify_sources → package → extract_verify) is a LOCKED chain step managed by loop-enforcer. Temp chain workdir auto-created/deleted. Cannot proceed until current step verified + completed. Skill root stays CLEAN — no `.chain` or `.chain-steps` dirs left behind.
+**CHAIN ENFORCEMENT (BUILT-IN):** Every pipeline gate (scaffold → frontmatter → scripts → refs → validate → auto_fix → re_validate → test → verify_sources → package → extract_verify) is a LOCKED chain step managed by the skill's OWN `scripts/chain.py` — self-reliant, no other skill required. Set `LOOP_ENFORCER_ROOT` to explicitly delegate to the universal loop-enforcer skill instead. Temp chain workdir auto-created/deleted. Cannot proceed until current step verified + completed. Skill root stays CLEAN — no `.chain` or `.chain-steps` dirs left behind.
+
+**PROVIDER TAG REMAP (in-pipeline):** Before the package gate, enhance detects the harness (`HERMES_*` / `OPENCLAW_*` / `OPENAI_*` env, `HEMLOCK_MODE`; `--provider` overrides) and copies canonical `metadata.tags` into that provider's block (`metadata.<provider>.tags`) — additive, idempotent, canonical untouched. See `references/provider-tag-remapping.md`.
+
+### `scripts/chain.py` — Built-in Chain Enforcer
+
+Vendored copy of the universal chain concept (loop-enforcer). Locked sequential steps, verify-before-complete, JSON output. Used automatically by `skill_enhance.py`; directly invokable.
+
+### `scripts/normalize_tags.py` — Repo-side Standard-Tag Normalizer
+
+Strips install-time provider tag blocks from SKILL.md(s) so the REPO ships standard tags only. Runs automatically from the post-commit gate hook (transmitted by skill-installer on every install); `--check` mode reports without writing.
+
 
 Purely read-only — never mutates. Structural fixes live in `auto_fix.py`.
 

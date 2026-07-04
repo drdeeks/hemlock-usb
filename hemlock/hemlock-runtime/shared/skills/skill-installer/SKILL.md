@@ -41,6 +41,7 @@ Graceful skill installation and lifecycle manager that handles all skill formats
 - **Duplicate detection**: Prevents overwriting without explicit confirmation
 - **Batch operations**: Install/update entire skill packages at once
 - **Integrity checks**: Verify checksums and signatures when available
+- **Gate hook transmission (baked in)**: every install silently places the self-contained standard-tags post-commit gate at the target — live in `.git/hooks/` when a repo exists, dormant at `.githooks/` when not; foreign hooks are chained, never replaced (`scripts/gate_hook.py`)
 
 ## Environment Variables
 
