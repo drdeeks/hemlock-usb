@@ -1,0 +1,135 @@
+{
+  "assignments": {
+    "PHASE-0": {
+      "agent": "Architect",
+      "scope": "PHASE-0",
+      "label": "Phase 0",
+      "status": "not_started",
+      "assigned_at": "2026-06-25T04:17:16.791003+00:00",
+      "completed_at": null,
+      "notes": ""
+    },
+    "PHASE-1": {
+      "agent": "DevOps",
+      "scope": "PHASE-1",
+      "label": "Phase 1",
+      "status": "not_started",
+      "assigned_at": "2026-06-25T04:17:16.969158+00:00",
+      "completed_at": null,
+      "notes": ""
+    },
+    "PHASE-2": {
+      "agent": "DevOps",
+      "scope": "PHASE-2",
+      "label": "Phase 2",
+      "status": "not_started",
+      "assigned_at": "2026-06-25T04:17:17.143527+00:00",
+      "completed_at": null,
+      "notes": ""
+    },
+    "PHASE-3": {
+      "agent": "Backend",
+      "scope": "PHASE-3",
+      "label": "Phase 3",
+      "status": "not_started",
+      "assigned_at": "2026-06-25T04:17:17.321113+00:00",
+      "completed_at": null,
+      "notes": ""
+    },
+    "PHASE-4": {
+      "agent": "Backend",
+      "scope": "PHASE-4",
+      "label": "Phase 4",
+      "status": "not_started",
+      "assigned_at": "2026-06-25T04:17:17.547027+00:00",
+      "completed_at": null,
+      "notes": ""
+    },
+    "PHASE-5": {
+      "agent": "DevOps",
+      "scope": "PHASE-5",
+      "label": "Phase 5",
+      "status": "not_started",
+      "assigned_at": "2026-06-25T04:17:17.752853+00:00",
+      "completed_at": null,
+      "notes": ""
+    },
+    "PHASE-6": {
+      "agent": "Architect",
+      "scope": "PHASE-6",
+      "label": "Phase 6",
+      "status": "not_started",
+      "assigned_at": "2026-06-25T04:17:17.936820+00:00",
+      "completed_at": null,
+      "notes": ""
+    },
+    "PHASE-7": {
+      "agent": "QA",
+      "scope": "PHASE-7",
+      "label": "Phase 7",
+      "status": "not_started",
+      "assigned_at": "2026-06-25T04:17:18.114018+00:00",
+      "completed_at": null,
+      "notes": ""
+    }
+  },
+  "history": [
+    {
+      "event": "assigned",
+      "scope": "PHASE-0",
+      "agent": "Architect",
+      "prior_agent": "unassigned",
+      "timestamp": "2026-06-25T04:17:16.791023+00:00"
+    },
+    {
+      "event": "assigned",
+      "scope": "PHASE-1",
+      "agent": "DevOps",
+      "prior_agent": "unassigned",
+      "timestamp": "2026-06-25T04:17:16.969262+00:00"
+    },
+    {
+      "event": "assigned",
+      "scope": "PHASE-2",
+      "agent": "DevOps",
+      "prior_agent": "unassigned",
+      "timestamp": "2026-06-25T04:17:17.143583+00:00"
+    },
+    {
+      "event": "assigned",
+      "scope": "PHASE-3",
+      "agent": "Backend",
+      "prior_agent": "unassigned",
+      "timestamp": "2026-06-25T04:17:17.321215+00:00"
+    },
+    {
+      "event": "assigned",
+      "scope": "PHASE-4",
+      "agent": "Backend",
+      "prior_agent": "unassigned",
+      "timestamp": "2026-06-25T04:17:17.548151+00:00"
+    },
+    {
+      "event": "assigned",
+      "scope": "PHASE-5",
+      "agent": "DevOps",
+      "prior_agent": "unassigned",
+      "timestamp": "2026-06-25T04:17:17.752945+00:00"
+    },
+    {
+      "event": "assigned",
+      "scope": "PHASE-6",
+      "agent": "Architect",
+      "prior_agent": "unassigned",
+      "timestamp": "2026-06-25T04:17:17.936889+00:00"
+    },
+    {
+      "event": "assigned",
+      "scope": "PHASE-7",
+      "agent": "QA",
+      "prior_agent": "unassigned",
+      "timestamp": "2026-06-25T04:17:18.114077+00:00"
+    }
+  ],
+  "created_at": "2026-06-25T04:17:16.790696+00:00"
+}

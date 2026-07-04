@@ -1,0 +1,27 @@
+{
+  "project": "USB-Hemlock Unified Compute Platform",
+  "slug": "usb-hemlock-unified-compute-platform",
+  "phases": [
+    "Phase 0: Pre-Build Environment",
+    "Phase 1: USB Foundation and Ventoy",
+    "Phase 2: Persistence Layer and Partitioning",
+    "Phase 3: Service Integration",
+    "Phase 4: System Management and Health",
+    "Phase 5: Hemlock Runtime Deployment",
+    "Phase 6: USB-Hemlock Bridge and TUI Integration",
+    "Phase 7: Validation and Hardening",
+    "Phase 8: Consolidation, Isolation and Alignment"
+  ],
+  "version": "1.1",
+  "created_at": "2026-06-25T08:39:10.970749+00:00",
+  "blueprint": "blueprint/blueprint.md",
+  "checklist": "blueprint/checklist.md",
+  "assignments": "blueprint/assignments.json",
+  "amendments": [
+    {
+      "cl": "CL-039",
+      "date": "2026-07-02",
+      "summary": "Phase 8 consolidation/isolation/alignment"
+    }
+  ]
+}

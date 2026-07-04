@@ -1,0 +1,180 @@
+{
+  "feature_flags": {
+    "FEAT_PRE_BUILD_ENVIRONMENT": {
+      "enabled": false,
+      "description": "Phase 0: Pre-Build Environment",
+      "module": null,
+      "created_at": "2026-06-25"
+    },
+    "FEAT_USB_FOUNDATION_AND_VENTOY": {
+      "enabled": false,
+      "description": "Phase 1: USB Foundation and Ventoy",
+      "module": null,
+      "created_at": "2026-06-25"
+    },
+    "FEAT_PERSISTENCE_LAYER_AND_PARTITIONING": {
+      "enabled": false,
+      "description": "Phase 2: Persistence Layer and Partitioning",
+      "module": null,
+      "created_at": "2026-06-25"
+    },
+    "FEAT_SERVICE_INTEGRATION_SSH_AND_ALIAS_MANAGEMENT": {
+      "enabled": false,
+      "description": "Phase 3: Service Integration — SSH and Alias Management",
+      "module": null,
+      "created_at": "2026-06-25"
+    },
+    "FEAT_SYSTEM_MANAGEMENT_AND_HEALTH": {
+      "enabled": false,
+      "description": "Phase 4: System Management and Health",
+      "module": null,
+      "created_at": "2026-06-25"
+    },
+    "FEAT_HEMLOCK_RUNTIME_DEPLOYMENT": {
+      "enabled": false,
+      "description": "Phase 5: Hemlock Runtime Deployment",
+      "module": null,
+      "created_at": "2026-06-25"
+    },
+    "FEAT_USB_HEMLOCK_BRIDGE_AND_TUI_INTEGRATION": {
+      "enabled": false,
+      "description": "Phase 6: USB-Hemlock Bridge and TUI Integration",
+      "module": null,
+      "created_at": "2026-06-25"
+    },
+    "FEAT_VALIDATION_AND_HARDENING": {
+      "enabled": false,
+      "description": "Phase 7: Validation and Hardening",
+      "module": null,
+      "created_at": "2026-06-25"
+    },
+    "FEAT_CORE_LIB": {
+      "enabled": false,
+      "description": "MOD-001: Core Library — Colors, logging, confirm, run_or_dry, safe_exec, traps",
+      "module": "MOD-001",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_PLATFORM": {
+      "enabled": false,
+      "description": "MOD-002: Platform Detection — OS detection (Linux/macOS/WSL/Windows), virtualization, tool selection",
+      "module": "MOD-002",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_VENTOY": {
+      "enabled": false,
+      "description": "MOD-003: Ventoy USB Management — Mount detection (5 fallbacks), unmount, persistence check/size",
+      "module": "MOD-003",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_CONFIG": {
+      "enabled": false,
+      "description": "MOD-004: JSON Configuration — Config init/get/set via jq, host-ID generation",
+      "module": "MOD-004",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_MENU": {
+      "enabled": false,
+      "description": "MOD-005: Menu Framework — Stack-based menu_loop with back/quit, UCA_MENU_STACK array",
+      "module": "MOD-005",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_VALIDATION": {
+      "enabled": false,
+      "description": "MOD-006: Validation Engine — Triple validation (host-id, USB mount, menu stack), self-heal",
+      "module": "MOD-006",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_CLI": {
+      "enabled": false,
+      "description": "MOD-007: Unified CLI — usbctl dispatcher: usb/config/alias/validate subcommands",
+      "module": "MOD-007",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_SETUP_ASSISTANT": {
+      "enabled": false,
+      "description": "MOD-008: USB Setup Assistant — Interactive installer: Ventoy, persistence, VM, essentials",
+      "module": "MOD-008",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_ALIAS": {
+      "enabled": false,
+      "description": "MOD-009: Alias Manager — ~/.bash_aliases_usb CRUD with menu_loop integration",
+      "module": "MOD-009",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_SSH": {
+      "enabled": false,
+      "description": "MOD-010: SSH Host Manager — ~/.ssh/hosts_usb pipe-delimited store, config generation",
+      "module": "MOD-010",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_SYSMAN": {
+      "enabled": false,
+      "description": "MOD-011: System Manager — Health/network/disk/services/repair dashboard (whiptail+text)",
+      "module": "MOD-011",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_ESSENTIALS": {
+      "enabled": false,
+      "description": "MOD-012: Essentials Installer — Build toolchain provisioner",
+      "module": "MOD-012",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_AUTOMOUNT": {
+      "enabled": false,
+      "description": "MOD-013: USB Auto-Mount — udev rules + systemd service for automatic USB mounting",
+      "module": "MOD-013",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_BOOTSTRAP": {
+      "enabled": false,
+      "description": "MOD-014: System Bootstrap — Ubuntu one-time provisioner: apt, Node, Bun, Python, Docker, Tailscale",
+      "module": "MOD-014",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_HEMLOCK_CLI": {
+      "enabled": false,
+      "description": "MOD-015: Hemlock Host CLI — Host-side entrypoint: container lifecycle, staging watcher, exec",
+      "module": "MOD-015",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_HEMLOCK_TUI": {
+      "enabled": false,
+      "description": "MOD-016: Hemlock Runtime TUI — In-container menu: agent/crew/validation/security/monitoring/config",
+      "module": "MOD-016",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_HEMLOCK_STAGING": {
+      "enabled": false,
+      "description": "MOD-017: Hemlock Staging Bridge — Import/export file staging via volumes/imports/.request protocol",
+      "module": "MOD-017",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_HEMLOCK_DOCKER": {
+      "enabled": false,
+      "description": "MOD-018: Hemlock Docker Infra — Compose files, Dockerfiles, Makefile for runtime/agent/crew/doctor",
+      "module": "MOD-018",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_DEPLOY": {
+      "enabled": false,
+      "description": "MOD-019: Master Deployment — DEPLOY.sh: 3-phase deploy (system + USB + Hemlock) with --dry-run",
+      "module": "MOD-019",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_BRIDGE": {
+      "enabled": false,
+      "description": "MOD-020: USB-Hemlock Bridge — hemlock-tui wrapper: connects USB menu option 13 to Hemlock CLI",
+      "module": "MOD-020",
+      "created_at": "2026-06-25"
+    },
+    "FEAT_SKILLS": {
+      "enabled": false,
+      "description": "MOD-021: Skills Bundle — 84 agent skill packages for Hemlock runtime",
+      "module": "MOD-021",
+      "created_at": "2026-06-25"
+    }
+  },
+  "created_at": "2026-06-25",
+  "version": "1.0.0"
+}

@@ -1,0 +1,19 @@
+{
+  "project": "Menu TUI Refactor",
+  "slug": "menu-tui-refactor",
+  "phases": [
+    "Pre-Build",
+    "Audit-Bugs",
+    "Foundation-USB-First",
+    "Stateful-TUI-Loop",
+    "Persistence-Manager-Fix",
+    "Hemlock-Gating",
+    "Validation",
+    "Cutover"
+  ],
+  "version": "1.0",
+  "created_at": "2026-06-27T09:35:02.125013+00:00",
+  "blueprint": "/home/drdeek/bin/Bak/usb-hemlock/usb-hemlock-split/blueprint/menu-tui-refactor/blueprint.md",
+  "checklist": "/home/drdeek/bin/Bak/usb-hemlock/usb-hemlock-split/blueprint/menu-tui-refactor/checklist.md",
+  "assignments": "/home/drdeek/bin/Bak/usb-hemlock/usb-hemlock-split/blueprint/menu-tui-refactor/assignments.json"
+}
