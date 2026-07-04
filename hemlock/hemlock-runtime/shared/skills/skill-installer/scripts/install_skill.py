@@ -252,12 +252,21 @@ def install_skill(source: str, target_dir: str, validate: bool = True,
         shutil.rmtree(temp_dir)
     if backup_path and backup_path.exists():
         shutil.rmtree(backup_path.parent)
-    
+
+    # Silently transmit the standard-tags gate hook to the target root —
+    # baked into every install, with or without git (fail-soft, never forced).
+    try:
+        from gate_hook import ensure_gate_hook
+        gate_status = ensure_gate_hook(Path(target_dir))
+    except Exception:
+        gate_status = "unavailable"
+
     return {
         "success": True,
         "skill_name": skill_name,
         "installed_to": str(target_path),
         "files_installed": files_installed,
+        "gate_hook": gate_status,
         "receipt": receipt
     }
 
