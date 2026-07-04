@@ -17,7 +17,7 @@
 # 
 #   # Run exported agent
 #   docker run -d \
-#     -e OPENCLAW_GATEWAY_URL=ws://host:18789 \
+#     -e OPENCLAW_GATEWAY_URL=ws://host:1437 \
 #     -e OPENCLAW_GATEWAY_TOKEN=your_token \
 #     --name my-agent \
 #     my-exported-agent
@@ -90,7 +90,7 @@ RUN if [ "${INCLUDE_SKILLS}" = "true" ]; then \
 # =============================================================================
 ENV AGENT_ID=${AGENT_ID} \
     MODEL=${MODEL} \
-    OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:18789 \
+    OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:1437 \
     OPENCLAW_GATEWAY_TOKEN=change_this_to_a_secure_token \
     AGENT_CONFIG=/app/config/agent.yaml \
     INCLUDE_SKILLS=${INCLUDE_SKILLS} \
@@ -115,7 +115,7 @@ WORKDIR /app
 # =============================================================================
 # Expose gateway port
 # =============================================================================
-EXPOSE 18789
+EXPOSE 1437
 
 # =============================================================================
 # Health check

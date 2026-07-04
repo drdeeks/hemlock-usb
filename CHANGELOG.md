@@ -262,7 +262,7 @@ Image rebuilt + retagged with `hemlock:cl-026` to capture the menu refactor.
 
 ### 2026-06-25 — GUI Direction Locked: OpenClaw Control + Future Rebrand (CL-012)
 
-- **Decision**: Hemlock GUI is the **OpenClaw Control web UI** already served by the gateway at `http://localhost:18789/`, launched via `chromium --app=URL --class=Hemlock-Control` for a native-app feel. **No Electron, no fork required.** Dropped the Hermes Desktop path (wrong layer — bypasses OpenClaw in an OpenClaw-driven architecture).
+- **Decision**: Hemlock GUI is the **OpenClaw Control web UI** already served by the gateway at `http://localhost:1437/`, launched via `chromium --app=URL --class=Hemlock-Control` for a native-app feel. **No Electron, no fork required.** Dropped the Hermes Desktop path (wrong layer — bypasses OpenClaw in an OpenClaw-driven architecture).
 - **Auth**: `OPENCLAW_GATEWAY_TOKEN` retrieved via `docker exec hemlock_runtime openclaw dashboard`. Token persists across restarts. H7 will auto-fill it from the menu.
 - **Live-verified** by user: UI loads and prompts to update OpenClaw itself (out-of-date — separate concern; address when rebuilding the container with current OpenClaw).
 - **Rebrand (deferred)**: fork the SPA in `docker/openclaw-runtime/`, swap title/favicons/theme names ("claw"→"hemlock")/i18n. Commit into image build context. Defer until OpenClaw is current + H2 ships + quiet machine.

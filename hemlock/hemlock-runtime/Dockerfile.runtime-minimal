@@ -98,7 +98,7 @@ RUN python3 -c "import agent_brain_mcp" 2>/dev/null || python3 -c "import sys; s
 
 WORKDIR /
 
-EXPOSE 18789
+EXPOSE 1437
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD python3 -m health.doctor_bridge --quick --json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('healthy') else 1)" || exit 1

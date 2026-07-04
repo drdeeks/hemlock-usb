@@ -96,7 +96,7 @@ Files are staged via a `volumes/imports/.request` protocol:
 
 | Port | Service |
 |------|---------|
-| 18789 | Openclaw gateway (Node.js) |
+| 1437 | Openclaw gateway (Node.js) |
 | 41214 | MCP proxy |
 | 22 | SSH (forwarded from host) |
 

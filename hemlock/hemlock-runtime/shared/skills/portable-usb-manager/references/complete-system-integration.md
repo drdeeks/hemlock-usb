@@ -27,7 +27,7 @@ This document describes the complete integration of all components into a single
 │  ┌─────────────┐    ┌─────────────────┐   ┌──────────────┐   │
 │  │   VM (QEMU) │    │ Hemlock Gateway │   │ Auto-Start   │   │
 │  │  Headless   │    │  (Docker)       │   │  Services    │   │
-│  │  SSH 2222   │    │  Port 18789     │   │  systemd/    │   │
+│  │  SSH 2222   │    │  Port 1437     │   │  systemd/    │   │
 │  │  USB Pass-  │    │  MCP 41214      │   │  LaunchAgent │   │
 │  │  through    │    │  Agents/Crews   │   │  USB Detect  │   │
 │  └─────────────┘    └─────────────────┘   └──────────────┘   │
@@ -51,7 +51,7 @@ This document describes the complete integration of all components into a single
 ### 3. Hemlock Agent Orchestration
 - **Dockerized Gateway**: `hemlock-runtime` container with `--restart unless-stopped`
 - **Volumes**: `hemlock-gateway`, `hemlock-agents`, `hemlock-crews`, `hemlock-shared-skills`
-- **Ports**: Gateway 18789, MCP Proxy 41214, Compute ports (8888, 8080, 11434, etc.)
+- **Ports**: Gateway 1437, MCP Proxy 41214, Compute ports (8888, 8080, 11434, etc.)
 - **Isolation**: `--security-opt=no-new-privileges`, `--cap-drop=ALL`, resource limits
 
 ### 4. Auto-Start Pipeline
@@ -153,7 +153,7 @@ sudo bash ~/usb-setup-assistant.sh --dry-run  # Preview
 # 4. SSH into system
 ssh -p 2222 user@localhost
 # → Agents alpha/beta/gamma already attached
-# → Gateway: http://localhost:18789
+# → Gateway: http://localhost:1437
 # → Hemlock TUI available (Option 13)
 ```
 
@@ -259,7 +259,7 @@ After complete setup, verify:
 
 - [ ] Ventoy USB boots to Ubuntu with persistence
 - [ ] `ssh -p 2222 user@localhost` works
-- [ ] `curl http://localhost:18789/health` returns `{"ok":true}`
+- [ ] `curl http://localhost:1437/health` returns `{"ok":true}`
 - [ ] `docker ps` shows `hemlock-runtime` running
 - [ ] Agents alpha/beta/gamma attached: `docker exec hemlock-runtime /entrypoint.sh agent-list`
 - [ ] Auto-start services enabled: `systemctl is-enabled hemlock-gateway hemlock-usb-detect`

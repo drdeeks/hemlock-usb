@@ -54,7 +54,7 @@ SSH_PORT_FORWARD_HOST=2222
 SSH_PORT_FORWARD_GUEST=22
 
 # Hemlock Gateway ports (agent/crew orchestration)
-HEMLOCK_GATEWAY_PORT=18789
+HEMLOCK_GATEWAY_PORT=1437
 HEMLOCK_MCP_PROXY_PORT=41214
 
 # Resource access ports (for containers in persistence)
@@ -834,7 +834,7 @@ setup_complete_system() {
     print_info "boot in headless mode with SSH access available at:"
     echo "      ssh -p $SSH_PORT_FORWARD_HOST user@localhost"
     echo ""
-    print_info "Hemlock Gateway will be running at: http://localhost:18789"
+    print_info "Hemlock Gateway will be running at: http://localhost:1437"
     print_info "Agents will be auto-attached and ready for work via Hemlock TUI"
     echo ""
 }
@@ -4521,7 +4521,7 @@ launch_hemlock_tui() {
     echo "  ⚙️  Settings - Gateway, Telegram, iMessage, MCP, Network"
     echo ""
     echo "Hemlock uses Docker volumes for isolated agent/crew workspaces."
-    echo "Gateway runs on port 18789 with MCP bridge on stdio."
+    echo "Gateway runs on port 1437 with MCP bridge on stdio."
     echo ""
     
     # Check if Hemlock is available
@@ -4641,11 +4641,11 @@ deploy_hemlock() {
     fi
     
     # Start gateway container
-    print_info "Starting Hemlock Gateway on port 18789..."
+    print_info "Starting Hemlock Gateway on port 1437..."
     docker run -d \
         --name hemlock-runtime \
         --restart unless-stopped \
-        -p 18789:18789 \
+        -p 1437:1437 \
         -p 41214:41214 \
         -v hemlock-gateway:/workspace/gateway \
         -v hemlock-agents:/agents \
@@ -4663,8 +4663,8 @@ deploy_hemlock() {
     docker exec hemlock-runtime /entrypoint.sh agent-list 2>/dev/null || true
     
     print_success "Hemlock deployed!"
-    print_info "Gateway: http://localhost:18789"
-    print_info "Health:  curl http://localhost:18789/health"
+    print_info "Gateway: http://localhost:1437"
+    print_info "Health:  curl http://localhost:1437/health"
 }
 
 # Launch Hemlock TUI in a popout terminal window
@@ -5209,7 +5209,7 @@ gateway_manage_settings() {
             5)
                 print_header "Network Port Configuration"
                 echo "Current gateway ports:"
-                docker exec hemlock-runtime cat /workspace/gateway/hemlock.json 2>/dev/null | jq -r '.gateway.port // 18789'
+                docker exec hemlock-runtime cat /workspace/gateway/hemlock.json 2>/dev/null | jq -r '.gateway.port // 1437'
                 echo ""
                 echo "Container ports (compute resources):"
                 for port in "${CONTAINER_COMPUTE_PORTS[@]}"; do
@@ -5512,7 +5512,7 @@ deploy_hemlock_full() {
     echo "  - Docker image build from Dockerfile.runtime (includes llama.cpp build)"
     echo "  - Required volumes (gateway, agents, crews, shared-skills, models)"
     echo "  - 157 skills populated to shared-skills volume"
-    echo "  - Gateway container with auto-restart on port 18789"
+    echo "  - Gateway container with auto-restart on port 1437"
     echo "  - MCP bridge for agent cognition"
     echo "  - Pre-created default agents (alpha, beta, gamma)"
     echo "  - Auto-attach agents to gateway on startup"
@@ -5686,8 +5686,8 @@ deploy_hemlock_full() {
     docker exec hemlock-runtime /entrypoint.sh agent-list 2>/dev/null || true
     
     print_success "Hemlock fully deployed!"
-    print_info "Gateway: http://localhost:18789"
-    print_info "Health:  curl http://localhost:18789/health"
+    print_info "Gateway: http://localhost:1437"
+    print_info "Health:  curl http://localhost:1437/health"
     print_info "MCP Proxy: localhost:41214 (internal loopback)"
     print_info "Agents: alpha, beta, gamma (pre-created, attached)"
     print_info "Gateway Token: $gateway_token"

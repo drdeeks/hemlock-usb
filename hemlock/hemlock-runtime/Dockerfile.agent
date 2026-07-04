@@ -11,7 +11,7 @@
 #   AGENT_ID       - Unique agent identifier (required)
 #   MODEL          - LLM model to use (required)
 #   CREW_CHANNEL   - Crew channel for multi-agent mode (optional)
-#   OPENCLAW_GATEWAY_URL    - Gateway WebSocket URL (default: ws://openclaw-gateway:18789)
+#   OPENCLAW_GATEWAY_URL    - Gateway WebSocket URL (default: ws://openclaw-gateway:1437)
 #   OPENCLAW_GATEWAY_TOKEN  - Gateway authentication token (required)
 # =============================================================================
 
@@ -27,7 +27,7 @@ ARG AGENT_CONFIG=default
 # =============================================================================
 # Runtime Arguments - Can be overridden at runtime
 # =============================================================================
-ARG OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:18789
+ARG OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:1437
 ARG OPENCLAW_GATEWAY_TOKEN=change_this_to_a_secure_token
 ARG CREW_CHANNEL=""
 
@@ -93,7 +93,7 @@ WORKDIR /app
 # =============================================================================
 # Expose gateway port (for debugging/health checks)
 # =============================================================================
-EXPOSE 18789
+EXPOSE 1437
 
 # =============================================================================
 # Health check

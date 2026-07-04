@@ -290,7 +290,7 @@ def _load_configuration() -> bool:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     default_config = {
         'runtime': {
-            'gateway': {'port': 18789},
+            'gateway': {'port': 1437},
             'agents': {'default_model': 'ollama/qwen3:0.6b'},
             'security': {'read_only': True, 'cap_drop': True}
         }
@@ -414,7 +414,7 @@ def _check_gateway() -> bool:
     """Check if gateway is running."""
     try:
         import urllib.request
-        urllib.request.urlopen('http://localhost:18789/healthz', timeout=2)
+        urllib.request.urlopen('http://localhost:1437/healthz', timeout=2)
         return True
     except Exception:
         return False

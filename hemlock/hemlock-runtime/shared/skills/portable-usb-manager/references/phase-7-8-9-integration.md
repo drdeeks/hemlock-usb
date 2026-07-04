@@ -158,7 +158,7 @@ COPY scripts/desktop-access.sh /scripts/desktop-access.sh
 ### docker-compose.yml Port Updates
 ```yaml
 ports:
-  - "18789:18789"    # Gateway
+  - "1437:1437"    # Gateway
   - "41214:41214"    # MCP Proxy
   - "5901:5901"      # VNC
   - "5930:5930"      # SPICE

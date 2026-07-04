@@ -273,7 +273,7 @@ EOF
       - AGENT_ID=${agent_id}
       - MODEL=ollama/qwen3:0.6b
       - CREW_CHANNEL=${crew_name}
-      - OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:18789
+      - OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:1437
       - OPENCLAW_GATEWAY_TOKEN=\${OPENCLAW_GATEWAY_TOKEN}
     volumes:
       - ${AGENTS_DIR}/${agent_id}/data:/app/data

@@ -276,7 +276,7 @@ test_scenarios+=(
 ```typescript
 // In tests/playwright/hemlock.spec.ts
 test('My new feature', async ({ request }) => {
-  const response = await request.post('http://localhost:18789/v1/my-endpoint', {
+  const response = await request.post('http://localhost:1437/v1/my-endpoint', {
     data: { key: 'value' }
   });
   expect(response.ok()).toBeTruthy();

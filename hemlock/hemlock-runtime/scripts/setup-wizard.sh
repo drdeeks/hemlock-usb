@@ -380,7 +380,7 @@ _save_provider_config() {
         cat > "$runtime_yaml" <<EOF
 runtime:
   gateway:
-    port: 18789
+    port: 1437
     token: "change_this_to_a_secure_token"
     bind: "lan"
   agents:
@@ -421,7 +421,7 @@ section_runtime() {
     local runtime_yaml="$CONFIG_DIR/runtime.yaml"
     local current_port current_bind
 
-    current_port=$(grep "port:" "$runtime_yaml" 2>/dev/null | head -1 | awk '{print $2}' || echo "18789")
+    current_port=$(grep "port:" "$runtime_yaml" 2>/dev/null | head -1 | awk '{print $2}' || echo "1437")
     current_bind=$(grep "bind:" "$runtime_yaml" 2>/dev/null | head -1 | awk '{print $2}' | tr -d '"' || echo "lan")
 
     echo "  The OpenClaw gateway handles agent communication."

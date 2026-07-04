@@ -119,13 +119,13 @@ services:
     image: openclaw/gateway:latest
     container_name: openclaw-gateway
     ports:
-      - "18789:18789"
+      - "1437:1437"
     volumes:
       - ~/.openclaw:/root/.openclaw
     networks:
       - agents_net
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:18789/healthz"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:1437/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -146,7 +146,7 @@ EOL
 # OpenClaw Runtime Configuration
 runtime:
   gateway:
-    port: 18789
+    port: 1437
     token: "$(generate_random_token)"
   agents:
     default_model: "ollama/qwen3:0.6b"

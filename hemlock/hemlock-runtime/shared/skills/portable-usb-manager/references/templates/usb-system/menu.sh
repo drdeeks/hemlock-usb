@@ -3831,10 +3831,10 @@ _run_hemlock_control() {
   fi
 
   # Token (auto-fills #token=... in the URL so user never sees the auth wall).
-  local tok url="http://localhost:18789/"
+  local tok url="http://localhost:1437/"
   tok=$(_uca_hemlock_token 2>/dev/null) || true
   if [[ -n "$tok" ]]; then
-    url="http://localhost:18789/#token=${tok}"
+    url="http://localhost:1437/#token=${tok}"
     _menu_info "Token auto-resolved (${#tok} chars)"
   else
     _menu_warn "Token could not be resolved — you may hit the auth wall in the UI."

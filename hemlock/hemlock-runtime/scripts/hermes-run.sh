@@ -249,7 +249,7 @@ main() {
     docker_cmd="$docker_cmd -e AGENT_ID=${AGENT_ID}"
     docker_cmd="$docker_cmd -e MODEL_BACKEND=${backend}"
     docker_cmd="$docker_cmd -e DEFAULT_MODEL=${model}"
-    docker_cmd="$docker_cmd -e OPENCLAW_GATEWAY_URL=ws://gateway:18789"
+    docker_cmd="$docker_cmd -e OPENCLAW_GATEWAY_URL=ws://gateway:1437"
     docker_cmd="$docker_cmd -e HERMES_MODE=openclaw"
     docker_cmd="$docker_cmd -e HERMES_DATA_DIR=/data"
     docker_cmd="$docker_cmd -e HERMES_CONFIG_DIR=/config"

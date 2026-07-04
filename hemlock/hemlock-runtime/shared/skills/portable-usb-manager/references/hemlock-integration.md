@@ -71,7 +71,7 @@ CONTAINER_COMPUTE_PORTS=(
 )
 ```
 
-Plus Gateway (18789) and MCP Proxy (41214).
+Plus Gateway (1437) and MCP Proxy (41214).
 
 ### Container Isolation
 
@@ -216,7 +216,7 @@ All delegate to container: `docker exec hemlock-runtime /scripts/model-manager.s
 `/workspace/gateway/hemlock.json`:
 ```json
 {
-  "gateway": { "port": 18789, "mode": "local" },
+  "gateway": { "port": 1437, "mode": "local" },
   "agents": { "list": [{"id": "alpha", "workspace": "/agents/alpha"}] },
   "mcp": {
     "servers": {
@@ -259,7 +259,7 @@ USB Inserted
     └─► User SSH: ssh -p 2222 user@localhost
             │
             ├─► Agents already attached & ready
-            ├─► Gateway: http://localhost:18789
+            ├─► Gateway: http://localhost:1437
             └─► Model management via hemlock model-* or TUI
 ```
 

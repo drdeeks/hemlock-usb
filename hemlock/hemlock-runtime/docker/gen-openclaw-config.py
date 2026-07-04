@@ -17,7 +17,7 @@ AGENTS_DIR = os.environ.get("AGENTS_DIR", "/data/agents")
 OUT        = os.environ.get("OPENCLAW_CONFIG", "/root/.openclaw/openclaw.json")
 BRAIN      = os.environ.get("BRAIN_SCRIPT", "/opt/hermes/agent_brain_mcp.py")
 PY         = os.environ.get("BRAIN_PYTHON", "/usr/local/bin/python3")
-PORT       = int(os.environ.get("OPENCLAW_GATEWAY_PORT", "18789"))
+PORT       = int(os.environ.get("OPENCLAW_GATEWAY_PORT", "1437"))
 # Keep the lazy skills index compact (skills load their SKILL.md on demand).
 SKILLS_MAX_CHARS = int(os.environ.get("OPENCLAW_SKILLS_PROMPT_CHARS", "8000"))
 # INCLUDE_BRAINS=0 (openclaw-only mode) → OpenClaw runs its own agents with NO Hermes

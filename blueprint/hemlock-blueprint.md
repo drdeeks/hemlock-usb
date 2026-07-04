@@ -44,7 +44,7 @@ manages per-agent and per-crew Docker volumes via the Docker socket.
 │                                                                           │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────────────┐  │
 │  │ OpenClaw        │  │ MCP brain       │  │ Hermes engine            │  │
-│  │ gateway :18789  │  │ (auto-learn)    │  │ (per-agent loops)        │  │
+│  │ gateway :1437  │  │ (auto-learn)    │  │ (per-agent loops)        │  │
 │  └─────────────────┘  └─────────────────┘  └──────────────────────────┘  │
 │                                                                           │
 │  ┌──────────────────────────────────────────────────────────────────┐    │
@@ -118,7 +118,7 @@ container**, not as separate containers. Each agent process:
 - Is launched with mount-namespace restrictions: it can read/write
   `/data/agents/<own-id>` and read `/skills`, but **cannot see** any other
   `/data/agents/<other-id>`.
-- Routes all gateway traffic through the local OpenClaw on `:18789`.
+- Routes all gateway traffic through the local OpenClaw on `:1437`.
 
 Mount-namespace isolation uses **`bwrap` (bubblewrap)** — standard
 sandboxing tool, available on every Debian/Ubuntu, uses unprivileged user
@@ -141,7 +141,7 @@ agent process launch (inside the runtime container):
     /opt/hermes/bin/hermes-runner
 ```
 
-`--share-net` lets the agent reach the gateway on `localhost:18789` and the
+`--share-net` lets the agent reach the gateway on `localhost:1437` and the
 public internet. Everything else is namespaced away.
 
 ---
@@ -368,7 +368,7 @@ Hemlock Doctor lives at `health/doctor_bridge.py`. Eight categories:
 | `paths` | Directory existence + writability for `HERMES_HOME`, agent dirs, skills, logs, etc. |
 | `env` | Required env vars, Python path, Docker detection |
 | `identity` | Each agent volume has valid `agent.json` + `SOUL.md` + `config.yaml` |
-| `gateway` | OpenClaw gateway reachable on `:18789`; auth token valid |
+| `gateway` | OpenClaw gateway reachable on `:1437`; auth token valid |
 | `imports` | Python module imports for `hermes`, `openclaw`, `paths.resolver`, etc. |
 | `adapters` | Platform adapter configs (Telegram, Discord) parse |
 | `orchestration` | Crew configs consistent (every member volume exists) |
@@ -420,7 +420,7 @@ HEMLOCK_IMAGE=hemlock:latest
 
 # Gateway
 OPENCLAW_GATEWAY_BIND=lan
-OPENCLAW_GATEWAY_PORT=18789
+OPENCLAW_GATEWAY_PORT=1437
 OPENCLAW_GATEWAY_TOKEN=<generated-on-first-run; never empty>
 
 # Docker socket — REQUIRED for dynamic volume orchestration
@@ -514,10 +514,10 @@ container. Mitigations:
 - Documented as Hemlock's primary trust assumption.
 
 ### 10.3 Network
-- Agents share the container's network stack (so they all see `localhost:18789`
+- Agents share the container's network stack (so they all see `localhost:1437`
   for the gateway).
 - Agents have outbound internet access (for web browsing, model APIs, etc.).
-- No inbound except via the gateway port (18789).
+- No inbound except via the gateway port (1437).
 
 ---
 
@@ -538,12 +538,12 @@ to reveal **option 19 Hemlock Manager**, which consolidates:
 | Agent CRUD | Create / import / export / delete agents |
 | Crew CRUD | Create / import / export / dissolve crews |
 | View logs | Per-process filtered: openclaw / mcp-brain / hermes-gateway / all |
-| Launch Hemlock Control (GUI) | `chromium --app=http://localhost:18789/#token=<TOKEN> --class=Hemlock-Control` — opens the OpenClaw Control web UI (already served by the gateway) in a chromeless app window. Per CL-012. |
+| Launch Hemlock Control (GUI) | `chromium --app=http://localhost:1437/#token=<TOKEN> --class=Hemlock-Control` — opens the OpenClaw Control web UI (already served by the gateway) in a chromeless app window. Per CL-012. |
 
 ### 11.1 GUI architecture (locked in CL-012)
 
 The Hemlock GUI is the **OpenClaw Control SPA** served by the gateway at
-`http://localhost:18789/`, opened via `chromium --app=URL`. NOT a separate
+`http://localhost:1437/`, opened via `chromium --app=URL`. NOT a separate
 Electron app — Hermes Desktop was the wrong layer for our architecture
 (User → OpenClaw → MCP → Hermes; Hermes Desktop bypasses OpenClaw).
 

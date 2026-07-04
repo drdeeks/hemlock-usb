@@ -14,7 +14,7 @@ This session significantly enhanced the Unified USB Skill with deep Hemlock Agen
 - **157+ skills** in read-only shared volume
 - **OpenClaw Gateway + Hermes MCP Bridge** with MCP stdio bridge
 - **Agent workspaces** as isolated Docker volumes (hemlock-agent-{alpha,beta,gamma})
-- **Gateway** on port 18789, **MCP Proxy** on 41214
+- **Gateway** on port 1437, **MCP Proxy** on 41214
 - **Compute resource ports**: 8080 (llama-server), 11434 (Ollama), 8888 (Jupyter), 8000/5000/3000 (custom)
 
 ### 2. Hardware-Aware llama.cpp Build

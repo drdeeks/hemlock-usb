@@ -17,7 +17,7 @@
 # 
 #   # Run exported crew
 #   docker run -d \
-#     -e OPENCLAW_GATEWAY_URL=ws://host:18789 \
+#     -e OPENCLAW_GATEWAY_URL=ws://host:1437 \
 #     -e OPENCLAW_GATEWAY_TOKEN=your_token \
 #     --name my-crew \
 #     my-exported-crew
@@ -95,7 +95,7 @@ ENV CREW_ID=${CREW_ID} \
     INCLUDE_AGENTS=${INCLUDE_AGENTS} \
     INCLUDE_SKILLS=${INCLUDE_SKILLS} \
     INCLUDE_MEMORY=${INCLUDE_MEMORY} \
-    OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:18789 \
+    OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:1437 \
     OPENCLAW_GATEWAY_TOKEN=change_this_to_a_secure_token
 
 # =============================================================================
@@ -118,7 +118,7 @@ WORKDIR /app
 # =============================================================================
 # Expose gateway port
 # =============================================================================
-EXPOSE 18789
+EXPOSE 1437
 
 # =============================================================================
 # Health check

@@ -264,7 +264,7 @@ add_agent_to_compose() {
     environment:
       - AGENT_ID=${agent_id}
       - MODEL=${model}
-      - OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:18789
+      - OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:1437
       - OPENCLAW_GATEWAY_TOKEN=\${OPENCLAW_GATEWAY_TOKEN:-change_this_to_a_secure_token}
       - CREW_CHANNEL=""
     volumes:

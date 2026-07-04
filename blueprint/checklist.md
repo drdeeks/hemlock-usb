@@ -678,7 +678,7 @@ reconciliation revealed the change log had drifted (logged through CL-021; code 
   (`runtime/agents/crews/models/backups`) to named volumes seeded from baked `/opt/*_seed`.
   Zero host coupling; nothing modifies host files even in non-docker persistent mode.
 - [ ] **Step 3 — Build + functional validation.** `docker compose build`; `make up`; gateway
-  reachable on :18789; Hermes health via `health/doctor_bridge.py --quick`.
+  reachable on :1437; Hermes health via `health/doctor_bridge.py --quick`.
 - [ ] **Step 4 — Live agent path (OpenRouter).** Import an agent; create agent workspace dir;
   verify gateway kickstart + Hermes MCP handshake; interactive-menu manageability.
 - [ ] **Step 5 — Chat command layer.** Verify `!` shell + `/` slash via gateway binaries across

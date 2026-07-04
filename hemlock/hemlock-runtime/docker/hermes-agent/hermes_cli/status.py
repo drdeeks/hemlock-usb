@@ -449,12 +449,12 @@ def show_status(args):
             import socket
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(1)
-            result = sock.connect_ex(('127.0.0.1', 18789))
+            result = sock.connect_ex(('127.0.0.1', 1437))
             sock.close()
             # Port in use = gateway likely running
             port_in_use = result == 0
             # This is informational, not necessarily bad
-            print(f"  Port 18789:   {'in use' if port_in_use else 'available'}")
+            print(f"  Port 1437:   {'in use' if port_in_use else 'available'}")
         except OSError:
             pass
     

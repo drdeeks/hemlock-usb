@@ -2,7 +2,7 @@
 gateway:
   # Server settings
   host: "0.0.0.0"
-  port: 18789
+  port: 1437
   bind: "lan"
   
   # Security

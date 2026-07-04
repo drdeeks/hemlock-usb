@@ -728,7 +728,7 @@ Open specific ports after install:
 ```bash
 sudo ufw allow 22/tcp       # SSH
 sudo ufw allow 80,443/tcp   # HTTP/HTTPS
-sudo ufw allow 18789/tcp    # Hemlock gateway (only if you expose it)
+sudo ufw allow 1437/tcp    # Hemlock gateway (only if you expose it)
 sudo ufw status verbose
 ```
 

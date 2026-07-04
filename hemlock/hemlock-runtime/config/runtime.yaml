@@ -1,7 +1,7 @@
 # OpenClaw Runtime Configuration
 runtime:
   gateway:
-    port: 18789
+    port: 1437
     token: "change_this_to_a_secure_token"
     bind: "lan"
   agents:

@@ -82,10 +82,10 @@ else
 fi
 
 # Check gateway port
-if curl -sf --max-time 2 http://localhost:18789/health &> /dev/null; then
-    pass "Gateway port 18789 is reachable"
+if curl -sf --max-time 2 http://localhost:1437/health &> /dev/null; then
+    pass "Gateway port 1437 is reachable"
 else
-    warn "Gateway port 18789 is not reachable"
+    warn "Gateway port 1437 is not reachable"
 fi
 
 # Check DNS

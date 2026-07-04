@@ -71,7 +71,7 @@ services:
     environment:
       <<: *hemlock-env
     ports:
-      - "18789:18789"
+      - "1437:1437"
     healthcheck:
       test: ["CMD", "python3", "-m", "health.doctor_bridge", "--quick", "--json"]
       interval: 30s

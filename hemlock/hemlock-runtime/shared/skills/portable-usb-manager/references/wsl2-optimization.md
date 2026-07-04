@@ -122,7 +122,7 @@ done
 docker run -d \
     --name hemlock-runtime \
     --restart unless-stopped \
-    -p 18789:18789 \
+    -p 1437:1437 \
     -p 41214:41214 \
     -p 8080:8080 \
     -p 8888:8888 \
@@ -247,10 +247,10 @@ make -j$(nproc)
 # WSL2 uses separate network namespace
 # Ports forwarded from Windows host to WSL2 automatically for systemd services
 # For direct access, use:
-# Windows host: localhost:18789 -> WSL2:18789
+# Windows host: localhost:1437 -> WSL2:1437
 
 # For external access, configure Windows Firewall
-netsh advfirewall firewall add rule name="Hemlock Gateway" dir=in action=allow protocol=TCP localport=18789
+netsh advfirewall firewall add rule name="Hemlock Gateway" dir=in action=allow protocol=TCP localport=1437
 ```
 
 ### SSH Access
@@ -409,7 +409,7 @@ usbipd attach --wsl --busid <BUSID>
 | List USB devices | `lsblk -o NAME,SIZE,TYPE,TRAN,MODEL | grep -i usb` |
 | Mount Ventoy | `sudo mount /dev/sdX1 /mnt/ventoy` |
 | Start Hemlock | `docker start hemlock-runtime` |
-| Check Hemlock | `curl http://localhost:18789/health` |
+| Check Hemlock | `curl http://localhost:1437/health` |
 | SSH to VM | `ssh -p 2222 user@localhost` |
 | Model management | `hemlock model-list` |
 | TUI | `hemlock tui` |

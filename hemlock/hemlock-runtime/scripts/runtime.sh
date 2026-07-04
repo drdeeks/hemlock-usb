@@ -1253,7 +1253,7 @@ edit_runtime_config() {
 # Hemlock Runtime Configuration
 runtime:
   gateway:
-    port: 18789
+    port: 1437
   agents:
     default_model: "ollama/qwen3:0.6b"
 EOF
@@ -1526,7 +1526,7 @@ initialize_runtime() {
 # Hemlock Runtime Configuration
 runtime:
   gateway:
-    port: 18789
+    port: 1437
     token: "$(openssl rand -hex 16 2>/dev/null || echo 'change-me')"
   agents:
     default_model: "ollama/qwen3:0.6b"

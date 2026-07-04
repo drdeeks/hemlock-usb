@@ -67,7 +67,7 @@ AI agents, requiring only a USB drive and a Docker-capable host.
 │  lib/validation.sh (health)  │ │  Dockerfile.runtime + .agent + .crew │
 │                              │ │                                      │
 │  scripts/alias_manager.sh    │ │  Python: health.doctor_bridge        │
-│  scripts/ssh_host_manager.sh │ │  Node:   openclaw gateway (:18789)   │
+│  scripts/ssh_host_manager.sh │ │  Node:   openclaw gateway (:1437)   │
 │  sysman.sh (system health)   │ │  Bash:   agent/crew lifecycle        │
 │  setup-essentials-enhanced.sh│ │                                      │
 │  usb-automount/ (udev+sysd)  │ │  volumes/imports/.request (staging)  │
@@ -104,7 +104,7 @@ AI agents, requiring only a USB drive and a Docker-capable host.
 | Config Store | JSON via `jq` | Atomic read/write, structured data, CLI-friendly |
 | Container Runtime | Docker + Compose v2 | Standard container orchestration; Hemlock requires it |
 | Agent Runtime | Python 3 (PYTHONPATH=/opt/hermes) | Hemlock health checks, doctor bridge, agent logic |
-| Gateway | Node.js (openclaw) | AI gateway server on port 18789 |
+| Gateway | Node.js (openclaw) | AI gateway server on port 1437 |
 | Orchestration | Bash scripts (runtime.sh, hemlock) | In-container TUI and host-side lifecycle management |
 | System UI | whiptail + text fallback | Interactive menus without heavy dependencies |
 | Auto-mount | udev rules + systemd unit | Kernel-level USB detection; survives reboot |
@@ -377,7 +377,7 @@ Access & Configuration:
 7. Exit
 
 **Rules:**
-1. Container port 18789.
+1. Container port 1437.
 2. Host files not visible in-container — uses `hemlock import/export` staging via `volumes/imports/.request`.
 3. `HEMLOCK_DIR` must be set or auto-detected.
 4. Docker daemon must be running.
@@ -579,7 +579,7 @@ output via `print_success/error/warning/info`.
 
 | Port | Service | Protocol | Location |
 |---|---|---|---|
-| 18789 | Hemlock Gateway (openclaw) | HTTP | Docker container → host |
+| 1437 | Hemlock Gateway (openclaw) | HTTP | Docker container → host |
 | 41214 | MCP Proxy | TCP | Docker container |
 | 2222 | SSH Forward (host side) | TCP | Host → guest VM |
 | 22 | SSH (guest side) | TCP | Guest VM |
@@ -895,8 +895,8 @@ Phase 4 complete. Docker running. USB persistence active.
 - [ ] **Step 2:** Start runtime container
   - _Validation:_ `docker ps | grep hemlock_runtime` shows running container
   - _Rollback:_ `docker compose -f docker-compose.runtime.yml down`
-- [ ] **Step 3:** Verify port 18789 accessible
-  - _Validation:_ `curl -s http://localhost:18789/health` responds
+- [ ] **Step 3:** Verify port 1437 accessible
+  - _Validation:_ `curl -s http://localhost:1437/health` responds
   - _Rollback:_ N/A — verification only
 - [ ] **Step 4:** Test Hemlock CLI
   - _Validation:_ `hemlock/hemlock-runtime/scripts/hemlock status` reports status
@@ -910,7 +910,7 @@ Phase 4 complete. Docker running. USB persistence active.
 
 ### Phase Validation Gate
 
-> Docker containers running. Port 18789 responding. hemlock CLI reports status. Import/export staging works.
+> Docker containers running. Port 1437 responding. hemlock CLI reports status. Import/export staging works.
 
 ### Agent Sign-Off
 
@@ -1069,7 +1069,7 @@ Phase 7 Sign-Off:
 | Hemlock agent creation via TUI | < 60 seconds end-to-end |
 | Full DEPLOY.sh execution | < 30 minutes (network dependent) |
 | bash -n syntax check (all files) | < 5 seconds |
-| Hemlock gateway response p95 | < 2 seconds on port 18789 |
+| Hemlock gateway response p95 | < 2 seconds on port 1437 |
 
 ---
 
@@ -1685,7 +1685,7 @@ Files Changed: blueprint/blueprint.md, blueprint/hemlock-blueprint.md,
               CHANGELOG.md
 Description : Decision recorded. The Hemlock GUI direction is the
               OpenClaw Control web UI that the gateway already serves at
-              http://localhost:18789/ from inside hemlock_runtime —
+              http://localhost:1437/ from inside hemlock_runtime —
               NOT a separate Electron app (Hermes Desktop was the wrong
               layer for our architecture, which is User → OpenClaw → MCP
               → Hermes; Hermes Desktop bypasses OpenClaw and talks
@@ -1699,7 +1699,7 @@ Description : Decision recorded. The Hemlock GUI direction is the
               hemlock image, so it's already portable on the USB.
               Auth: gateway requires OPENCLAW_GATEWAY_TOKEN; obtained
               via `openclaw dashboard` (prints a tokenized URL of the
-              form http://127.0.0.1:18789/#token=<hex>). Token persists
+              form http://127.0.0.1:1437/#token=<hex>). Token persists
               across container restarts. H7 (bootstrap helpers) will
               pre-fill this in the menu so users don't hit the auth wall
               manually. Live-verified: the dashboard URL with token
@@ -2538,7 +2538,7 @@ Changes     : - Dockerfile.runtime: skills now bake from shared/skills/ (was the
 Pending (Phase 8 checklist, PART VI):
               - Isolation: bake+seed runtime/agents/crews/models/backups → named
                 volumes (remove all bind mounts).
-              - Build + functional validation (gateway :18789, Hermes health).
+              - Build + functional validation (gateway :1437, Hermes health).
               - Live agent import / workspace create / gateway↔Hermes MCP.
               - Chat command layer: verify !/ via gateway binaries (19 platform
                 adapters); ADD custom-command management.

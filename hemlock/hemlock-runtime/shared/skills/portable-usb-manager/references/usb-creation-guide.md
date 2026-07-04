@@ -133,7 +133,7 @@ sudo bash ~/usb-setup-assistant.sh
 # 4. SSH into VM: ssh -p 2222 user@localhost
 
 # Check Hemlock
-curl http://localhost:18789/health
+curl http://localhost:1437/health
 
 # List models
 hemlock model-list

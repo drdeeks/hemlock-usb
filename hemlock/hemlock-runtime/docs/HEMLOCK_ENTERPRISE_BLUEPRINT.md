@@ -162,7 +162,7 @@ Total Workflow Phases:   5 (planning → completed)
 │  ┌─────────────────────────┐     ┌─────────────────────────┐   │
 │  │      FRAMEWORK            │     │        GATEWAY           │   │
 │  │  ┌─────────────────────┐ │     │    (openclaw/gateway)   │   │
-│  │  │  runtime.sh         │ │     │    Port: 18789          │   │
+│  │  │  runtime.sh         │ │     │    Port: 1437          │   │
 │  │  │  entrypoint.sh      │ │     │    WebSocket Interface │   │
 │  │  │  common.sh         │ │     └─────────────────────────┘   │
 │  │  │  Dockerfile        │ │              ▲                      │
@@ -235,7 +235,7 @@ Total Workflow Phases:   5 (planning → completed)
 │                                                                   │
 │  ┌─────────────────────┐    ┌─────────────────────┐              │
 │  │   openclaw-gateway   │    │   framework         │              │
-│  │   Port: 18789        │    │   (orchestrator)    │              │
+│  │   Port: 1437        │    │   (orchestrator)    │              │
 │  │   Container IP: x.x  │    │   Container IP: y.y  │              │
 │  └─────────────────────┘    └─────────────────────┘              │
 │           │                            │                         │
@@ -390,7 +390,7 @@ docker run -d \
   --name my-agent \
   -e AGENT_ID=my-agent \
   -e MODEL=nous/mistral-large \
-  -e OPENCLAW_GATEWAY_URL=ws://gateway:18789 \
+  -e OPENCLAW_GATEWAY_URL=ws://gateway:1437 \
   -e OPENCLAW_GATEWAY_TOKEN=your_token \
   my-agent
 ```
@@ -590,7 +590,7 @@ The crew blueprint system (from autonomous-crew) provides advanced crew manageme
 #### docker-compose.yml
 
 The main orchestration file defines:
-- Gateway service (port 18789)
+- Gateway service (port 1437)
 - Framework service
 - Agent services (dynamically added)
 - Network configuration
@@ -660,7 +660,7 @@ FROM python:3.11-slim
 # - Configuration files
 # - Docker compose file
 
-ENV OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:18789
+ENV OPENCLAW_GATEWAY_URL=ws://openclaw-gateway:1437
 ENV OPENCLAW_GATEWAY_TOKEN=change_this_to_a_secure_token
 ENV FRAMEWORK_VERSION=1.0.0
 ```
@@ -1701,8 +1701,8 @@ Tools: ./tools/
 ```bash
 # Gateway
 OPENCLAW_GATEWAY_TOKEN=your_token
-OPENCLAW_GATEWAY_URL=ws://gateway:18789
-OPENCLAW_GATEWAY_PORT=18789
+OPENCLAW_GATEWAY_URL=ws://gateway:1437
+OPENCLAW_GATEWAY_PORT=1437
 
 # Framework
 FRAMEWORK_VERSION=1.0.0

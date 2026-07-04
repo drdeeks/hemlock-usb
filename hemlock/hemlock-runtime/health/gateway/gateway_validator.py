@@ -89,7 +89,7 @@ def run_gateway_checks(fix: bool = False) -> List[CheckResult]:
             results.append(CheckResult(f"gw_platform_{name}", "ok",
                          f"{name} module imported but class not found (optional)"))
 
-    port = int(os.getenv("GATEWAY_PORT", "18789"))
+    port = int(os.getenv("GATEWAY_PORT", "1437"))
     try:
         test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         test_socket.settimeout(2)
