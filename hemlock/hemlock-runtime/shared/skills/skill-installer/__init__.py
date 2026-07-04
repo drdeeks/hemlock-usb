@@ -17,7 +17,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True  # keep __pycache__ out of skill trees
 
 __skill__ = "skill-installer"
-__version__ = "1.0.12"
+__version__ = "1.0.14"
 __all__ = ["__skill__", "__version__", "scaffold", "integrate"]
 
 

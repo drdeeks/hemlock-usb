@@ -26,15 +26,21 @@ sys.dont_write_bytecode = True
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 SKILL_CREATOR_ROOT = SCRIPT_DIR.parent
-LOOP_ENFORCER = Path(os.environ.get(
-    "LOOP_ENFORCER_ROOT",
-    str(Path.home() / ".hermes" / "skills" / "loop-enforcer")
-))
 
-# Chain enforcer commands
-CHAIN_PY = LOOP_ENFORCER / "scripts" / "chain.py"
-VALIDATE_PY = LOOP_ENFORCER / "scripts" / "validate.py"
-CHAIN_REPORT_PY = LOOP_ENFORCER / "scripts" / "chain_report.py"
+# Chain enforcement is BAKED IN (scripts/chain.py — the universal loop-enforcer
+# concept, vendored). skill-creator relies only on itself; set LOOP_ENFORCER_ROOT
+# to explicitly delegate to an external loop-enforcer skill instead.
+_le_env = os.environ.get("LOOP_ENFORCER_ROOT")
+if _le_env and (Path(_le_env) / "scripts" / "chain.py").exists():
+    LOOP_ENFORCER = Path(_le_env)
+    CHAIN_PY = LOOP_ENFORCER / "scripts" / "chain.py"
+    VALIDATE_PY = LOOP_ENFORCER / "scripts" / "validate.py"
+    CHAIN_REPORT_PY = LOOP_ENFORCER / "scripts" / "chain_report.py"
+else:
+    LOOP_ENFORCER = SKILL_CREATOR_ROOT
+    CHAIN_PY = SCRIPT_DIR / "chain.py"          # built-in — no external skill needed
+    VALIDATE_PY = SCRIPT_DIR / "chain.py"       # set-validator unused with built-in
+    CHAIN_REPORT_PY = SCRIPT_DIR / "chain.py"
 
 # Skill creator scripts
 VALIDATE_SC = SCRIPT_DIR / "validate.py"

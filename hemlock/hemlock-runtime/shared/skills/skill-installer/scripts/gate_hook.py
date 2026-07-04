@@ -12,8 +12,9 @@ repo. Works with or without git present:
     FOREIGN hook is never replaced — our call is chained onto the end
   - fail-soft and silent by default; nothing is ever forced or deleted
 
-The hook itself is self-contained: it locates normalize_tags.py in the repo
-(ships with skill-creator) and exits silently if absent.
+The hook itself is FULLY SELF-CONTAINED: the normalize logic is inlined —
+it depends on nothing but python3 (+pyyaml; exits silently without it).
+No other skill, script, or file is required at the target.
 """
 import stat
 import sys
@@ -22,20 +23,51 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 
 HOOK_MARKER = "hemlock-gate-hook"
-HOOK_VERSION = "v1"
+HOOK_VERSION = "v2"
 
 HOOK_CONTENT = f"""#!/usr/bin/env bash
 # {HOOK_MARKER} {HOOK_VERSION} — repo ships STANDARD tags only.
 # Strips install-time provider tag blocks from committed SKILL.mds and amends.
-# Self-contained + silent: exits 0 if normalize_tags.py is not in this repo.
+# FULLY SELF-CONTAINED: normalize logic is inlined — depends on nothing but
+# python3 (+pyyaml if present; exits silently otherwise). Fail-soft always.
 [ -n "$HEMLOCK_NORMALIZE_RUNNING" ] && exit 0
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
-NORM="$ROOT/skill-creator/scripts/normalize_tags.py"
-if [ ! -f "$NORM" ]; then
-    NORM="$(find "$ROOT" -maxdepth 4 -name normalize_tags.py -not -path '*/.*' 2>/dev/null | head -1)"
-fi
-[ -n "$NORM" ] && [ -f "$NORM" ] || exit 0
-python3 "$NORM" "$ROOT" >/dev/null 2>&1 || exit 0
+python3 - "$ROOT" >/dev/null 2>&1 <<'HEMLOCK_PY'
+import sys
+from pathlib import Path
+try:
+    import yaml
+except ImportError:
+    sys.exit(0)
+PROVIDERS = ("hermes", "openclaw", "openai")
+root = Path(sys.argv[1])
+mds = [root / "SKILL.md"] if (root / "SKILL.md").is_file() else \\
+      [d / "SKILL.md" for d in sorted(root.iterdir()) if (d / "SKILL.md").is_file()]
+for md in mds:
+    try:
+        text = md.read_text(encoding="utf-8")
+        if not text.startswith("---"):
+            continue
+        end = text.index("\\n---", 3)
+        fm = yaml.safe_load(text[3:end]) or {{}}
+        meta = fm.get("metadata")
+        if not isinstance(meta, dict):
+            continue
+        dirty = False
+        for p in PROVIDERS:
+            blk = meta.get(p)
+            if isinstance(blk, dict) and "tags" in blk:
+                del blk["tags"]
+                dirty = True
+                if not blk:
+                    del meta[p]
+        if dirty:
+            new_fm = yaml.safe_dump(fm, sort_keys=False, allow_unicode=True,
+                                    default_flow_style=False).rstrip()
+            md.write_text("---\\n" + new_fm + "\\n" + text[end + 1:], encoding="utf-8")
+    except Exception:
+        continue
+HEMLOCK_PY
 if ! git -C "$ROOT" diff --quiet -- '*SKILL.md' 2>/dev/null; then
     git -C "$ROOT" add -- '*SKILL.md' 2>/dev/null
     HEMLOCK_NORMALIZE_RUNNING=1 git -C "$ROOT" commit --amend --no-edit --quiet 2>/dev/null
