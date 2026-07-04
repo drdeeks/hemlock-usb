@@ -3442,6 +3442,7 @@ _run_hemlock_manager() {
   _menu_item "9" "Crew PM blueprint workflow"       "" "PM interrogation → triple-confirm → crew (CL-019)"
   _menu_item "10" "Register agent on-chain (stub)"   "" "registrar: create+register agent (CL-020)"
   _menu_item "11" "Registry audit"                   "" "list registrar entries + verify attestations"
+  _menu_item "12" "Install / deploy runtime"          "" "install.sh — build variant, load release, USB, native"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -3457,9 +3458,24 @@ _run_hemlock_manager() {
     9) _run_hemlock_pm_blueprint ;;
     10) _run_hemlock_register_agent ;;
     11) _run_hemlock_registry_audit ;;
+    12) _run_hemlock_install ;;
     0) return 0 ;;
     *) _menu_error "Invalid option: $choice" ;;
   esac
+}
+
+# Installer — one script, every variation (build/load/USB/native/release).
+_run_hemlock_install() {
+  _menu_header "Install / Deploy Runtime"
+  local inst=""
+  [[ -n "$HEMLOCK_DIR" && -f "$HEMLOCK_DIR/install.sh" ]] && inst="$HEMLOCK_DIR/install.sh"
+  [[ -z "$inst" && -f "$SCRIPT_DIR/hemlock/hemlock-runtime/install.sh" ]] && inst="$SCRIPT_DIR/hemlock/hemlock-runtime/install.sh"
+  if [[ -z "$inst" ]]; then
+    _menu_error "install.sh not found (HEMLOCK_DIR unset and no local runtime tree)"
+    _menu_info  "Fetch the latest release instead:  install.sh --release"
+    return 0
+  fi
+  bash "$inst" || _menu_warn "installer exited non-zero"
 }
 
 # Registrar — create + register an agent on-chain (CL-020 stub mode).

@@ -22,13 +22,17 @@
 #   install.sh --load hemlock.tar.gz        # docker load a prebuilt image
 #   install.sh --native                     # no container — scripts/run-native.sh
 #   install.sh --variant minimal --yes      # non-interactive, no prompts
+#   install.sh --release                    # fetch the repo's LATEST GitHub
+#                                           # release; options adjust to what
+#                                           # that release actually ships
 # =============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-VARIANT="" ; LOAD_TAR="" ; TO_USB=0 ; NATIVE=0 ; ASSUME_YES=0
+VARIANT="" ; LOAD_TAR="" ; TO_USB=0 ; NATIVE=0 ; ASSUME_YES=0 ; FROM_RELEASE=0
+RELEASE_REPO="${HEMLOCK_RELEASE_REPO:-drdeeks/hemlock-usb}"
 log()  { echo "[hemlock-install] $*"; }
 warn() { echo "[hemlock-install][warn] $*" >&2; }
 die()  { echo "[hemlock-install][error] $*" >&2; exit 1; }
@@ -39,11 +43,64 @@ while [ $# -gt 0 ]; do
         --load)    LOAD_TAR="${2:-}"; shift 2 ;;
         --usb)     TO_USB=1; shift ;;
         --native)  NATIVE=1; shift ;;
+        --release) FROM_RELEASE=1; shift ;;
         --yes|-y)  ASSUME_YES=1; shift ;;
         -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) die "unknown flag: $1 (see --help)" ;;
     esac
 done
+
+# ── Latest GitHub release: options come from what the release actually SHIPS —
+#    they adjust dynamically as releases change (no hardcoded asset list). ────
+if [ "$FROM_RELEASE" -eq 1 ]; then
+    command -v curl >/dev/null || die "curl required for --release"
+    API="https://api.github.com/repos/$RELEASE_REPO/releases/latest"
+    log "querying latest release of $RELEASE_REPO ..."
+    REL_JSON=$(curl -fsSL "$API" 2>/dev/null) || die "no release found for $RELEASE_REPO (create one, or install from a local tree)"
+    TAG=$(echo "$REL_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('tag_name',''))")
+    log "latest release: $TAG"
+    # Dynamic option list: every uploaded asset + GitHub's auto source bundle
+    mapfile -t ASSETS < <(echo "$REL_JSON" | python3 -c "
+import sys, json
+r = json.load(sys.stdin)
+for a in r.get('assets', []):
+    print(f\"{a['name']}|{a['browser_download_url']}|{a['size']}\")")
+    echo ""
+    echo "  Available from release $TAG:"
+    i=1
+    for a in "${ASSETS[@]:-}"; do
+        [ -n "$a" ] && printf "    %d) %s (%s MB)\n" "$i" "${a%%|*}" "$(( $(echo "$a" | cut -d'|' -f3) / 1048576 ))" && i=$((i+1))
+    done
+    printf "    %d) source bundle (build locally)\n" "$i"
+    if [ "$ASSUME_YES" -eq 1 ] || [ ! -t 0 ]; then
+        c=$i   # non-interactive default: source bundle
+    else
+        read -r -p "  Choice [1-$i]: " c
+    fi
+    DL=$(mktemp -d /tmp/hemlock-release-XXXX)
+    if [ "$c" -ge 1 ] 2>/dev/null && [ "$c" -lt "$i" ]; then
+        pick="${ASSETS[$((c-1))]}"
+        name="${pick%%|*}"; url=$(echo "$pick" | cut -d'|' -f2)
+        log "downloading asset: $name"
+        curl -fL -o "$DL/$name" "$url" || die "download failed"
+        case "$name" in
+            *.tar.gz|*.tgz|*.tar) LOAD_TAR="$DL/$name" ;;   # image asset → docker load path
+            *) die "asset $name downloaded to $DL — no automatic handler for this type (yet)" ;;
+        esac
+    else
+        log "downloading source bundle ..."
+        curl -fL -o "$DL/src.tar.gz" "https://api.github.com/repos/$RELEASE_REPO/tarball/$TAG" || die "source download failed"
+        tar -xzf "$DL/src.tar.gz" -C "$DL" && SRC=$(find "$DL" -maxdepth 2 -name install.sh -path '*hemlock-runtime*' | head -1)
+        [ -n "$SRC" ] || die "install.sh not found inside the source bundle"
+        log "handing off to the release's own installer"
+        args=()
+        [ -n "$VARIANT" ] && args+=(--variant "$VARIANT")
+        [ "$TO_USB" -eq 1 ] && args+=(--usb)
+        [ "$NATIVE" -eq 1 ] && args+=(--native)
+        [ "$ASSUME_YES" -eq 1 ] && args+=(--yes)
+        exec bash "$SRC" "${args[@]}"
+    fi
+fi
 
 confirm() {  # informative, never forced — auto-yes only when asked to be
     [ "$ASSUME_YES" -eq 1 ] && return 0
