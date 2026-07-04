@@ -135,19 +135,33 @@ if [ "$TO_USB" -eq 1 ]; then
     log "USB volume: $USB_ROOT"
 
     # 2. Portable system onto the USB FREE SPACE (source tree — the system itself,
-    #    not container internals). Skipped silently if it's already this tree.
+    #    not container internals). The vendored node toolchain + openclaw dist are
+    #    EXCLUDED: they already live inside the image, and their tens of thousands
+    #    of tiny files explode on exFAT's large clusters. Free space is checked
+    #    up front; a failed copy is removed, never left half-written.
     USB_SYS="$USB_ROOT/hemlock/hemlock-runtime"
+    RSYNC_EXCLUDES=(--exclude .git --exclude '__pycache__' --exclude '*.pyc'
+        --exclude .env --exclude '.secrets' --exclude 'agents/active'
+        --exclude 'agents/archive' --exclude 'agents/registrar'
+        --exclude data --exclude logs --exclude volumes
+        --exclude 'docker/openclaw-runtime/tools' --exclude 'docker/openclaw-runtime/lib')
     if [ "$(readlink -f "$USB_SYS" 2>/dev/null)" != "$(readlink -f "$SCRIPT_DIR")" ]; then
-        if confirm "Copy the runtime system onto the USB free space ($USB_SYS)?"; then
+        NEED_KB=$(du -sk "$SCRIPT_DIR" --exclude=.git --exclude=docker/openclaw-runtime/tools \
+                  --exclude=docker/openclaw-runtime/lib --exclude=data --exclude=logs \
+                  --exclude=volumes 2>/dev/null | cut -f1)
+        FREE_KB=$(df -k --output=avail "$USB_ROOT" | tail -1 | tr -d ' ')
+        # exFAT cluster overhead on many small files: demand 2x headroom
+        if [ "${FREE_KB:-0}" -lt $(( ${NEED_KB:-0} * 2 )) ]; then
+            warn "not enough USB free space for the system copy (need ~$((NEED_KB / 1024))MB x2 headroom, have $((FREE_KB / 1024))MB) — skipping"
+        elif confirm "Copy the runtime system onto the USB free space ($USB_SYS)?"; then
             mkdir -p "$USB_SYS"
-            rsync -a --delete \
-                --exclude .git --exclude '__pycache__' --exclude '*.pyc' \
-                --exclude .env --exclude '.secrets' --exclude 'agents/active' \
-                --exclude 'agents/archive' --exclude 'agents/registrar' \
-                --exclude data --exclude logs --exclude volumes \
-                "$SCRIPT_DIR/" "$USB_SYS/" \
-                && log "portable system on USB: $USB_SYS" \
-                || warn "system copy incomplete — check USB free space"
+            # -rt (no -l/-p/-o): exFAT has no symlinks/perms/owners — skip, don't fail
+            if rsync -rt --delete "${RSYNC_EXCLUDES[@]}" "$SCRIPT_DIR/" "$USB_SYS/"; then
+                log "portable system on USB: $USB_SYS"
+            else
+                warn "system copy failed — removing the partial copy (nothing half-written)"
+                rm -rf "$USB_SYS"
+            fi
         fi
     fi
 
