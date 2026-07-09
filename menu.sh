@@ -1857,6 +1857,11 @@ _run_device_config() {
       local rs_args=(-a --delete
         --exclude '.git/' --exclude '.env' --exclude '.secrets/'
         --exclude '*.log' --exclude '*.db' --exclude 'dist/'
+        # CL-042: dev-only artifacts are bloat on the deployed tree
+        --exclude '.claude/' --exclude 'AGENTS.md' --exclude '.gitignore'
+        --exclude 'usb/volumes/' --exclude '_incoming-docs/'
+        # blueprint/ is dev planning EXCEPT the ventoy reference the menu cites
+        --include 'blueprint/ventoy-reference.md' --exclude 'blueprint/*'
         --exclude 'hemlock/hemlock-runtime/agents/active/'
         --exclude 'hemlock/hemlock-runtime/agents/archive/'
         --exclude 'hemlock/hemlock-runtime/agents/registrar/'
@@ -1875,6 +1880,20 @@ _run_device_config() {
       if rsync "${rs_args[@]}" "$SCRIPT_DIR/" "$dest/"; then
         sync
         _menu_success "System tree synced ($(du -sh "$dest" 2>/dev/null | cut -f1))"
+        # CL-042: friendly access point at the stick ROOT. exFAT has no
+        # symlinks, so seed a tiny wrapper that execs the real menu — one
+        # clear, visible entry for everyone, no digging through directories.
+        if [[ "$DRY_RUN" != "true" ]]; then
+          cat > "$vmp/menu.sh" <<'LAUNCHEOF'
+#!/usr/bin/env bash
+# USB-Hemlock — START HERE. This is the whole platform's entry point.
+# (wrapper: the system lives in usb-hemlock/system/; exFAT can't symlink)
+here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+exec bash "$here/usb-hemlock/system/menu.sh" "$@"
+LAUNCHEOF
+          chmod +x "$vmp/menu.sh" 2>/dev/null || true
+          _menu_info "Root launcher seeded: $vmp/menu.sh (START HERE entry point)"
+        fi
       else
         _menu_error "rsync failed"
       fi
