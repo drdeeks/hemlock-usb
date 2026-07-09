@@ -330,7 +330,8 @@ check_persistence_exists() {
     if [[ -z "$VENTOY_MOUNT" ]]; then
         return 1
     fi
-    [[ -f "$VENTOY_MOUNT/persistence/ubuntu-persistence.dat" ]]
+    # CL-043: any persistence STATE counts, not just the default name.
+    compgen -G "$VENTOY_MOUNT/persistence/*.dat" >/dev/null 2>&1
 }
 
 # Get persistence file size (unified method)
@@ -1999,7 +2000,11 @@ install_essentials() {
     fi
 
     # --- Check persistence exists ---
-    local persist_file="$VENTOY_MOUNT/persistence/ubuntu-persistence.dat"
+    # CL-043: act on the persistent STATE the operator chooses (was hardcoded to
+    # ubuntu-persistence.dat). Requires an OS rootfs — you can't install into or
+    # chroot a bare data volume like tooling.dat.
+    select_persistence_volume rootfs || { unmount_ventoy 2>/dev/null || true; return 0; }
+    local persist_file="$SELECTED_PERSISTENCE"
     if [[ ! -f "$persist_file" ]]; then
         print_error "No persistence image found on USB"
         print_info "Create one first: Option 2 → Create Persistence"
@@ -2549,7 +2554,11 @@ _install_tailscale() {
     fi
 
     # Check persistence exists
-    local persist_file="$VENTOY_MOUNT/persistence/ubuntu-persistence.dat"
+    # CL-043: act on the persistent STATE the operator chooses (was hardcoded to
+    # ubuntu-persistence.dat). Requires an OS rootfs — you can't install into or
+    # chroot a bare data volume like tooling.dat.
+    select_persistence_volume rootfs || { unmount_ventoy 2>/dev/null || true; return 0; }
+    local persist_file="$SELECTED_PERSISTENCE"
     if [[ ! -f "$persist_file" ]]; then
         print_error "No persistence image found on USB"
         print_info "Create one first: Option 2 -> Create Persistence"
@@ -2643,7 +2652,11 @@ _join_tailscale() {
     fi
 
     # Check persistence exists
-    local persist_file="$VENTOY_MOUNT/persistence/ubuntu-persistence.dat"
+    # CL-043: act on the persistent STATE the operator chooses (was hardcoded to
+    # ubuntu-persistence.dat). Requires an OS rootfs — you can't install into or
+    # chroot a bare data volume like tooling.dat.
+    select_persistence_volume rootfs || { unmount_ventoy 2>/dev/null || true; return 0; }
+    local persist_file="$SELECTED_PERSISTENCE"
     if [[ ! -f "$persist_file" ]]; then
         print_error "No persistence image found on USB"
         print_info "Create one first: Option 2 -> Create Persistence"
@@ -2742,7 +2755,11 @@ _install_wireguard() {
     fi
 
     # Check persistence exists
-    local persist_file="$VENTOY_MOUNT/persistence/ubuntu-persistence.dat"
+    # CL-043: act on the persistent STATE the operator chooses (was hardcoded to
+    # ubuntu-persistence.dat). Requires an OS rootfs — you can't install into or
+    # chroot a bare data volume like tooling.dat.
+    select_persistence_volume rootfs || { unmount_ventoy 2>/dev/null || true; return 0; }
+    local persist_file="$SELECTED_PERSISTENCE"
     if [[ ! -f "$persist_file" ]]; then
         print_error "No persistence image found on USB"
         print_info "Create one first: Option 2 -> Create Persistence"
@@ -3866,7 +3883,11 @@ access_usb_terminal() {
     fi
 
     # Check persistence exists
-    local persist_file="$VENTOY_MOUNT/persistence/ubuntu-persistence.dat"
+    # CL-043: act on the persistent STATE the operator chooses (was hardcoded to
+    # ubuntu-persistence.dat). Requires an OS rootfs — you can't install into or
+    # chroot a bare data volume like tooling.dat.
+    select_persistence_volume rootfs || { unmount_ventoy 2>/dev/null || true; return 0; }
+    local persist_file="$SELECTED_PERSISTENCE"
     if [[ ! -f "$persist_file" ]]; then
         print_error "No persistence image found on USB"
         print_info "Create one first: Option 2 -> Create Persistence"
@@ -3987,7 +4008,10 @@ copy_file_to_usb() {
                 print_error "Could not mount Ventoy partition"
                 return 1
             fi
-            local persist_file="$VENTOY_MOUNT/persistence/ubuntu-persistence.dat"
+            # CL-043: copy into the chosen persistent STATE (any volume — data
+            # volumes are valid copy targets, so no rootfs requirement here).
+            select_persistence_volume any || { unmount_ventoy 2>/dev/null || true; return 0; }
+            local persist_file="$SELECTED_PERSISTENCE"
             if [[ ! -f "$persist_file" ]]; then
                 print_error "No persistence image found"
                 unmount_ventoy
