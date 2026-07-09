@@ -143,12 +143,21 @@ migration), not yet wired to anything.
 
 **Gate items (must fix before build/deploy):**
 
-1. **CLI name collision (build-breaking).** Agent pyproject console script
-   `hemlock` (was `hermes`) and gateway symlink `/usr/local/bin/hemlock`
-   (was `openclaw`) both claim the same path — `ln -s` after the pip COPY
-   fails with "File exists" in BOTH Dockerfiles. Decide the split (suggest:
-   gateway keeps `hemlock`; agent CLI becomes `hemlock-agent` or stays an
-   internal `python3 -m` entry).
+1. **CLI name collision (build-breaking). — RESOLVED 2026-07-09.**
+   Agent pyproject console script `hemlock` (was `hermes`) and the front-door
+   wrapper `/usr/local/bin/hemlock` both claimed the same path.
+   **Owner decision:** nothing is installed via a package manager; every CLI
+   lives local within the repo and is *copied* into place, and a collision on
+   a name is resolved by copying under a distinct Hemlock-oriented name.
+   - Front-door wrapper (`scripts/hemlock`, launches the management TUI) keeps
+     the bare **`hemlock`** — it is a repo file, copied (not pip/ln) into bin.
+   - Agent/brain CLI (`hermes_cli.main:main`) → **`hemlock-agent`**, joining
+     the family `hemlock` / `hemlock-agent` / `hemlock-runtime`. pip no longer
+     claims bare `hemlock`, so the `ln`/COPY conflict is gone.
+   Applied on `tui-rebrand`: `hermes-agent/pyproject.toml` `[project.scripts]`
+   renamed; `hermes_cli/uninstall.py` now targets `hemlock-agent` (legacy
+   `hemlock`/`hermes` still cleaned, front-door wrapper protected by the
+   `hermes_cli` content guard). The gateway/vendored-lib naming is item #2.
 2. **Vendored gateway lib rename assumed but not executed.** The drop ships
    `docker/hemlock-runtime/lib/` and `tools/` EMPTY; its Dockerfiles expect
    `lib/node_modules/hemlock/hemlock.mjs`. Our vendored package is named

@@ -75,8 +75,12 @@ all = [
     "anthropic>=0.18",
 ]
 
+# Agent/brain CLI. Named `hemlock-agent` (NOT bare `hemlock`) so pip's
+# console-script does not claim /usr/local/bin/hemlock — that path belongs to
+# the repo-local front-door wrapper (scripts/hemlock), which is copied into
+# place rather than installed by any package manager. See REBRAND docket #1.
 [project.scripts]
-hemlock = "hermes_cli.main:main"
+hemlock-agent = "hermes_cli.main:main"
 hemlock-runtime = "runtime.cli:cli"
 
 [tool.setuptools.packages.find]

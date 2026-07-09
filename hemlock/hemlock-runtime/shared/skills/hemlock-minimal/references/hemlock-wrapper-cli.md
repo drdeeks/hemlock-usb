@@ -5,7 +5,9 @@
 ```bash
 #!/usr/bin/env bash
 # Hemlock wrapper - launches the TUI
-# This can be symlinked to /usr/local/bin/hemlock
+# Copied (NOT symlinked or package-installed) to /usr/local/bin/hemlock. This
+# is the bare `hemlock` front door; the agent/brain CLI is `hemlock-agent`
+# (pip console-script) so the two never collide on the same bin path.
 
 # If running inside container, execute TUI directly
 if [[ -f /.dockerenv ]] || [[ -n "${CONTAINER:-}" ]]; then

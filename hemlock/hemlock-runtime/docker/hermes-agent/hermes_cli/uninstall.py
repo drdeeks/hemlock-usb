@@ -97,11 +97,16 @@ def remove_path_from_shell_configs():
 
 
 def remove_wrapper_script():
-    """Remove the hermes wrapper script if it exists."""
-    wrapper_paths = [
-        Path.home() / ".local" / "bin" / "hermes",
-        Path("/usr/local/bin/hermes"),
-    ]
+    """Remove the agent-CLI wrapper script if it exists.
+
+    Canonical name is `hemlock-agent` (the pip console-script). `hemlock` and
+    `hermes` are covered too so older/interim installs get cleaned up. The
+    bare `hemlock` front-door wrapper is NOT ours to remove — the content
+    guard below (must reference hermes_cli/hermes-agent) skips it.
+    """
+    _bin_dirs = [Path.home() / ".local" / "bin", Path("/usr/local/bin")]
+    _names = ["hemlock-agent", "hemlock", "hermes"]
+    wrapper_paths = [d / n for d in _bin_dirs for n in _names]
     
     removed = []
     for wrapper in wrapper_paths:
