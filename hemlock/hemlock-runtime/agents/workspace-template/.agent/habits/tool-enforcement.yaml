@@ -1,0 +1,80 @@
+name: "tool-enforcement"
+version: "1.0.0"
+type: "internalized_habit"
+
+triggers:
+  - event: "before_tool_invocation"
+    priority: 100
+  - event: "agent_initialization"
+    priority: 10
+  - event: "workspace_change"
+    priority: 50
+
+behavior:
+  mode: "internal"
+  steps:
+    - name: "validate_required_tools"
+      description: "Check all 5 required tools exist and are executable"
+      required_tools:
+        - "enforce.sh"
+        - "secret.sh"
+        - "memory-log.sh"
+        - "memory-promote.sh"
+        - "TOOLS-GUIDE.md"
+      check: "executable_and_present"
+      
+    - name: "validate_workspace_structure"
+      description: "Ensure required directories exist with correct permissions"
+      required_dirs:
+        - path: "tools"
+          perms: "755"
+        - path: "skills"
+          perms: "755"
+        - path: "memory"
+          perms: "755"
+        - path: ".secrets"
+          perms: "700"
+      check: "exists_and_permissions"
+      
+    - name: "validate_file_permissions"
+      description: "Ensure scripts are 755, docs 644, secrets 600"
+      rules:
+        - pattern: "*.sh"
+          perms: "755"
+        - pattern: "*.md"
+          perms: "644"
+        - path: ".secrets/*"
+          perms: "600"
+
+enforcement:
+  level: "hard"
+  on_failure:
+    - action: "block_tool_invocation"
+    - action: "auto_fix_if_possible"
+      fixable:
+        - "missing_directories"
+        - "incorrect_permissions"
+        - "missing_tools_from_template"
+    - action: "log_violation"
+      to: ".agent/logs/habit-violations.jsonl"
+    - action: "reflect_and_correct"
+      prompt: |
+        "A tool hygiene violation occurred. 
+         This isn't about the script — it's about the habit.
+         What did I miss? Why didn't I catch this before acting?
+         Fix it, then reflect: what will I do differently?"
+
+auto_fix:
+  templates_dir: ".agent/templates/tool-enforcement"
+  actions:
+    - "create_missing_directories"
+    - "fix_file_permissions"
+    - "restore_missing_tool_from_template"
+    - "regenerate_TOOLS_GUIDE"
+
+metrics:
+  track:
+    - "violations_count"
+    - "auto_fixes_applied"
+    - "reflection_triggers"
+  report_to: ".agent/metrics/tool-enforcement.json"

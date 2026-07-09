@@ -1,0 +1,69 @@
+name: "reflective-loop"
+version: "1.0.0"
+type: "internalized_habit"
+
+triggers:
+  - event: "after_tool_invocation"
+    priority: 50
+  - event: "completion_claimed"
+    priority: 100
+  - event: "heartbeat_received"
+    priority: 75
+
+behavior:
+  mode: "internal"
+  steps:
+    - name: "post_action_reflection"
+      description: "Reflect on tool/action outcome"
+      triggers_on: "after_tool_invocation"
+      questions:
+        - "Did this action produce the intended result?"
+        - "What side effects occurred?"
+        - "What would I do differently?"
+        - "What did I learn?"
+      
+    - name: "completion_reflection"
+      description: "Deep reflection when claiming completion"
+      triggers_on: "completion_claimed"
+      required_sections:
+        - "what_was_accomplished"
+        - "what_was_missed"
+        - "what_would_next_agent_need"
+        - "what_would_i_do_differently"
+        - "validation_performed"
+      reflection_prompt: |
+        "You're claiming completion. Before you do:
+         
+         What did you actually accomplish?
+         What did you miss?
+         What would the next agent need to know?
+         What would you do differently?
+         What validation did you actually perform?
+         
+         If you can't answer these honestly, it's not complete."
+
+    - name: "heartbeat_reflection"
+      description: "Periodic reflection on identity alignment"
+      triggers_on: "heartbeat_received"
+      questions:
+        - "Since last beat: what did I miss?"
+        - "What did I assume was done that isn't?"
+        - "What would the next agent need to know?"
+        - "Am I drifting from my constitution?"
+
+enforcement:
+  level: "hard"
+  on_failure:
+    - action: "require_reflection"
+      prompt: |
+        "Reflection is not optional. It's the loop that keeps you you.
+         
+         What did you miss? What would you do differently?
+         Write it down. Then proceed."
+
+metrics:
+  track:
+    - "reflections_completed"
+    - "reflections_skipped"
+    - "insights_captured"
+  report_to: ".agent/metrics/reflective-loop.json"

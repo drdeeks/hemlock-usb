@@ -1,0 +1,47 @@
+# Enforcer Daemon Configuration
+# From the synthesis-1 implementation (verified operational 2026-07-05)
+
+agent_id: "synthesis-1"
+workspace: "${WORKSPACE_ROOT:-/home/agents}/${AGENT_ID:-synthesis-1}"
+agent_user: "agent"
+enforcer_user: "root"
+
+validation:
+  interval_seconds: 30
+  realtime_watch: true
+  checks:
+    - workspace_structure
+    - tool_hygiene
+    - file_permissions
+    - forbidden_patterns
+    - heartbeat_freshness
+    - memory_consistency
+    - identity_alignment
+
+auto_remediate: true
+remediation_templates: "${ENFORCER_TEMPLATES_DIR:-/etc/agent-enforcer/templates}"
+
+audit_log:
+  path: "${ENFORCER_LOG_DIR:-/var/log/agent-enforcer}/${AGENT_ID:-synthesis-1}/audit.log"
+  mode: "append_only"
+  rotation: "daily"
+  retention_days: 90
+
+heartbeat:
+  interval_seconds: 300  # 5 minutes
+  validate_on_beat: true
+  stale_threshold_seconds: 600  # 10 min stale = violation
+  proactive_checks:
+    - dependency_vulnerabilities
+    - test_coverage_gaps
+    - stale_branches
+    - config_drift
+    - secret_expiration
+
+socket:
+  path: "${ENFORCER_SOCKET_DIR:-/run/agent-enforcer}/${AGENT_ID:-synthesis-1}.sock"
+  owner: "root"
+  group: "root"
+  mode: "0600"
+
+templates_dir: "${ENFORCER_TEMPLATES_DIR:-/etc/agent-enforcer/templates}"

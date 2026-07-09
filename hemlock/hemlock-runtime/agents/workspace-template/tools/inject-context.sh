@@ -63,6 +63,16 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 1b. Identity constitution (t=0 layer): .agent/constitution.yaml
+#     Optional — injected only when the identity layer is present.
+# ---------------------------------------------------------------------------
+if [ -f "$DATA_DIR/.agent/constitution.yaml" ]; then
+    if inject_file "Identity Constitution (governs everything below)" "$DATA_DIR/.agent/constitution.yaml"; then
+        HEAD_COUNT=$((HEAD_COUNT + 1))
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # 2. Long-term memory: MEMORY.md
 # ---------------------------------------------------------------------------
 if inject_file "Long-term Memory: MEMORY.md" "$DATA_DIR/MEMORY.md"; then

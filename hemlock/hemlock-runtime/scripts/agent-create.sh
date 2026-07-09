@@ -150,6 +150,16 @@ find "$AGENTS_DIR/$AGENT_ID" -type f -exec sed -i \
     -e "s/<created-at>/$TIMESTAMP/g" \
     {} +
 
+# ── Identity layer: stamp constitution hash ──────────────────────────────────
+# .agent/constitution.yaml comes from the template with placeholders now
+# filled. Its sha256 at creation is the identity hash — a later mismatch
+# means the constitution was edited after provisioning. Fail-soft: a
+# template without the identity layer still provisions normally.
+IDENTITY_HASH=""
+if [[ -f "$AGENTS_DIR/$AGENT_ID/.agent/constitution.yaml" ]]; then
+    IDENTITY_HASH="$(sha256sum "$AGENTS_DIR/$AGENT_ID/.agent/constitution.yaml" | cut -c1-16)"
+fi
+
 # ── Write core files ─────────────────────────────────────────────────────────
 # CL-018: per-agent isolation — file is named after the agent id, NOT a
 # generic "agent.json". This prevents mixed/defaulted-out identity files
@@ -174,6 +184,12 @@ cat > "$AGENTS_DIR/$AGENT_ID/${AGENT_ID}.json" <<EOF
     "owner": "0x0000000000000000000000000000000000000000",
     "hardwired": true,
     "enforced": true
+  },
+  "identity": {
+    "layer": "v1",
+    "constitution": ".agent/constitution.yaml",
+    "identity_hash": "${IDENTITY_HASH:-none}",
+    "habits": ["identity-enforcement", "tool-enforcement", "reflective-loop"]
   }
 }
 EOF
