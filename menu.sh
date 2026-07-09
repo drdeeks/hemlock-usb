@@ -2422,16 +2422,28 @@ _uca_profile_compile_ventoy() {
   mkdir -p "$m/ventoy" 2>/dev/null || true
   if [[ -f "$vj" ]]; then local b; b=$(_uca_ventoy_json_backup "$vj") && _menu_info "Backup: $b"; fi
   local tmp; tmp=$(mktemp)
+  # MERGE, never clobber (multi-state): an entry for the SAME image gains this
+  # backend as an additional persistence state (backend array -> Ventoy shows a
+  # boot-time selector; autosel dropped so the menu actually appears). Entries
+  # for OTHER images are left untouched; a new image is appended. Compiling a
+  # profile can therefore never erase another profile's boot mapping.
+  local jq_merge='
+    .persistence = ((.persistence // [])
+      | if any(.[]?; .image == $iso) then
+          map(if .image == $iso then
+                .backend = (((if (.backend|type)=="array" then .backend else [.backend] end) + [$bk]) | unique)
+                | (if (.backend|length) == 1 then .backend = .backend[0] | .autosel = 1
+                   else del(.autosel) end)
+              else . end)
+        else . + [{image:$iso, backend:$bk, autosel:1}] end)'
   if [[ -f "$vj" ]]; then
-    jq --arg iso "$iso" --arg bk "$primary" \
-       '.persistence = [{image:$iso, backend:$bk, autosel:1}]' "$vj" > "$tmp" \
+    jq --arg iso "$iso" --arg bk "$primary" "$jq_merge" "$vj" > "$tmp" \
       || { rm -f "$tmp"; _menu_error "jq merge failed"; return 1; }
   else
-    jq -n --arg iso "$iso" --arg bk "$primary" \
-       '{persistence:[{image:$iso, backend:$bk, autosel:1}]}' > "$tmp" \
+    jq -n --arg iso "$iso" --arg bk "$primary" "$jq_merge" > "$tmp" \
       || { rm -f "$tmp"; _menu_error "jq build failed"; return 1; }
   fi
-  mv "$tmp" "$vj" && _menu_success "Wrote $vj"
+  mv "$tmp" "$vj" && _menu_success "Wrote $vj (merged — existing states preserved)"
   _menu_info "Run the Ventoy.json Doctor (12→9) to verify."
 }
 
