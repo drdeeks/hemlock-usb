@@ -754,7 +754,7 @@ Three ways to launch USB-Hemlock without a desktop sign-in:
 
 ### 1. Native USB boot
 
-Plug the Ventoy USB into a machine, boot from USB (BIOS / UEFI boot menu, F12/F10/F2 depending on vendor). Ventoy menu → pick ISO. The persistence overlay (`casper-rw` or whichever `.dat` is mapped via `ventoy.json`) auto-mounts and the system comes up with your saved state. `rc.local` runs `<usb>/startup.sh` if you injected it via the Startup Manager (option 8 → 4).
+Plug the Ventoy USB into a machine, boot from USB (BIOS / UEFI boot menu, F12/F10/F2 depending on vendor). Ventoy menu → pick ISO. The persistence overlay (`casper-rw` or whichever `.dat` is mapped via `ventoy.json`) auto-mounts and the system comes up with your saved state. `rc.local` runs the boot orchestrator `<usb>/scripts/startup.sh` (identity log → tooling mount → updates → shell/cleanup config → SSH honor → operator hooks) if you installed the hook via the Startup Manager (option 8 → 4).
 
 ### 2. Headless via VM (QEMU/KVM)
 
@@ -796,19 +796,19 @@ This is the closest thing to "compute-only host bridge" — the host boots, imme
 
 ## Startup Management
 
-### Startup Manager (Menu Option 11)
+### Startup Manager (Menu Option 8)
 
 Manages what runs at boot across USB persistence and host system.
 
 ```bash
-bash menu.sh   # → Option 11: Startup Manager
+bash menu.sh   # → Option 8: Startup Manager
 ```
 
 **Sub-options:**
-1. **List startup scripts** — Shows rc.local from USB persistence, USB startup.sh, host rc.local, host profile.d, and host systemd services
-2. **Edit USB startup.sh** — Creates/edits `$VENTOY_MOUNT/startup.sh` (runs on USB boot)
-3. **View USB persistence rc.local** — Read-only inspection of the injected rc.local
-4. **Inject startup.sh into persistence rc.local** — Links startup.sh into the boot sequence
+1. **List startup scripts** — Shows rc.local from USB persistence, the USB boot orchestrator, host rc.local, host profile.d, and host systemd services
+2. **Seed/refresh boot orchestrator** — Installs `<usb>/scripts/startup.sh` from the canonical orchestrator (only ISOs live at the USB root; operator hooks go in `usb-hemlock/etc/uca/custom-startup.sh`)
+3. **View USB persistence rc.local** — Read-only inspection of the installed hook
+4. **Install boot hook into persistence rc.local** — Path-agnostic hook that finds the Ventoy partition and runs `scripts/startup.sh`
 5. **View host rc.local** — Shows `/etc/rc.local` on the host
 6. **View host profile.d scripts** — Lists `/etc/profile.d/*.sh` login scripts
 7. **View host systemd services** — Shows enabled systemd services
@@ -818,22 +818,25 @@ bash menu.sh   # → Option 11: Startup Manager
 The system has a layered boot sequence:
 
 ```
-USB Boot → Ventoy → casper-rw persistence → rc.local → startup.sh
-                                                          ↓
-Host Boot → systemd/launchd → profile.d/usb-essentials.sh → ~/.bash_aliases_usb
+USB Boot → Ventoy → casper-rw persistence → rc.local → scripts/startup.sh (orchestrator)
+             identity log → tooling.dat mount → first-boot essentials → tooling update
+             → per-volume shell/cleanup config → SSH honor (menu-configured) → operator hooks
 ```
 
 ### Custom Startup
 
 ```bash
-# 1. Create/edit startup.sh on USB
-bash menu.sh   # → Option 11 → Option 2
+# 1. Seed the boot orchestrator onto the USB (scripts/startup.sh)
+bash menu.sh   # → Option 8 → Option 2
 
-# 2. Inject into persistence boot sequence
-bash menu.sh   # → Option 11 → Option 4
+# 2. Install the boot hook into persistence rc.local
+bash menu.sh   # → Option 8 → Option 4
 
-# 3. Verify it's in rc.local
-bash menu.sh   # → Option 11 → Option 3
+# 3. Verify the hook is in rc.local
+bash menu.sh   # → Option 8 → Option 3
+
+# Operator customizations: edit usb-hemlock/etc/uca/custom-startup.sh on the
+# stick — the orchestrator runs it as its final step every boot.
 ```
 
 ---

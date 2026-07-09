@@ -497,7 +497,7 @@ _run_usbctl() {
   esac
 }
 
-# CL-031: pick which persistence volume a config write targets. Shared config
+# CL-038: pick which persistence volume a config write targets. Shared config
 # applies to every boot/volume; a per-volume choice scopes aliases/profile/
 # cleanup to that one .dat (sourced only when that volume is mounted). Sets or
 # clears UCA_TARGET_VOLUME (exported so child scripts resolve the same root).
@@ -534,7 +534,7 @@ _uca_choose_volume_target() {
 
 _run_alias_manager() {
   # CL-030: target follows UCA_MODE — alias_manager.sh resolves the file
-  # itself via _uca_install_root. CL-031: optional per-volume scope.
+  # itself via _uca_install_root. CL-038: optional per-volume scope.
   _uca_choose_volume_target
   local tgt; tgt=$(_uca_install_root 2>/dev/null || echo "$HOME")
   _menu_header "Alias Manager"
@@ -1355,7 +1355,7 @@ _run_persistence_manager() {
       fi
       ;;
     10)
-      # CL-031: per-volume cleanup tasks. Config lives on the Ventoy partition
+      # CL-038: per-volume cleanup tasks. Config lives on the Ventoy partition
       # (usb-hemlock/etc/uca[/volumes/<vol>]/cleanup.conf) and is executed by
       # the boot orchestrator inside the booted system when that volume is in
       # play ("/" for the active casper backend, its mountpoint otherwise).
@@ -1456,7 +1456,7 @@ _uca_auto_install_llmrl_after_profile() {
 }
 
 _run_bash_profile() {
-  # CL-030: install target follows UCA_MODE. CL-031: optional per-volume scope.
+  # CL-030: install target follows UCA_MODE. CL-038: optional per-volume scope.
   _uca_choose_volume_target
   local install_root dest_label
   install_root=$(_uca_install_root) || install_root="$HOME"
@@ -1500,7 +1500,7 @@ _run_bash_profile() {
       # location. In USB mode, the line still goes into host .bashrc (one-time
       # bridge write) so the operator's shell can find the profile on USB.
       local source_line="source \"$profile_dest\" 2>/dev/null || true"
-      # CL-031: per-volume profiles are sourced by the BOOTED system (startup
+      # CL-038: per-volume profiles are sourced by the BOOTED system (startup
       # orchestrator) when that volume is mounted — never bridge them into the
       # host's ~/.bashrc.
       if [[ -z "${UCA_TARGET_VOLUME:-}" ]] && \
@@ -3731,6 +3731,63 @@ EOF
 # a single submenu. Future work (H1–H5) will fill in: dynamic volume CRUD,
 # Hemlock Doctor wired to doctor_bridge, mode switcher, gateway-token
 # bootstrap, per-process log viewer, agent/crew CRUD via volumes.
+# Stage the hemlock image on the stick so any host (or the booted live system)
+# can `docker load` it without a registry. Writes usb-hemlock/images/
+# hemlock-<12-char-id>.tar plus a .sha256 alongside; verifies after copy and
+# prunes older staged hemlock images (moved to the stick's .trash, never rm'd
+# blind). Source-first: this replaces the hand-copied tarball workflow.
+_run_hemlock_stage_image() {
+  _menu_header "Stage Hemlock Image on USB"
+  local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted — mount USB first"; return 1; }
+  command -v docker >/dev/null 2>&1 || { _menu_error "docker not available on this host"; return 1; }
+  local iid
+  iid=$(docker images hemlock:latest --format '{{.ID}}' 2>/dev/null | head -1)
+  [[ -z "$iid" ]] && { _menu_error "No hemlock:latest image on this host — build it first (option 12)"; return 1; }
+  local size
+  size=$(docker images hemlock:latest --format '{{.Size}}' 2>/dev/null | head -1)
+  local imgdir="$vmp/usb-hemlock/images"
+  local dest="$imgdir/hemlock-${iid}.tar"
+  _menu_subheader "hemlock:latest ${iid} (${size}) -> $dest"
+  if [[ -f "$dest" && -f "$dest.sha256" ]] && (cd "$imgdir" && sha256sum -c "$(basename "$dest").sha256" >/dev/null 2>&1); then
+    _menu_success "Already staged and verified: $(basename "$dest")"
+    return 0
+  fi
+  local free_kb need_kb
+  free_kb=$(df -k --output=avail "$vmp" 2>/dev/null | tail -1 | tr -d ' ')
+  need_kb=$(( 5 * 1024 * 1024 ))
+  if [[ -n "$free_kb" && "$free_kb" -lt "$need_kb" ]]; then
+    _menu_error "Less than 5G free on the stick — clear space first"
+    return 1
+  fi
+  if [[ "$DRY_RUN" == "true" ]]; then
+    _menu_info "DRY RUN: would docker save hemlock:latest to $dest"; return 0
+  fi
+  _menu_confirm "Stage now (${size} write to the stick — several minutes)?" || return 0
+  mkdir -p "$imgdir"
+  _menu_info "Saving (this streams straight to the stick)..."
+  if docker save hemlock:latest -o "$dest"; then
+    (cd "$imgdir" && sha256sum "$(basename "$dest")" > "$(basename "$dest").sha256")
+    sync
+    if (cd "$imgdir" && sha256sum -c "$(basename "$dest").sha256" >/dev/null 2>&1); then
+      _menu_success "Staged + verified: $(basename "$dest") ($(du -h "$dest" | cut -f1))"
+    else
+      _menu_error "Post-copy checksum FAILED — do not trust this tarball"
+      return 1
+    fi
+    local old
+    for old in "$imgdir"/hemlock-*.tar; do
+      [[ -f "$old" && "$old" != "$dest" ]] || continue
+      mkdir -p "$vmp/.trash/images"
+      mv "$old" "$old.sha256" "$vmp/.trash/images/" 2>/dev/null || true
+      _menu_info "Older staged image moved to .trash/images: $(basename "$old")"
+    done
+    _menu_info "Load anywhere with: docker load -i $dest"
+  else
+    _menu_error "docker save failed"
+    return 1
+  fi
+}
+
 _run_hemlock_manager() {
   _menu_header "Hemlock Manager"
   _menu_subheader "CONTAINER — gateway, agents, crews, deploy, doctor"
@@ -3753,6 +3810,7 @@ _run_hemlock_manager() {
   _menu_item "10" "Register agent on-chain (stub)"   "" "registrar: create+register agent (CL-020)"
   _menu_item "11" "Registry audit"                   "" "list registrar entries + verify attestations"
   _menu_item "12" "Install / deploy runtime"          "" "install.sh — build variant, load release, USB, native"
+  _menu_item "13" "Stage image on USB"                 "" "docker save hemlock:latest -> usb-hemlock/images/ + sha256"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -3769,6 +3827,7 @@ _run_hemlock_manager() {
     10) _run_hemlock_register_agent ;;
     11) _run_hemlock_registry_audit ;;
     12) _run_hemlock_install ;;
+    13) _run_hemlock_stage_image ;;
     0) return 0 ;;
     *) _menu_error "Invalid option: $choice" ;;
   esac

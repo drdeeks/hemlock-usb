@@ -7,6 +7,51 @@ This file is append-only. New entries are added at the top under the appropriate
 
 ## [Unreleased]
 
+### 2026-07-09 — Menu finalization: per-volume config, Linux-only assistant, menu-reproducible stick (CL-038..CL-040)
+
+**CL-038 — Per-volume shell + cleanup configuration.**
+- `_uca_install_root` honors `UCA_TARGET_VOLUME`: configs land in
+  `usb-hemlock/etc/uca/volumes/<name>/` for one data volume, or the shared
+  root for all. Alias Manager and Bash Profile Manager now ask for scope;
+  Persistence Manager option 10 configures per-volume/shared boot-time
+  cleanup tasks (`cleanup.conf`).
+- Boot orchestrator honors it all: writes `/etc/profile.d/uca-shell.sh`
+  sourcing shared then active-volume config (aliases/profile apply when SSH'd
+  into a booted profile), and runs enabled cleanup tasks against `/` and each
+  active volume mount. Menu owns config; boot only honors.
+- Per-volume profiles never bridge into the host `~/.bashrc`.
+
+**CL-039 — Setup assistant: honest output, Linux-only, real paths.**
+- `print_*` helpers printed every message TWICE (colored line + teed log
+  line) and garbled multi-line boxes — console now prints once, timestamps go
+  to the log file only (created before first write).
+- USB detection now `TYPE==disk && TRAN==usb` (previously matched every
+  internal disk); device table uses `lsblk -d` (no more one-line-per-partition
+  mangling) and actually renders the DEVICE column.
+- All conceptual macOS/UTM/Windows/WSL flows removed (~500 lines): hard Linux
+  gate in `initialize()`, WSL reliability warning. The "MUST run from HOST"
+  wall replaced by a note + a destructive-op guard when selecting the very
+  stick the script runs from.
+- Broken flat-sibling paths fixed: cleanup/alias/SSH submenus and the
+  copy-to-persistence step now resolve `scripts/…` (they silently no-opped or
+  fell back to host-file stubs before).
+
+**CL-040 — Source-first stick management (menu reproduces every artifact).**
+- Startup Manager: option 2 seeds/refreshes `scripts/startup.sh` from the
+  canonical orchestrator (root stub template removed — only ISOs at USB
+  root); option 4 installs the path-agnostic `rc.local` boot hook matching
+  the shipped seed; option 1 flags legacy root `startup.sh`.
+- Device/Boot Profiles: option 12 registers/refreshes
+  `device-identity.json` from live facts (serial, volumes, profiles);
+  option 13 syncs the sterile system tree to the stick (agent state,
+  secrets, vendored `docker/openclaw-runtime` excluded).
+- Hemlock Manager: option 13 stages `hemlock:latest` on the stick
+  (`usb-hemlock/images/hemlock-<id>.tar` + sha256, verified after write,
+  older staged images moved to the stick's `.trash`).
+- Main menu strictly numeric 1–20 in both renderers; `_menu_item` no longer
+  drops detail text when the target tag is empty; 7 `log_section` runners
+  converted to the `_menu_header` style.
+
 ### 2026-06-30 — Release-readiness sweep: audit, persistence guard, cleanup, README, full test (CL-032..CL-037)
 
 A six-part pass to bring the platform to enterprise release condition.

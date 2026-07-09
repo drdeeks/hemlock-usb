@@ -88,7 +88,7 @@ set_standard_traps() {
 #          (so configs ride with the USB and never touch host $HOME)
 #   host → under XDG_CONFIG_HOME (default $HOME/.config/usb-compute-automation/)
 #
-# Per-volume scope (CL-031): when UCA_TARGET_VOLUME is set to a persistence
+# Per-volume scope (CL-038): when UCA_TARGET_VOLUME is set to a persistence
 # volume name (e.g. "hemlock-dev" for hemlock-dev.dat), configs land under
 # usb-hemlock/etc/uca/volumes/<name>/ instead of the shared root. The boot
 # orchestrator sources shared config first, then each mounted volume's own
@@ -120,7 +120,7 @@ _uca_install_root() {
       local pmnt root
       pmnt=$(dirname "$(dirname "$pfile")")  # strip /persistence/<name>.dat
       root="${pmnt}/usb-hemlock/etc/uca"
-      # CL-031: per-volume scope — configs for ONE data volume only.
+      # CL-038: per-volume scope — configs for ONE data volume only.
       if [[ -n "${UCA_TARGET_VOLUME:-}" ]]; then
         root="${root}/volumes/${UCA_TARGET_VOLUME%.dat}"
       fi

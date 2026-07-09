@@ -25,7 +25,7 @@ Every menu option has a target label that tells you WHERE the action happens:
 - **[ALL]** — spans all three (DEPLOY.sh, validation)
 - **[USB+HOST]** — spans USB and host (startup manager)
 
-When editing code, you MUST know which target you're modifying. A `[USB]` change must work on any machine with a Ventoy USB. A `[HOST]` change must work on Linux/macOS/WSL. A `[CONTAINER]` change runs in Docker.
+When editing code, you MUST know which target you're modifying. A `[USB]` change must work on any machine with a Ventoy USB. A `[HOST]` change targets a Linux host — that is the platform contract (whiptail/udev/rc.local); macOS/Windows/WSL host flows were removed in CL-039. A `[CONTAINER]` change runs in Docker.
 
 ---
 
