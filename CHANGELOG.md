@@ -7,6 +7,23 @@ This file is append-only. New entries are added at the top under the appropriate
 
 ## [Unreleased]
 
+### 2026-07-09 — One clear access point + sterile deploy tree (CL-042)
+
+**CL-042 — START HERE launcher; dev artifacts off the stick.**
+- The system-tree sync now seeds `<stick-root>/menu.sh` — a 5-line wrapper
+  exec'ing `usb-hemlock/system/menu.sh` (exFAT can't symlink). One visible,
+  friendly entry point; the same menu drives everything with or without
+  Hemlock (`--hemlock` stays opt-in).
+- `portable-usb-manager` skill (v2.0.12) ships `scripts/launch-menu.sh`:
+  resolves the menu from anywhere — `$USB_MENU` override → script ancestors
+  → mounted Ventoy volumes → `findmnt LABEL=Ventoy` — and execs it with
+  arguments passed through.
+- Sterile sync excludes dev-only bloat from the deployed tree: `.claude/`,
+  `AGENTS.md`, `.gitignore`, `usb/volumes/`, `_incoming-docs/`, and
+  `blueprint/` except `ventoy-reference.md` (cited by the menu's ventoy
+  validator). Existing copies moved to the stick's
+  `.trash/system-prune-20260709b/` (22M); tree now 172M.
+
 ### 2026-07-09 — Minimal stick: gateway + brain over MCP, tooling optional, identity kit (CL-041)
 
 **CL-041 — The stick carries the minimal runtime; tooling is optional.**
