@@ -3305,7 +3305,9 @@ _uca_compute_profile() {
   ram_gb=$(awk -v m="$ram_mb" 'BEGIN{printf "%.1f", m/1024}')
   gpu=$(lspci 2>/dev/null | grep -iE 'vga|3d|display' | sed 's/.*: //' | head -1)
   [[ -z "$gpu" ]] && gpu="none detected"
-  virt=$(systemd-detect-virt 2>/dev/null || echo unknown)
+  # NB: systemd-detect-virt EXITS 1 on bare metal (prints "none"), so don't
+  # treat non-zero as failure — just take its stdout.
+  virt=$(systemd-detect-virt 2>/dev/null || true); [[ -z "$virt" ]] && virt="unknown"
 
   local scanner="hemlock/hemlock-runtime/scripts/system/hardware-scanner.sh"
   echo ""
