@@ -2076,8 +2076,11 @@ _uca_safe_umount() {
   return 1
 }
 
-# EXIT sweep — unmount anything we mounted and never released.
+# EXIT sweep — unmount anything we mounted and never released. The leading
+# sync also flushes direct writes to the (non-journaled) exFAT Ventoy
+# partition — profiles/config survive a pull right after the menu exits.
 _uca_umount_leftovers() {
+  sync
   local m
   for m in "${UCA_TRACKED_MOUNTS[@]:-}"; do
     [[ -n "$m" ]] || continue
