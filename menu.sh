@@ -2058,8 +2058,14 @@ _uca_autoload_profile() {
   [[ -n "$dev" && -b "$dev" ]] && export SELECTED_DEVICE="$dev"
   # Optional path overrides the profile may carry.
   local iso; iso=$(jq -r '.iso // empty' "$def" 2>/dev/null); [[ -n "$iso" ]] && UCA_ISO_PATH="$iso"
-  local prim; prim=$(jq -r '.primary // empty' "$def" 2>/dev/null)
-  [[ -n "$prim" ]] && UCA_PERSISTENCE_VOLUMES="$prim${UCA_PERSISTENCE_VOLUMES:+:$UCA_PERSISTENCE_VOLUMES}"
+  # primary is an OBJECT per the profile schema — take .file and resolve it
+  # against the USB mount (profile paths are mount-relative).
+  local prim; prim=$(jq -r '.primary.file // empty' "$def" 2>/dev/null)
+  if [[ -n "$prim" ]]; then
+    local m; m=$(_uca_mount 2>/dev/null) || m=""
+    [[ -n "$m" && -f "$m/${prim#/}" ]] && prim="$m/${prim#/}"
+    UCA_PERSISTENCE_VOLUMES="$prim${UCA_PERSISTENCE_VOLUMES:+:$UCA_PERSISTENCE_VOLUMES}"
+  fi
   # Env block. CL-026 / SPEC-T04 (MOD-007): HEMLOCK_ENABLED is BLACKLISTED
   # from profile auto-export. Hemlock is opt-in via --hemlock/-H or an
   # explicit shell export; a stored profile must NEVER silently enable it.
