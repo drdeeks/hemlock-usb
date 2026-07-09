@@ -259,7 +259,20 @@ if [ "$TO_USB" -eq 1 ]; then
         docker save "$IMAGE" | gzip -1 > "$TAR" || die "docker save failed"
         log "tarball: $(du -h "$TAR" | cut -f1)"
         MNT=$(mktemp -d /tmp/hemlock-persist-XXXX)
-        sudo mount -o loop "$DAT" "$MNT" || { rm -f "$TAR"; die "mount failed"; }
+        # Yank-aware mount lifecycle: recover a dirty journal before the rw
+        # mount (no-op when clean), guarantee sync+umount even if the copy is
+        # interrupted, and never leave the loop mount behind.
+        _persist_cleanup() {
+            if mountpoint -q "$MNT" 2>/dev/null; then
+                sync
+                sudo umount "$MNT" 2>/dev/null || sudo umount -l "$MNT" 2>/dev/null || true
+            fi
+            rmdir "$MNT" 2>/dev/null || true
+            rm -f "$TAR"
+        }
+        trap _persist_cleanup EXIT INT TERM
+        sudo e2fsck -p "$DAT" >/dev/null 2>&1 || true
+        sudo mount -o loop "$DAT" "$MNT" || die "mount failed"
         sudo mkdir -p "$MNT/hemlock"
         if sudo cp "$TAR" "$MNT/hemlock/$(basename "$TAR")" && sync; then
             sudo df -h "$MNT" | tail -1
@@ -267,7 +280,8 @@ if [ "$TO_USB" -eq 1 ]; then
         else
             warn "copy failed — persistence may be full"
         fi
-        sudo umount "$MNT" && rmdir "$MNT"; rm -f "$TAR"
+        _persist_cleanup
+        trap - EXIT INT TERM
     fi
 fi
 

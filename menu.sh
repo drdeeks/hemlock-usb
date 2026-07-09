@@ -803,13 +803,13 @@ _run_startup_manager() {
         if [[ -n "$pfile" ]]; then
           local tmpmnt="/tmp/usb-persist-$$"
           mkdir -p "$tmpmnt"
-          if sudo mount -o loop,ro "$pfile" "$tmpmnt" 2>/dev/null; then
+          if _uca_safe_loop_mount "$pfile" "$tmpmnt" ro; then
             if [[ -f "$tmpmnt/etc/rc.local" ]]; then
               cat "$tmpmnt/etc/rc.local"
             else
               _menu_info "(no rc.local in persistence)"
             fi
-            sudo umount "$tmpmnt" 2>/dev/null || true
+            _uca_safe_umount "$tmpmnt" || true
           else
             _menu_info "(could not mount persistence for inspection)"
           fi
@@ -887,14 +887,14 @@ STARTUP
         if [[ -n "$pfile" ]]; then
           local tmpmnt="/tmp/usb-persist-$$"
           mkdir -p "$tmpmnt"
-          if sudo mount -o loop,ro "$pfile" "$tmpmnt" 2>/dev/null; then
+          if _uca_safe_loop_mount "$pfile" "$tmpmnt" ro; then
             if [[ -f "$tmpmnt/etc/rc.local" ]]; then
               _menu_subheader "rc.local in persistence"
               cat "$tmpmnt/etc/rc.local"
             else
               _menu_info "No rc.local found in persistence image"
             fi
-            sudo umount "$tmpmnt" 2>/dev/null || true
+            _uca_safe_umount "$tmpmnt" || true
           else
             _menu_error "Could not mount persistence"
           fi
@@ -924,7 +924,7 @@ STARTUP
       fi
       local tmpmnt="/tmp/usb-persist-$$"
       mkdir -p "$tmpmnt"
-      if sudo mount -o loop "$pfile" "$tmpmnt" 2>/dev/null; then
+      if _uca_safe_loop_mount "$pfile" "$tmpmnt"; then
         local rclocal="$tmpmnt/etc/rc.local"
         if [[ -f "$rclocal" ]]; then
           if grep -q "startup.sh" "$rclocal"; then
@@ -945,7 +945,7 @@ RCLOCAL
           chmod +x "$rclocal"
           _menu_success "Created rc.local with startup.sh reference"
         fi
-        sudo umount "$tmpmnt" 2>/dev/null || true
+        _uca_safe_umount "$tmpmnt" || true
       else
         _menu_error "Could not mount persistence"
       fi
@@ -1190,13 +1190,13 @@ _run_persistence_manager() {
       fi
       local tmpmnt="/tmp/usb-persist-browse-$$"
       mkdir -p "$tmpmnt"
-      if sudo mount -o loop,ro "$pfile" "$tmpmnt" 2>/dev/null; then
+      if _uca_safe_loop_mount "$pfile" "$tmpmnt" ro; then
         _menu_subheader "Persistence contents (read-only)"
         sudo ls -la "$tmpmnt/" 2>/dev/null
         echo ""
         _menu_subheader "Files in /etc"
         sudo ls -1 "$tmpmnt/etc/" 2>/dev/null | head -20
-        sudo umount "$tmpmnt" 2>/dev/null || true
+        _uca_safe_umount "$tmpmnt" || true
       else
         _menu_error "Could not mount persistence"
       fi
@@ -2015,6 +2015,93 @@ _uca_resolve_environment() {
   printf '%s\n' "$env"
 }
 
+# ── Safe loop-mount lifecycle (yank-aware) ───────────────────────────────────
+# Every loop mount goes through these helpers so that:
+#   1. the menu ALWAYS unmounts what it mounted (EXIT/TERM/INT trap sweeps the
+#      registry — no leaked mounts if the script dies mid-operation);
+#   2. writes are flushed (sync) BEFORE any unmount;
+#   3. an ext4 .dat that was yanked mid-write is journal-recovered (e2fsck -p)
+#      before it is ever mounted read-write again;
+#   4. mounts whose backing device vanished (surprise removal) are detected at
+#      startup and lazily detached instead of poisoning later operations.
+UCA_TRACKED_MOUNTS=()
+
+_uca_track_mount() { UCA_TRACKED_MOUNTS+=("$1"); }
+
+_uca_untrack_mount() {
+  local m keep=()
+  for m in "${UCA_TRACKED_MOUNTS[@]:-}"; do
+    [[ "$m" == "$1" ]] || keep+=("$m")
+  done
+  UCA_TRACKED_MOUNTS=("${keep[@]:-}")
+}
+
+# _uca_safe_loop_mount <volume-file> <mountpoint> [ro]
+_uca_safe_loop_mount() {
+  local vol="$1" mnt="$2" mode="${3:-rw}"
+  [[ -f "$vol" ]] || return 1
+  mkdir -p "$mnt" 2>/dev/null || true
+  # Yank recovery: before an rw mount of an ext4 volume, replay a dirty
+  # journal. e2fsck -p is a no-op on a clean fs and safe-repairs after a
+  # surprise removal; never run on ro mounts (recovery happens then too,
+  # but we avoid touching the file when the caller asked for read-only).
+  if [[ "$mode" != "ro" ]]; then
+    local fstype
+    fstype=$(sudo -n blkid -o value -s TYPE "$vol" 2>/dev/null || echo "")
+    if [[ "$fstype" == ext* ]]; then
+      sudo e2fsck -p "$vol" >/dev/null 2>&1 || true
+    fi
+  fi
+  local opts="loop"
+  [[ "$mode" == "ro" ]] && opts="loop,ro"
+  if sudo mount -o "$opts" "$vol" "$mnt" 2>/dev/null; then
+    _uca_track_mount "$mnt"
+    return 0
+  fi
+  return 1
+}
+
+# _uca_safe_umount <mountpoint> — sync first, lazy-detach as last resort.
+_uca_safe_umount() {
+  local mnt="$1"
+  mountpoint -q "$mnt" 2>/dev/null || { _uca_untrack_mount "$mnt"; return 0; }
+  sync
+  if _uca_safe_umount "$mnt"; then
+    _uca_untrack_mount "$mnt"; return 0
+  fi
+  sleep 1
+  if _uca_safe_umount "$mnt" || sudo umount -l "$mnt" 2>/dev/null; then
+    _uca_untrack_mount "$mnt"; return 0
+  fi
+  return 1
+}
+
+# EXIT sweep — unmount anything we mounted and never released.
+_uca_umount_leftovers() {
+  local m
+  for m in "${UCA_TRACKED_MOUNTS[@]:-}"; do
+    [[ -n "$m" ]] || continue
+    mountpoint -q "$m" 2>/dev/null && { sync; _uca_safe_umount "$m" || sudo umount -l "$m" 2>/dev/null || true; }
+  done
+  UCA_TRACKED_MOUNTS=()
+}
+
+# Startup sweep — detect mounts whose backing device/file is GONE (someone
+# pulled the stick). Lazy-detach them so stale mounts don't shadow the real
+# state, and tell the user which volume should be health-checked.
+_uca_sweep_stale_mounts() {
+  local src tgt
+  while IFS=' ' read -r src tgt; do
+    [[ -n "$tgt" ]] || continue
+    # loop mounts whose backing file was on a removed device show as deleted
+    if [[ "$src" == *"(deleted)"* ]] || { [[ "$src" == /dev/loop* ]] && ! losetup "$src" >/dev/null 2>&1; }; then
+      log_warn "Stale mount from removed media: $tgt — lazy-detaching"
+      log_warn "  Run 'Persistence Manager → Check persistence health' on that volume before its next rw use."
+      sudo -n umount -l "$tgt" 2>/dev/null || true
+    fi
+  done < <(findmnt -rn -o SOURCE,TARGET 2>/dev/null | grep -E "^/dev/loop|deleted" || true)
+}
+
 # ── Boot/device profiles — USB-first storage (Phase 1) ──────────────────────
 # Profiles live ON the Ventoy drive (portable, travel with the USB) under
 # /<mount>/usb-hemlock/profiles, falling back to the host config dir when the
@@ -2419,7 +2506,7 @@ _uca_profile_apply_mounts() {
 
   local mnt="/tmp/uca-apply-$$"
   sudo mkdir -p "$mnt" || { _menu_error "mkdir failed"; return 1; }
-  if ! sudo mount -o loop "$primary_fs" "$mnt" 2>/dev/null; then
+  if ! _uca_safe_loop_mount "$primary_fs" "$mnt"; then
     _menu_error "Could not loop-mount primary (already mounted RW?)"; sudo rmdir "$mnt" 2>/dev/null; return 1
   fi
   if [[ ! -x "$mnt/bin/bash" && ! -L "$mnt/bin/bash" ]]; then
@@ -2483,7 +2570,7 @@ EOF
     _menu_success "Wrote $n_env env var(s) to /etc/environment"
   fi
 
-  sudo umount "$mnt" 2>/dev/null || _menu_warn "umount failed — still at $mnt"
+  _uca_safe_umount "$mnt" || _menu_warn "umount failed — still at $mnt"
   sudo rmdir "$mnt" 2>/dev/null || true
   _menu_info "Done. Next boot will auto-mount the data volumes."
 }
@@ -2869,7 +2956,7 @@ _uca_unmount_tree() {
   local mnt="$1"
   local sub
   for sub in dev/pts dev proc sys tmp ""; do
-    sudo umount "$mnt/$sub" 2>/dev/null || true
+    _uca_safe_umount "$mnt/$sub" || true
   done
   sudo rmdir "$mnt" 2>/dev/null || true
 }
@@ -2931,10 +3018,10 @@ _uca_exec_into_persistence() {
     return 0
   fi
   sudo mkdir -p "$mnt" || { _menu_error "mkdir failed"; return 1; }
-  if sudo mount -o loop "$vol" "$mnt" 2>/dev/null; then
+  if _uca_safe_loop_mount "$vol" "$mnt"; then
     _menu_success "Mounted at $mnt (read-write). Type 'exit' to unmount & return."
     ( cd "$mnt" && sudo "${SHELL:-bash}" ) || _menu_warn "Shell exited (code $?)"
-    sudo umount "$mnt" 2>/dev/null || _menu_warn "Unmount failed — still mounted at $mnt"
+    _uca_safe_umount "$mnt" || _menu_warn "Unmount failed — still mounted at $mnt"
   else
     _menu_error "Could not mount $vol (already mounted? wrong filesystem?)"
   fi
@@ -2953,7 +3040,7 @@ _uca_chroot_persistence() {
     return 0
   fi
   sudo mkdir -p "$mnt" || { _menu_error "mkdir failed"; return 1; }
-  if ! sudo mount -o loop "$vol" "$mnt" 2>/dev/null; then
+  if ! _uca_safe_loop_mount "$vol" "$mnt"; then
     _menu_error "Could not mount $vol"; sudo rmdir "$mnt" 2>/dev/null || true; return 1
   fi
   if [[ ! -d "$mnt/bin" && ! -L "$mnt/bin" ]]; then
@@ -2981,7 +3068,7 @@ _uca_edit_rclocal() {
     return 0
   fi
   sudo mkdir -p "$mnt" || { _menu_error "mkdir failed"; return 1; }
-  if ! sudo mount -o loop "$vol" "$mnt" 2>/dev/null; then
+  if ! _uca_safe_loop_mount "$vol" "$mnt"; then
     _menu_error "Could not mount $vol"; sudo rmdir "$mnt" 2>/dev/null || true; return 1
   fi
   local rcpath="$mnt/$rcrel"
@@ -3000,7 +3087,7 @@ RCLOCAL
   sudo "${EDITOR:-nano}" "$rcpath"
   sudo chmod +x "$rcpath" 2>/dev/null || true
   _menu_success "Saved $rcrel in $(basename "$vol")"
-  sudo umount "$mnt" 2>/dev/null || _menu_warn "Unmount failed — still at $mnt"
+  _uca_safe_umount "$mnt" || _menu_warn "Unmount failed — still at $mnt"
   sudo rmdir "$mnt" 2>/dev/null || true
 }
 
@@ -3092,7 +3179,7 @@ _uca_with_chroot() {
   local vol="$1"; shift
   local mnt="/tmp/uca-chroot-$$-$RANDOM"
   sudo mkdir -p "$mnt" || { _menu_error "mkdir failed"; return 1; }
-  if ! sudo mount -o loop "$vol" "$mnt" 2>/dev/null; then
+  if ! _uca_safe_loop_mount "$vol" "$mnt"; then
     _menu_error "Could not mount $vol (already mounted? wrong fs?)"; sudo rmdir "$mnt" 2>/dev/null || true; return 1
   fi
   if [[ ! -x "$mnt/bin/bash" && ! -L "$mnt/bin/bash" ]]; then
@@ -3149,7 +3236,7 @@ _uca_install_tooling_usb() {
 
   local mnt="/tmp/uca-tooling-$$"
   sudo mkdir -p "$mnt" || { _menu_error "mkdir failed"; return 1; }
-  if ! sudo mount -o loop "$vol" "$mnt" 2>/dev/null; then
+  if ! _uca_safe_loop_mount "$vol" "$mnt"; then
     _menu_error "Could not mount $vol"; sudo rmdir "$mnt" 2>/dev/null || true; return 1
   fi
   if [[ ! -x "$mnt/bin/bash" && ! -L "$mnt/bin/bash" ]]; then
@@ -4244,7 +4331,7 @@ _menu_intr_handler() {
 # ── Main ────────────────────────────────────────────────────────────────────
 main() {
   set_standard_traps
-  trap '_uca_sudo_cleanup' EXIT TERM
+  trap '_uca_umount_leftovers; _uca_sudo_cleanup' EXIT TERM
   trap '_menu_intr_handler' INT
   clear 2>/dev/null || true
 
@@ -4254,6 +4341,8 @@ main() {
 
   # Load user-configured paths & environment overrides (if any).
   _uca_load_paths_config
+  # Detect + lazy-detach mounts orphaned by surprise media removal (yank-aware).
+  _uca_sweep_stale_mounts
   # Normalize file ownership/perms so later runs DO NOT need sudo for menu actions.
   _uca_normalize_permissions
   # Apply a default (autoboot) USB profile if one is marked — must run before
