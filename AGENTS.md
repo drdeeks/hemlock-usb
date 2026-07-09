@@ -215,9 +215,9 @@ bash usb/sysman.sh --health                    # System health check
 
 ---
 
-## 5. Verified Bugs (All Fixed in `usb-hemlock-split/`)
+## 5. Verified Bugs (All Fixed)
 
-All 15 verified bugs have been fixed. Documenting them here so agents understand the patterns that caused them. BUG-14/BUG-15 were exposed by navigating the menu with a real Ventoy USB attached.
+All 18 verified bugs have been fixed. Documenting them here so agents understand the patterns that caused them. BUG-14/BUG-15 were exposed by navigating the menu with a real Ventoy USB attached. BUG-16..BUG-18 were exposed while registering the first real boot profile (2026-07-08).
 
 ### BUG-1: usbctl alias path (FIXED)
 
@@ -310,6 +310,24 @@ All 15 verified bugs have been fixed. Documenting them here so agents understand
 **Fix:** Added `_resolve_ventoy_mount` (prefers the already-detected `$VENTOY_MOUNT`, then `detect_ventoy_mount`, then scans `/media/$USER/Ventoy`, `/run/media/$USER/Ventoy`, glob fallbacks, `/mnt/ventoy`, `/Volumes/Ventoy`) and replaced all 10 hardcoded loops with it. `main()` now resolves the mount whether the device was auto-detected or pre-set. Verified against a real 233G Ventoy drive (`/dev/sdb` → `/media/drdeek/Ventoy`, 225G persistence).
 
 ---
+
+### BUG-16: profile autoload read the whole `primary` object (FIXED)
+
+**File:** `menu.sh` `_uca_autoload_profile`
+**Bug:** `jq -r '.primary'` on a schema-conformant profile (`primary` is `{file,label}`) injected object JSON into `UCA_PERSISTENCE_VOLUMES`.
+**Fix:** Read `.primary.file` and resolve the mount-relative path against the USB mount. Verified with the live `hemlock-main` default profile.
+
+### BUG-17: validate-all-skills.sh death by `set -e` + `((var++))` (FIXED)
+
+**File:** `hemlock/hemlock-runtime/scripts/validate-all-skills.sh`
+**Bug:** `((total++))` returns exit 1 when the variable is 0; under `set -euo pipefail` the first counted skill killed the script.
+**Fix:** `var=$((var+1))` form. Pattern to remember: never post-increment with `(( ))` under `set -e`.
+
+### BUG-18: validate-all-skills.sh assumed the container skills path (FIXED)
+
+**File:** same script
+**Bug:** `SKILLS_DIR` defaulted to `$RUNTIME_ROOT/skills` (container layout) — nonexistent on the host tree, so the report file write failed.
+**Fix:** Falls back to `shared/skills` beside the scripts dir. Reports 17/17 valid.
 
 ## 6. Gotchas
 

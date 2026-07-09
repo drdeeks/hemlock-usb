@@ -90,13 +90,21 @@ secrets — see [`.dockerignore`](.dockerignore).
 | **Global knowledge base** | `knowledge/`, `scripts/knowledge*` | Append-only store + classified link DB + self-healing watcher + a gateway capture hook (any link an agent receives is captured). |
 | **Backup & restore** | `scripts/backup.sh` (menu 8) | Owner-driven. FULL (entire state, incl. Ventoy `.dat` images) **or** CUSTOM (pick a volume + categories). Encrypted; opt-in scheduling; you are never forced to dump everything. |
 | **Memory discipline** | `agents/workspace-template/` | Mandatory memory-search-first, crash-safe context dumps, unlimited daily memory, `USER.md` owner-model corpus. |
-| **Skills (LAZY)** | `shared/skills/` | 5 enterprise skills (below), loaded on demand via a compact in-prompt index. |
+| **Skills (LAZY)** | `shared/skills/` | 17 enterprise-validated skills (below), loaded on demand via a compact in-prompt index. |
+| **Agent identity layer** | `agents/workspace-template/.agent/` | Constitution loaded at t=0 (values, standards, hard constraints), 3 internalized habits, enforcer config. `agent-create.sh` fills placeholders and stamps a sha256 identity hash into `<agent-id>.json`; `inject-context.sh` injects the constitution right after SOUL.md. |
 | **Guardrail / gate** | `shared/skills/guardrail-enforcement/` | HMAC-signed, hash-chained audit log (`.loop-log.jsonl`) + a monitor that auto-commits version bumps + git-hook enforcement. |
 
 ### Bundled skills
-`skill-creator` · `skill-installer` · `guardrail-enforcement` · `enterprise-blueprint` ·
-`portable-usb-manager` — canonically maintained in a separate repo and synced into
+All 17 pass skill-creator enterprise validation and are canonically maintained in a separate
+repo (auto-committed there by a guardrail watcher on every version bump), then synced into
 `shared/skills/`; a daily self-healing updater keeps the container copy current.
+
+`skill-creator` · `skill-installer` · `guardrail-enforcement` · `enterprise-blueprint` ·
+`portable-usb-manager` (absorbed `unified-usb-skill`) · `loop-enforcer` ·
+`agent-identity-architecture` · `agent-wake-up` · `autonomous-crew-integration` ·
+`crew-knowledge-system` · `enterprise-organization` · `hackathon-manager` ·
+`hemlock-minimal` · `kanban-orchestrator` · `knowledge-indexer` · `tool-enforcement` ·
+`tv-sitcom-mcp`
 
 ---
 
@@ -134,10 +142,12 @@ AGENTS.md      the authoritative project overview (read this next)
 
 **Active development.** Built and validated: run-mode toggle, per-agent brains + MCP handshake,
 per-agent git volumes, the knowledge system, owner-driven backup/restore (incl. Ventoy layer),
-memory discipline, and the skill/guardrail toolchain. **In progress / not yet claimed done:**
-end-to-end autonomous crews, full de-brand, semantic/vector memory, and the provider-adaptive
-skill-tag system (see `AGENTS.md` §13). Component status is tracked honestly in `AGENTS.md` — if
-it isn't listed as validated there, treat it as unverified.
+memory discipline, the skill/guardrail toolchain, the provider-adaptive skill-tag system
+(install-time remap + repo-side auto-strip; `AGENTS.md` §13), the 17-skill validated seed, and
+the agent identity layer (constitution at t=0 + identity hash). Gateway port is **1437**
+(host OpenClaw keeps 18789 — no collision). **In progress / not yet claimed done:**
+end-to-end autonomous crews, full de-brand, semantic/vector memory. Component status is tracked
+honestly in `AGENTS.md` — if it isn't listed as validated there, treat it as unverified.
 
 ## License
 

@@ -69,6 +69,14 @@ Seeded into every agent by `scripts/agent-create.sh` (`cp -ra`) and enforced on 
   `jsonfmt.py`.
 - **Dirs**: `memory/`, `sessions/`, `skills/`, `projects/`, `knowledge/`, `.secrets/`, `logs/`,
   `.archive/`, plus a per-volume `.gitignore`.
+- **Identity layer** (`.agent/`): `constitution.yaml` (values, operational standards, hard
+  constraints — loads at t=0 via `inject-context.sh`, injected right after SOUL.md), three
+  internalized habits (`identity-enforcement`, `tool-enforcement`, `reflective-loop`), and
+  `enforcer-config.yaml` for the opt-in enforcer daemon. `agent-create.sh` fills the
+  placeholders and stamps the constitution's sha256 into `<agent-id>.json` (`identity` block) —
+  a later hash mismatch means the constitution was edited after provisioning. Fail-soft: a
+  template without `.agent/` still provisions. Deep architecture lives in the seeded
+  `agent-identity-architecture` skill (enforcer daemon, agent runtime, memory curator).
 
 ## 5. Agent operating standard (`agents/workspace-template/AGENTS.md`)
 Injected into every agent's prompt by OpenClaw. Establishes:
@@ -92,7 +100,9 @@ Injected into every agent's prompt by OpenClaw. Establishes:
 - **Skills auto-update** (`docker/skills-auto-update.sh`): self-healing daily curated-skill sync.
 
 ## 7. Skills — LAZY by design
-OpenClaw injects only a compact name+description+location index; `SKILL.md` is read on demand.
+17 enterprise-validated skills are seeded in `shared/skills/` (canonical repo: auto-committed
+by a guardrail watcher on version bumps, mirrored here). OpenClaw injects only a compact
+name+description+location index; `SKILL.md` is read on demand.
 Index capped by `skills.limits.maxSkillsPromptChars` (+ per-agent `skillsLimits`), set by
 `gen-openclaw-config.py` (default 8000).
 
@@ -161,40 +171,26 @@ delegated `.dat` persistence images (`hemlock.dat`, `tooling.dat`, `models.dat`,
   cron model. Encryption: AES-256-CBC/PBKDF2 with `config/.backup-key` (`backup.sh init`;
   key + `backups/` are gitignored). Injection-safe config edits (argv, never interpolated).
 
-## 13. Skill tag system (KNOWN GAP + deferred enterprise plan)
-**Verified mismatch (do not trust "passes enterprise" as "promotes at runtime"):** the skill
-validator `skill-creator/scripts/validate.py:766` gates on **`metadata.tags`** (≥7 enterprise,
-≥5 basic), but the runtime that actually surfaces skills — `docker/hermes-agent/skills/
-skill_registry.py:77` — reads **`metadata.hermes.tags`** (a different key), ignoring
-`metadata.tags` entirely. So a skill can pass enterprise validation with 7+ tags yet promote on
-zero. Measured (2026-07-03): hermes.tags = enterprise-blueprint 3, guardrail-enforcement 3,
-skill-creator/skill-installer/portable-usb-manager 0. `metadata.openclaw.tags` is currently
-**unconsumed** (gen-openclaw-config.py only LAZY-indexes SKILL.md). This is NOT yet fixed.
+## 13. Skill tag system (IMPLEMENTED — install-time remap, repo-side auto-strip)
+**Historical context:** the validator gates on canonical `metadata.tags` while the runtime's
+`skill_registry.py` reads `metadata.hermes.tags` — so validated skills could promote on zero
+tags. That gap is now closed by the provider-adaptive tag lifecycle:
 
-**Deferred long-term design (owner's directive — "think enterprise, we'll get to it"):**
-- Keep the tag threshold as-is (7 enterprise / 5 standard); tags stay canonical in
-  `metadata.tags`; classification unchanged.
-- Give BOTH `skill-creator` and `skill-installer` a shared component: (a) ONE
-  `references/` doc holding the OFFICIAL documentation LINKS for major providers
-  (openclaw / claude / openai / hermes / google / qwen / …) — links only, never the docs
-  themselves, so it stays current; (b) a script function that DETECTS the active harness/provider
-  (signals available: `HEMLOCK_MODE`, `OPENCLAW*`, `HERMES*` env) and **rearranges/remaps the
-  canonical tags into that platform's tag schema/location** on install (skill-installer) and on
-  update (skill-creator) — because installing/updating means the skill is in use.
-- Agent-driven install/update = automatic + non-interactive (the skill "knows"). User-driven with
-  no non-interactive flag = PROMPT for provider(s) with an **"Other/none"** option; choosing none
-  → instruct them to find their provider's tag schema and append manually.
-- Provide a helper that accepts a **pasted provider schema example** (grabbed from the provider's
-  site) and configures the tags to match it — so users don't hand-edit every skill — plus a path
-  to submit a **pull request** contributing that provider structure back to the canonical set.
-- Fixing the mismatch falls out of this: the adapter POPULATES the runtime-consumed block
-  (`metadata.hermes.tags` / per-provider) from `metadata.tags`, so validation ⇒ real promotion.
+- **Repo standard:** skills ship canonical `metadata.tags` ONLY (7+ enterprise / 5+ basic).
+- **Install/update remap:** `skill-creator/scripts/skill_enhance.py` detects the active
+  provider(s) (`detect_providers()` — HERMES_*/OPENCLAW_*/OPENAI_* env, `HEMLOCK_MODE`;
+  `--provider` overrides) and copies canonical tags into `metadata.<provider>.tags`
+  (hermes/openclaw/openai) — additive, idempotent, canonical untouched. First-start seeding in
+  `docker/entrypoint.sh` runs the same remap, so the runtime-consumed block is always populated.
+- **Repo-side auto-strip:** `skill-creator/scripts/normalize_tags.py` strips provider blocks
+  back to standard; a self-contained **post-commit git hook** (transmitted by skill-installer on
+  every install — live `.git/hooks/post-commit`, dormant `.githooks/`, foreign hooks chained)
+  strips + amends automatically at repo submission. Provider docs links live in
+  `skill-creator/references/provider-tag-remapping.md`.
 
-**Packaging note (DONE):** `package_skills.py` previously stripped ALL dotfiles, silently dropping
-guardrail artifacts (`.loop-log.jsonl`, `.gate.json`, …) from `.skill` archives — contradicting
-validate.py's contract that these are "never moved, never deleted." Fixed: the packer now imports
-`GUARDRAIL_ARTIFACTS` from validate.py and preserves them at the skill root (excludes only the
-transient `.loop.lock`). All 5 skills repacked 2026-07-03 with tags + versions unchanged.
+**Packaging note (DONE):** `package_skills.py` preserves guardrail artifacts
+(`.loop-log.jsonl`, `.gate.json`, …) at the skill root (excludes only the transient
+`.loop.lock`).
 
 ## 10. Status / pending
 Built + validated: mode toggle, HEMLOCK_HOME alias, agent operating standard + mandatory memory
@@ -203,9 +199,11 @@ all-tools + lazy-skills OpenClaw config, **runtime-root global knowledge system*
 append-only `knowledge/` + classified link DB + self-healing watcher + gateway capture hook;
 legacy `docs-indexer.sh` also hardened against the same interpolation-injection class),
 **owner-driven backup/restore** (§12: FULL + CUSTOM modes, encrypted, opt-in scheduling, menu 8).
-Pending: **long-run** full de-brand + semantic/vector memory (then upgrade the mandatory
-search — and knowledge search — to vector). **Skill tag system (§13): DEFERRED** — the
-validator↔runtime tag-field mismatch is verified but unfixed, and the provider-adaptive tag
-feature (provider-doc-links reference + harness detection + schema-paste helper + PR path) is
-designed but not built. Before rebuild: revoke the OpenRouter/Telegram test tokens in `.env` /
+Also built + validated (2026-07-08): **provider-adaptive skill tag system (§13)** — remap on
+install/update + post-commit auto-strip, hard-tested end to end; **17-skill validated seed**
+(all pass skill-creator enterprise validation; canonical repo auto-commits version bumps via
+guardrail monitor cron); **agent identity layer** (§4 — constitution at t=0 + identity hash,
+verified by provisioning a scratch agent); gateway port moved to **1437**. Pending: **long-run**
+full de-brand + semantic/vector memory (then upgrade the mandatory search — and knowledge
+search — to vector). Before rebuild: revoke the OpenRouter/Telegram test tokens in `.env` /
 `runtime/.env`.

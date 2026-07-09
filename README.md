@@ -38,6 +38,18 @@ All operations route through one interactive menu (`menu.sh`) with whiptail TUI 
 
 ---
 
+## What's New (July 2026)
+
+| Change | Headline |
+|---|---|
+| **17-skill validated seed** | The runtime ships 17 skills (11 new — identity, crews, kanban, knowledge, wake-up, hackathon, tool-enforcement, minimal-runtime, …), every one passing skill-creator enterprise validation; the canonical skills repo auto-commits version bumps via a guardrail monitor cron. |
+| **Agent identity layer** | `workspace-template/.agent/`: identity constitution loaded at t=0 (injected right after SOUL.md), 3 internalized habits, enforcer config; `agent-create.sh` stamps a sha256 identity hash into `<agent-id>.json`. |
+| **Yank-aware mount lifecycle** | Every loop mount in menu.sh/install.sh: sync-before-umount, EXIT-trap sweep (no leaked mounts on crash/Ctrl-C), `e2fsck -p` journal replay before rw mounts, startup detection of mounts orphaned by surprise removal, unconditional sync on menu exit (exFAT profile writes). |
+| **Boot-profile autoload fixed + in use** | Default profile (`default: true`) in `usb-hemlock/profiles/` now correctly resolves `primary.file` against the mount; verified live with the registered `hemlock-main` profile. |
+| **One installer** | `hemlock/hemlock-runtime/install.sh`: `--variant full/lean/minimal`, `--load <tar>`, `--usb`, `--native`, `--release` (pulls latest GitHub release, dynamic options); host-awareness preflight; reachable via hidden `-H` menu. |
+| **Gateway port 1437** | Hemlock's gateway moved off 18789 — coexists with a host OpenClaw without collision; host env isolation (`run-native.sh` refuses foreign `OPENCLAW_*`/`HERMES_*`). |
+| **validate-all-skills fixed** | Works on the host tree (`shared/skills` fallback) and no longer dies on `set -e` + `((var++))`; reports 17/17 valid. |
+
 ## What's New (Releases CL-026..CL-034, June 2026)
 
 | Tag | Headline |
@@ -843,6 +855,24 @@ bash menu.sh   # → Option 12: Persistence Manager
 4. **Browse persistence** — Loop-mount read-only to inspect contents
 5. **Check persistence health** — `fsck.ext4 -f` on the persistence file
 6. **View Ventoy partition layout** — `lsblk` with full partition details
+
+### Yank-aware mount lifecycle
+
+All persistence loop mounts go through safe helpers (`_uca_safe_loop_mount` /
+`_uca_safe_umount`):
+
+- **Self-unmounting** — a mount registry plus an EXIT/TERM trap guarantees the menu unmounts
+  everything it mounted, even if it dies mid-operation; every unmount syncs first and falls back
+  to lazy detach rather than wedging.
+- **Surprise-removal recovery** — before any read-write mount of an ext4 `.dat`, `e2fsck -p`
+  replays a dirty journal (no-op when clean), so a stick yanked mid-write self-heals on its next
+  use. At startup the menu detects mounts whose backing device vanished, lazy-detaches them, and
+  points you at the health check.
+- **exFAT flush** — the menu ends with an unconditional `sync`, so profile/config writes to the
+  (non-journaled) Ventoy partition are on the metal before you pull the stick.
+
+Residual truth: yanking during an active rw copy still loses that in-flight file — the volume
+stays consistent and the interrupted file is re-copied, never silently trusted.
 
 ---
 
