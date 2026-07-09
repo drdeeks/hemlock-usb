@@ -157,3 +157,19 @@ QEMU ISO-boot action.
   `ventoy.json` and which Ventoy plugins are supported.
 - `menu.sh:_uca_profile_*` — the helpers that implement this schema.
 - CL-007 in `blueprint/blueprint.md` — the change-control entry for Phase 2.
+
+## Foundation contract — the tooling bridge (2026-07-08)
+
+**host compute → `tooling.dat` → hemlock.** Every stick carries ONE tooling
+volume (`/persistence/tooling.dat`, ext4 label `tooling`) and every profile
+rides it: `data_volumes` includes
+`{ "file": "/persistence/tooling.dat", "mount": "/opt/tooling", "role": "tooling" }`.
+Profile validation warns when a stick has a tooling.dat that a profile does
+not reference. The volume carries the shared toolchain (self-contained
+Hugging Face CLI + pylib, `tooling-update.sh` continuous updater, the GGUF
+`models/manifest.json` + verifier) so agent workspaces keep only their
+job-specific modules and dedupe into the bridge long-run. Boot chain:
+persistence `/etc/rc.local` → `<usb>/startup.sh` (orchestrator: identity log
+→ tooling mount → first-boot essentials → tooling update → operator hooks),
+all logging to `<usb>/usb-hemlock/logs/`. Menu option 20 (Tooling Volume)
+manages the full lifecycle; canonical script sources live in `usb/tooling/`.

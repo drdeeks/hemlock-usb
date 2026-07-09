@@ -2295,6 +2295,15 @@ _uca_profile_validate() {
     jq -e '.primary.file' "$f" >/dev/null 2>&1 || { echo "missing .primary.file (boot_mode=ventoy)" >&2; return 1; }
     jq -e '.iso'          "$f" >/dev/null 2>&1 || { echo "missing .iso (boot_mode=ventoy)" >&2; return 1; }
   fi
+  # Foundation contract: when the stick carries a tooling.dat, every profile
+  # should ride it (data_volumes role=tooling). Warn, never fail — a profile
+  # without the bridge boots, it just lacks the shared toolchain.
+  local m; m=$(_uca_mount 2>/dev/null) || m=""
+  if [[ -n "$m" && -f "$m/persistence/tooling.dat" ]]; then
+    if ! jq -e '.data_volumes[]? | select(.role == "tooling")' "$f" >/dev/null 2>&1; then
+      echo "WARN: profile lacks the tooling.dat bridge volume (role=tooling) — add it via Device/Boot Profiles" >&2
+    fi
+  fi
   return 0
 }
 
@@ -4047,6 +4056,125 @@ _run_hemlock_doctor() {
 # (Hemlock Manager) only appears when HEMLOCK_ENABLED=true. The OLD options
 # 8/9/10 (Hemlock TUI / Status / Master Deploy) collapse into that single
 # manager submenu — they're no longer pre-listed.
+# ── Tooling Volume Manager — the foundation/bridge volume ────────────────────
+# host compute → tooling.dat → hemlock. Every profile carries tooling.dat as a
+# data volume; every boot mounts it at /opt/tooling (startup.sh). This submenu
+# manages its full lifecycle from the host side.
+_run_tooling_manager() {
+  local m; m=$(_uca_mount 2>/dev/null) || { _menu_error "USB not mounted"; return 1; }
+  local dat="$m/persistence/tooling.dat"
+  _menu_header "Tooling Volume (foundation bridge)"
+  _menu_subheader "host compute → tooling.dat → hemlock; always mounted, always current"
+  echo ""
+  if [[ -f "$dat" ]]; then
+    local sz; sz=$(du -h "$dat" | cut -f1)
+    _menu_info "tooling.dat: $sz  ($dat)"
+  else
+    _menu_warn "tooling.dat MISSING — option 2 creates the foundation"
+  fi
+  echo ""
+  _menu_item "1" "Status + health"              "" "fsck -n, label, contents"
+  _menu_item "2" "Create/refresh foundation"    "" "hf-cli + updater + manifest (mkfs -d)"
+  _menu_item "3" "Verify models against manifest" "" "sizes; --hash in a shell"
+  _menu_item "4" "Run tooling update now"       "" "host-side, logs to USB"
+  _menu_item "5" "View device identity"         "" "usb-hemlock/etc/uca/"
+  _menu_item "6" "View boot logs"               "" "usb-hemlock/logs/"
+  _menu_item "0" "Back"
+  _menu_prompt "Select option"
+  local choice; read -r choice
+  case "$choice" in
+    1)
+      [[ -f "$dat" ]] || { _menu_error "no tooling.dat"; return 1; }
+      _menu_info "label: $(sudo -n blkid -o value -s LABEL "$dat" 2>/dev/null || e2label "$dat" 2>/dev/null || echo '?')"
+      e2fsck -n "$dat" 2>&1 | tail -2
+      local tmpmnt="/tmp/uca-tooling-$$"; mkdir -p "$tmpmnt"
+      if _uca_safe_loop_mount "$dat" "$tmpmnt" ro; then
+        echo ""; _menu_subheader "Contents"
+        ls -la "$tmpmnt" 2>/dev/null | sed 's/^/  /'
+        [[ -f "$tmpmnt/models/manifest.json" ]] && _menu_info "manifest: $(jq '.models | length' "$tmpmnt/models/manifest.json" 2>/dev/null || echo '?') models registered"
+        _uca_safe_umount "$tmpmnt" || true
+      else
+        _menu_warn "mount needs sudo — health shown from fsck only"
+      fi
+      rmdir "$tmpmnt" 2>/dev/null || true
+      ;;
+    2)
+      local stage; stage=$(mktemp -d)
+      _menu_info "Staging foundation (pip --target huggingface_hub — needs network)..."
+      mkdir -p "$stage"/{bin,pylib,models,logs}
+      if ! pip install --quiet --target "$stage/pylib" huggingface_hub >/dev/null 2>&1 \
+         && ! pip3 install --quiet --target "$stage/pylib" huggingface_hub >/dev/null 2>&1; then
+        _menu_warn "pip install failed — foundation will lack hf; continuing"
+      fi
+      cat > "$stage/bin/hf" <<'HFEOF'
+#!/usr/bin/env bash
+TOOLING_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PYTHONPATH="$TOOLING_ROOT/pylib${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m huggingface_hub.cli.hf "$@"
+HFEOF
+      chmod +x "$stage/bin/hf"
+      # carry the canonical updater + verifier from the system tree when present
+      local sysroot; sysroot="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+      for f in tooling-update.sh models/verify-models.sh README.md; do
+        [[ -f "$sysroot/usb/tooling/$f" ]] && { mkdir -p "$stage/$(dirname "$f")"; cp "$sysroot/usb/tooling/$f" "$stage/$f"; }
+      done
+      local size_gb=8
+      printf "  Size in GB [8]: "; local s_in; read -r s_in; size_gb="${s_in:-8}"
+      if [[ -f "$dat" ]]; then
+        _menu_warn "tooling.dat exists — refresh REPLACES it (old copy moved to .trash)"
+        _menu_confirm "Replace tooling.dat?" || { rm -rf "$stage"; return 0; }
+        mkdir -p "$m/.trash"
+        mv "$dat" "$m/.trash/tooling.dat.$(date +%Y%m%d-%H%M%S)"
+      fi
+      [[ "$DRY_RUN" == "true" ]] && { _menu_info "DRY RUN: would create ${size_gb}G $dat"; rm -rf "$stage"; return 0; }
+      _menu_info "Creating ${size_gb}G tooling.dat (dd + mkfs -d)..."
+      dd if=/dev/zero of="$dat" bs=1M count=$((size_gb * 1024)) status=progress \
+        && mkfs.ext4 -q -F -L tooling -d "$stage" "$dat" \
+        && _menu_success "tooling.dat created + populated" \
+        || _menu_error "creation failed"
+      rm -rf "$stage"
+      ;;
+    3)
+      [[ -f "$dat" ]] || { _menu_error "no tooling.dat"; return 1; }
+      local tmpmnt="/tmp/uca-tooling-$$"; mkdir -p "$tmpmnt"
+      if _uca_safe_loop_mount "$dat" "$tmpmnt" ro; then
+        if [[ -x "$tmpmnt/models/verify-models.sh" ]]; then
+          bash "$tmpmnt/models/verify-models.sh" --models-dir "$m/models" || true
+          _menu_info "full hash pass: bash $tmpmnt/models/verify-models.sh --hash (slow — run rw in a shell)"
+        else
+          _menu_error "verify-models.sh not on the volume — refresh the foundation (option 2)"
+        fi
+        _uca_safe_umount "$tmpmnt" || true
+      else
+        _menu_error "mount failed (needs sudo)"
+      fi
+      rmdir "$tmpmnt" 2>/dev/null || true
+      ;;
+    4)
+      [[ -f "$dat" ]] || { _menu_error "no tooling.dat"; return 1; }
+      local tmpmnt="/tmp/uca-tooling-$$"; mkdir -p "$tmpmnt"
+      if _uca_safe_loop_mount "$dat" "$tmpmnt"; then
+        mkdir -p "$m/usb-hemlock/logs"
+        TOOLING_LOG="$m/usb-hemlock/logs/tooling-update.log" bash "$tmpmnt/tooling-update.sh" || _menu_warn "update reported issues"
+        _uca_safe_umount "$tmpmnt" || true
+      else
+        _menu_error "rw mount failed (needs sudo)"
+      fi
+      rmdir "$tmpmnt" 2>/dev/null || true
+      ;;
+    5)
+      local idf="$m/usb-hemlock/etc/uca/device-identity.json"
+      if [[ -f "$idf" ]]; then jq . "$idf"; else _menu_warn "no device identity registered ($idf)"; fi
+      ;;
+    6)
+      ls -lt "$m/usb-hemlock/logs/" 2>/dev/null | head -10 || _menu_info "(no logs yet)"
+      local latest; latest=$(ls -t "$m/usb-hemlock/logs/"*.log 2>/dev/null | head -1)
+      [[ -n "$latest" ]] && { echo ""; _menu_subheader "$(basename "$latest") (tail)"; tail -20 "$latest"; }
+      ;;
+    0|*) return 0 ;;
+  esac
+}
+
 # CL-030: Is this menu option allowed in the current UCA_MODE?
 # usb  → all options allowed
 # host → only the local-enhancement subset (alias / ssh / sysman / essentials /
@@ -4099,6 +4227,7 @@ _main_menu_render() {
   printf "  ${CYAN}16${NC}) USB Paths & Environment    ${GREEN}[HOST]${NC}     Configure paths, schema & env\n"
   if [[ "${UCA_MODE:-host}" == "usb" ]]; then
     printf "  ${CYAN}17${NC}) USB Access & Boot          ${GREEN}[USB+HOST]${NC} Terminal/chroot/QEMU/SSH\n"
+    printf "  ${CYAN}20${NC}) Tooling Volume             ${GREEN}[USB]${NC} foundation bridge: hf-cli/updater/models\n"
   fi
   printf "  ${CYAN}18${NC}) Toggle Dry-Run             Current: ${YELLOW}%s${NC}\n" "$DRY_RUN"
   if [[ "$HEMLOCK_ENABLED" == "true" && "${UCA_MODE:-host}" == "usb" ]]; then
@@ -4164,6 +4293,7 @@ _main_menu_handler() {
         log_info "Dry-run ENABLED"
       fi
       ;;
+    20) _dispatch_action "Tooling Volume"       _run_tooling_manager ;;
     19)
       # CL-026 / SPEC-T04: gate is checked in _main_menu_whiptail too, but
       # text-mode users can still type 19 — re-check here.
@@ -4217,6 +4347,7 @@ _main_menu_whiptail() {
       "15" "View Logs                    [HOST]"
       "16" "USB Paths & Environment      [HOST]"
       "17" "USB Access & Boot            [USB+HOST]"
+      "20" "Tooling Volume               [USB]"
       "18" "$dry_label"
     )
   else
