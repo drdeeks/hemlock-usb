@@ -7,6 +7,8 @@
 set -u
 
 TOOLING_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# prefer the volume's own toolchain
+export PATH="$TOOLING_ROOT/bin:$TOOLING_ROOT/node/bin:$PATH"
 OFFLINE=0
 LOG="${TOOLING_LOG:-$TOOLING_ROOT/logs/tooling-update-$(date +%Y%m%d).log}"
 while [ $# -gt 0 ]; do
@@ -43,9 +45,13 @@ else
     log "apt: skipped (not root or no apt)"
 fi
 
-# ── npm globals (node/react toolchain) ───────────────────────────────────────
-if command -v npm >/dev/null 2>&1; then
-    log "npm: updating globals"
+# ── in-volume node/npm (portable toolchain) ──────────────────────────────────
+if [ -x "$TOOLING_ROOT/node/bin/npm" ]; then
+    log "node(volume): updating npm + globals in-place"
+    "$TOOLING_ROOT/node/bin/npm" install -g npm >>"$LOG" 2>&1 || log "in-volume npm self-update reported issues"
+    "$TOOLING_ROOT/node/bin/npm" update -g >>"$LOG" 2>&1 || log "in-volume npm -g update reported issues"
+elif command -v npm >/dev/null 2>&1; then
+    log "npm(system): updating globals"
     npm update -g >>"$LOG" 2>&1 || log "npm -g update reported issues"
 fi
 

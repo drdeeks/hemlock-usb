@@ -44,8 +44,12 @@ if [ -f "$TOOLING_DAT" ]; then
     mkdir -p "$TOOLING_MNT"
     if mountpoint -q "$TOOLING_MNT" || mount -o loop "$TOOLING_DAT" "$TOOLING_MNT" 2>>"$BOOT_LOG"; then
         log "tooling: mounted at $TOOLING_MNT"
-        # expose the tooling bin (hf, …) system-wide
+        # expose the volume's toolchain system-wide (hf, jq, node, npm, env)
         ln -sf "$TOOLING_MNT/bin/hf" /usr/local/bin/hf 2>/dev/null || true
+        ln -sf "$TOOLING_MNT/bin/jq" /usr/local/bin/jq 2>/dev/null || true
+        for b in node npm npx; do ln -sf "$TOOLING_MNT/node/bin/$b" "/usr/local/bin/$b" 2>/dev/null || true; done
+        grep -q "opt/tooling/env.sh" /etc/profile.d/tooling.sh 2>/dev/null || \
+            printf '[ -f /opt/tooling/env.sh ] && . /opt/tooling/env.sh\n' > /etc/profile.d/tooling.sh 2>/dev/null || true
     else
         log "tooling: MOUNT FAILED — downstream volumes will lack the bridge"
     fi
@@ -69,6 +73,19 @@ fi
 if [ -x "$TOOLING_MNT/tooling-update.sh" ]; then
     log "tooling: update launched (log: $LOG_DIR/tooling-update.log)"
     TOOLING_LOG="$LOG_DIR/tooling-update.log" bash "$TOOLING_MNT/tooling-update.sh" >>"$LOG_DIR/tooling-update.log" 2>&1 &
+fi
+
+# ── 5b. Connection layer — HONOR the menu's one-time config, never mutate ────
+# SSH/firewall/port-forward are configured ONCE via the menu (USB Setup →
+# SSH/compute access) and persist in the overlay + usb-hemlock/etc/uca/.
+# Boot only brings the already-configured service up and logs reachability.
+# Strict compute-only access: no host file exposure, no rule changes here.
+if [ -f "$USB_MNT/usb-hemlock/etc/uca/compute-access.conf" ] || systemctl is-enabled ssh >/dev/null 2>&1 || systemctl is-enabled sshd >/dev/null 2>&1; then
+    systemctl start ssh >/dev/null 2>&1 || systemctl start sshd >/dev/null 2>&1 || true
+    log "ssh: configured access honored (menu-managed; rules untouched)"
+    ip -4 addr show scope global 2>/dev/null | awk '/inet /{print "  reachable at: "$2}' | tee -a "$BOOT_LOG" || true
+else
+    log "ssh: not configured — set up via menu: USB Setup → SSH/compute access"
 fi
 
 # ── 6. Operator hooks (custom per-stick commands) ────────────────────────────
