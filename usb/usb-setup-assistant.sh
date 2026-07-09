@@ -503,6 +503,77 @@ select_usb_device() {
     done
 }
 
+# CL-043: pick which persistent STATE to act on, instead of hardcoding
+# ubuntu-persistence.dat. Enumerates every persistence/*.dat on the mounted
+# Ventoy volume, shows size + ext4 label, and (for install/chroot targets)
+# flags whether the volume actually carries an OS rootfs (has /etc) — a bare
+# data volume like tooling.dat is not a valid chroot target. Requires
+# VENTOY_MOUNT resolved. Sets SELECTED_PERSISTENCE to the chosen .dat path.
+# $1 (optional) = "rootfs" to require an OS-bearing volume for the choice.
+select_persistence_volume() {
+    local require="${1:-any}"
+    SELECTED_PERSISTENCE=""
+    if [[ -z "${VENTOY_MOUNT:-}" ]] || [[ ! -d "$VENTOY_MOUNT/persistence" ]]; then
+        print_error "Ventoy persistence directory not found — mount the USB first"
+        return 1
+    fi
+
+    local vols=()
+    local f
+    for f in "$VENTOY_MOUNT/persistence"/*.dat; do
+        [[ -f "$f" ]] && vols+=("$f")
+    done
+    if [[ ${#vols[@]} -eq 0 ]]; then
+        print_error "No persistence states (.dat) found on this USB"
+        print_info "Create one first: Manage Persistence -> Create Persistence"
+        return 1
+    fi
+
+    print_info "Persistent states on this USB:"
+    echo ""
+    printf "    ${BOLD}%-3s %-26s %-8s %-14s %-10s${NC}\n" "#" "STATE (.dat)" "SIZE" "LABEL" "OS ROOTFS"
+    echo "    ────────────────────────────────────────────────────────────────────"
+    local i=1 probe_mnt rootfs_flags=()
+    for f in "${vols[@]}"; do
+        local name size label rootfs="no"
+        name=$(basename "$f")
+        size=$(du -h "$f" 2>/dev/null | cut -f1)
+        label=$(blkid -o value -s LABEL "$f" 2>/dev/null || echo "?")
+        # Cheap rootfs probe: casper-rw label OR a mountable /etc inside.
+        if [[ "$label" == "casper-rw" ]]; then
+            rootfs="yes"
+        else
+            probe_mnt="/tmp/uca-probe-$$-$i"; mkdir -p "$probe_mnt"
+            if mount -o loop,ro "$f" "$probe_mnt" 2>/dev/null; then
+                [[ -d "$probe_mnt/etc" ]] && rootfs="yes"
+                umount "$probe_mnt" 2>/dev/null || true
+            fi
+            rmdir "$probe_mnt" 2>/dev/null || true
+        fi
+        rootfs_flags+=("$rootfs")
+        local mark=""; [[ "$rootfs" == "yes" ]] && mark="${GREEN}yes${NC}" || mark="${DIM}no${NC}"
+        printf "    ${CYAN}%-3d${NC} %-26s %-8s %-14s %b\n" "$i" "$name" "${size:--}" "$label" "$mark"
+        i=$((i+1))
+    done
+    echo ""
+
+    local count=${#vols[@]} sel
+    while true; do
+        read -p "$(echo -e "${YELLOW}Select state number [1-${count}] or 'q' to cancel: ${NC}")" sel
+        [[ "$sel" == "q" ]] && return 1
+        if [[ "$sel" =~ ^[0-9]+$ ]] && (( sel >= 1 && sel <= count )); then
+            if [[ "$require" == "rootfs" && "${rootfs_flags[$((sel-1))]}" != "yes" ]]; then
+                print_warning "$(basename "${vols[$((sel-1))]}") has no OS rootfs (/etc) — cannot install/chroot into a bare data volume."
+                if ! confirm "Pick it anyway?" "n"; then continue; fi
+            fi
+            SELECTED_PERSISTENCE="${vols[$((sel-1))]}"
+            print_success "Selected state: $(basename "$SELECTED_PERSISTENCE")"
+            return 0
+        fi
+        print_error "Enter a number between 1 and $count"
+    done
+}
+
 backup_file() {
     local file="$1"
     if [[ -f "$file" ]]; then
@@ -748,7 +819,11 @@ show_main_menu() {
     echo "  10) Manage SSH Hosts"
     echo "  11) Access USB Persistent Terminal (chroot into USB persistence)"
     echo "  12) Copy File to USB (host -> USB free space / persistence)"
-    echo "  13) Hemlock Agent Orchestration (popout terminal - deploy/manage agents, crews, gateway)"
+    # CL-043: Hemlock is opt-in, exactly like menu.sh option 19. Only surface it
+    # when HEMLOCK_ENABLED=true (menu.sh exports this when launched with -H).
+    if [[ "${HEMLOCK_ENABLED:-false}" == "true" ]]; then
+        echo "  13) Hemlock Agent Orchestration (popout terminal - deploy/manage agents, crews, gateway)"
+    fi
     echo "  14) Exit"
     echo ""
 }
@@ -5370,7 +5445,12 @@ main() {
             12)
                 copy_file_to_usb || read -p "Press Enter to continue..." ;;
             13)
-                launch_hemlock_tui || read -p "Press Enter to continue..." ;;
+                if [[ "${HEMLOCK_ENABLED:-false}" == "true" ]]; then
+                    launch_hemlock_tui || read -p "Press Enter to continue..."
+                else
+                    print_error "Hemlock is opt-in — relaunch with -H / --hemlock (or via menu.sh --hemlock) to enable it."
+                    read -p "Press Enter to continue..."
+                fi ;;
             14)
                 print_success "Thank you for using the USB Compute Automation Setup Assistant!"
                 print_info "Your USB Compute Automation System is ready to use."
@@ -5398,12 +5478,17 @@ for arg in "$@"; do
             echo "[DRY RUN MODE] No changes will be made to your system."
             echo ""
             ;;
+        --hemlock|-H)
+            # CL-043: opt-in Hemlock, same contract as menu.sh
+            HEMLOCK_ENABLED=true; export HEMLOCK_ENABLED
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --dry-run    Run in dry-run mode (no changes made)"
-            echo "  --help, -h   Show this help message"
+            echo "  --dry-run       Run in dry-run mode (no changes made)"
+            echo "  --hemlock, -H   Reveal the Hemlock Agent Orchestration option (opt-in)"
+            echo "  --help, -h      Show this help message"
             echo ""
             echo "Interactive setup assistant for USB Compute Automation System."
             echo "This script guides you through USB preparation, VM setup, and system configuration."

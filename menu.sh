@@ -6,7 +6,7 @@
 #
 # Usage:
 #   bash menu.sh                     # Interactive menu (default)
-#   bash menu.sh --text              # Force text menu (no whiptail)
+#   bash menu.sh --text              # Accepted no-op (always a styled text TUI)
 #   bash menu.sh --dry-run           # Dry-run mode (no mutations)
 #   bash menu.sh --hemlock|-H        # Reveal the Hemlock Manager (opt-in)
 #   bash menu.sh --log-file PATH     # Custom log file path
@@ -400,9 +400,10 @@ _menu_confirm() {
   [[ "${ans,,}" != "n" && "${ans,,}" != "no" ]]
 }
 
-# ── Whiptail Detection ─────────────────────────────────────────────────────
-HAS_WHIPTAIL=false
-command -v whiptail >/dev/null 2>&1 && HAS_WHIPTAIL=true
+# ── Rendering ───────────────────────────────────────────────────────────────
+# CL-043: strictly a styled text TUI — no whiptail. One consistent look for the
+# main menu and every submenu (which always used the text helpers). `--text` is
+# accepted as a harmless no-op for anyone with it in muscle memory / scripts.
 FORCE_TEXT=false
 
 # Hemlock is OPT-IN. The Hemlock Manager option only appears when --hemlock /
@@ -414,7 +415,7 @@ HEMLOCK_ENABLED="${HEMLOCK_ENABLED:-false}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)   DRY_RUN=true; export DRY_RUN; shift ;;
-    --text)      FORCE_TEXT=true; shift ;;
+    --text)      FORCE_TEXT=true; shift ;;  # CL-043: no-op; always text TUI now
     --log-file)  LOG_FILE="$2"; export LOG_FILE; shift 2 ;;
     --hemlock|-H) HEMLOCK_ENABLED=true; export HEMLOCK_ENABLED; shift ;;
     --mode)
@@ -428,8 +429,8 @@ while [[ $# -gt 0 ]]; do
       echo "USB-Hemlock Unified Compute Platform — Master Menu"
       echo ""
       echo "Usage:"
-      echo "  $0                     Interactive menu (whiptail or text fallback)"
-      echo "  $0 --text              Force text-based menu"
+      echo "  $0                     Interactive styled TUI menu"
+      echo "  $0 --text              Accepted no-op (the menu is always text TUI)"
       echo "  $0 --dry-run           Dry-run mode (no mutations)"
       echo "  $0 --hemlock | -H      Show the Hemlock Manager option (opt-in)"
       echo "  $0 --mode usb|host     Skip the boot prompt; force install target"
@@ -4557,6 +4558,23 @@ _uca_option_visible() {
   esac
 }
 
+# CL-043: masthead for the unified TUI. Lean + static (no animation on a
+# boot-critical script). Degrades gracefully on a narrow terminal.
+_main_menu_banner() {
+  local cols; cols=$(tput cols 2>/dev/null || echo 80)
+  if (( cols >= 64 )); then
+    printf "${CYAN}${BOLD}"
+    cat <<'BANNER'
+  ╦ ╦╔═╗╔╦╗╦  ╔═╗╔═╗╦╔═   Unified Compute Platform
+  ╠═╣║╣ ║║║║  ║ ║║  ╠╩╗   portable · diagnostic · isolated
+  ╩ ╩╚═╝╩ ╩╩═╝╚═╝╚═╝╩ ╩
+BANNER
+    printf "${NC}"
+  else
+    printf "\n  ${CYAN}${BOLD}HEMLOCK${NC} ${DIM}· Unified Compute Platform${NC}\n"
+  fi
+}
+
 _main_menu_render() {
   _show_device_status
   printf "\n"
@@ -4666,7 +4684,7 @@ _main_menu_handler() {
       ;;
     20) _dispatch_action "Tooling Volume"       _run_tooling_manager ;;
     19)
-      # CL-026 / SPEC-T04: gate is checked in _main_menu_whiptail too, but
+      # CL-026 / SPEC-T04: text-mode users can type 19 — re-check the gate here.
       # text-mode users can still type 19 — re-check here.
       if [[ "$HEMLOCK_ENABLED" == "true" ]]; then
         _dispatch_action "Hemlock Manager"      _run_hemlock_manager
@@ -4682,80 +4700,6 @@ _main_menu_handler() {
     printf "${YELLOW}Press Enter to continue...${NC}"
     read -r _ || true
   fi
-}
-
-# ── Whiptail Menu ───────────────────────────────────────────────────────────
-_main_menu_whiptail() {
-  local dry_label="Enable Dry-Run"
-  [[ "$DRY_RUN" == "true" ]] && dry_label="Disable Dry-Run"
-  local dev_label="USB Device: ${SELECTED_DEVICE:-none}"
-  local choice
-  # The 3>&1 1>&2 2>&3 dance routes whiptail's selection (normally on stderr)
-  # to stdout so command substitution captures it, while the TUI itself draws
-  # on the real terminal. A Cancel/ESC makes whiptail exit non-zero — we treat
-  # that as "quit the program" by returning non-zero so the caller breaks.
-  # Build the menu items dynamically so we can append the Hemlock entry only
-  # when --hemlock / -H was passed.
-  # CL-030: items vary by UCA_MODE.
-  local mode_tag="${UCA_MODE^^}"
-  local items=()
-  if [[ "${UCA_MODE:-host}" == "usb" ]]; then
-    items=(
-      "1"  "USB Setup Assistant          [USB]"
-      "2"  "Unified CLI (usbctl)         [USB]"
-      "3"  "Alias Manager                [USB]"
-      "4"  "SSH Host Manager             [USB]"
-      "5"  "System Manager (sysman)      [HOST]"
-      "6"  "USB Auto-Mount               [HOST]"
-      "7"  "Build Essentials             [USB]"
-      "8"  "Startup Manager              [USB+HOST]"
-      "9"  "Persistence Manager          [USB]"
-      "10" "Bash Profile Manager         [USB]"
-      "11" "USB Device Setup             [USB]"
-      "12" "Device Config                [HOST]"
-      "13" "Run Validation               [ALL]"
-      "14" "Diagnostics                  [HOST]"
-      "15" "View Logs                    [HOST]"
-      "16" "USB Paths & Environment      [HOST]"
-      "17" "USB Access & Boot            [USB+HOST]"
-      "18" "$dry_label"
-    )
-  else
-    items=(
-      "3"  "Alias Manager                [HOST]"
-      "4"  "SSH Host Manager             [HOST]"
-      "5"  "System Manager (sysman)      [HOST]"
-      "7"  "Build Essentials             [HOST]"
-      "10" "Bash Profile Manager         [HOST]"
-      "13" "Run Validation               [ALL]"
-      "14" "Diagnostics                  [HOST]"
-      "15" "View Logs                    [HOST]"
-      "16" "Paths & Environment          [HOST]"
-      "18" "$dry_label"
-    )
-  fi
-  if [[ "$HEMLOCK_ENABLED" == "true" && "${UCA_MODE:-host}" == "usb" ]]; then
-    items+=( "19" "Hemlock Manager              [CONTAINER]" )
-  fi
-  if [[ "${UCA_MODE:-host}" == "usb" ]]; then
-    items+=( "20" "Tooling Volume               [USB]" )
-  fi
-  # size the box to the real terminal so no option is ever cropped off-screen
-  local th tw wh ww wl
-  th=$(tput lines 2>/dev/null || echo 40); tw=$(tput cols 2>/dev/null || echo 100)
-  wh=$(( th - 2 )); (( wh > 34 )) && wh=34; (( wh < 14 )) && wh=14
-  ww=$(( tw - 4 )); (( ww > 96 )) && ww=96; (( ww < 60 )) && ww=60
-  wl=$(( wh - 9 )); (( wl < 6 )) && wl=6
-  if ! choice=$(whiptail --title "USB-Hemlock — Mode: ${mode_tag}" \
-    --cancel-button "Quit" --menu \
-    "$dev_label\nMode: ${mode_tag} (re-launch with --mode to change)\nSelect a component to manage (Quit/ESC to exit):" "$wh" "$ww" "$wl" \
-    "${items[@]}" \
-    3>&1 1>&2 2>&3); then
-    return 1
-  fi
-  # Run the handler in a guarded context so a non-zero return from any
-  # component runner cannot trip set -e or break the outer menu loop.
-  _main_menu_handler "$choice" || true
 }
 
 # CL-030: Boot-time mode selector. Silent USB detect FIRST. If no USB present,
@@ -4906,34 +4850,27 @@ main() {
     detect_ventoy_mount 2>/dev/null && log_info "Ventoy mounted at $VENTOY_MOUNT" || true
   fi
 
-  if [[ "$FORCE_TEXT" == "true" || "$HAS_WHIPTAIL" != "true" ]]; then
-    # Text-mode loop. We deliberately do NOT use lib/menu_loop here: that
-    # helper captures the handler's stdout via command substitution to read a
-    # stay/back/exit verdict, which would hide every component's output. The
-    # main handler instead prints directly and pauses itself, so we drive it
-    # in-line and guard it with `|| true` so no component can trip set -e.
-    local choice
-    while true; do
-      clear 2>/dev/null || true
-      print_header "USB-Hemlock Unified Compute Platform"
-      _main_menu_render
-      printf "${YELLOW}Select option (q=quit): ${NC}"
-      if ! read -r choice; then
-        printf "\n"
-        break
-      fi
-      case "$choice" in
-        q|Q|quit|exit) break ;;
-        "") continue ;;
-        *) _main_menu_handler "$choice" || true ;;
-      esac
-    done
-  else
-    while true; do
-      clear 2>/dev/null || true
-      _main_menu_whiptail || break
-    done
-  fi
+  # CL-043: single styled-TUI loop (no whiptail). We deliberately do NOT use
+  # lib/menu_loop here: that helper captures the handler's stdout via command
+  # substitution to read a stay/back/exit verdict, which would hide every
+  # component's output. The main handler prints directly and pauses itself, so
+  # we drive it in-line and guard it with `|| true` so no component trips set -e.
+  local choice
+  while true; do
+    clear 2>/dev/null || true
+    _main_menu_banner
+    _main_menu_render
+    printf "\n  ${YELLOW}▸ Select option ${DIM}(number, or q to quit)${NC}${YELLOW}: ${NC}"
+    if ! read -r choice; then
+      printf "\n"
+      break
+    fi
+    case "$choice" in
+      q|Q|quit|exit) break ;;
+      "") continue ;;
+      *) _main_menu_handler "$choice" || true ;;
+    esac
+  done
   log_info "Master menu exited"
 }
 
