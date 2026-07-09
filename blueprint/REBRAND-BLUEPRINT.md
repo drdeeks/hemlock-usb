@@ -125,3 +125,52 @@ assets → the `--release` installer picks them up automatically.
 HEMLOCK_HOME alias · HEMLOCK_MODE toggle · image/container names · port 1437 ·
 pyproject name `hemlock` · host-isolation guards · workspace-template docs using
 $HEMLOCK_HOME · no-Hermes-only-image decision · installer/menu/release plumbing.
+
+## DOCKET — incoming rebranded drop audit (2026-07-09)
+
+An externally-produced full rebrand landed at
+`_incoming-docs/hemlock-usb-REBRANDED-wDASHBOARD.tar.gz` (menu.sh +
+hemlock-runtime + NEW hemlock-dashboard SPA). Audited same day; adopt as the
+rebrand baseline **after** the gate items below. Extracted copy examined at
+the session scratchpad; the tarball is the source of record.
+
+**Audit verdict:** lexically complete (0 "openclaw"/"hermes" hits across
+1,284 files), forked from the 2026-07-09 tree (carries CL-041: identity-kit
+bake, honor-only enforcer entrypoint, launcher node-fallback, menu option-11
+fixes — nothing regressed; menu.sh delta is 30 lines, all lexical).
+Dashboard = rebranded "Hemlock Control" PWA (Lit/Vite, i18n, legacy-theme
+migration), not yet wired to anything.
+
+**Gate items (must fix before build/deploy):**
+
+1. **CLI name collision (build-breaking).** Agent pyproject console script
+   `hemlock` (was `hermes`) and gateway symlink `/usr/local/bin/hemlock`
+   (was `openclaw`) both claim the same path — `ln -s` after the pip COPY
+   fails with "File exists" in BOTH Dockerfiles. Decide the split (suggest:
+   gateway keeps `hemlock`; agent CLI becomes `hemlock-agent` or stays an
+   internal `python3 -m` entry).
+2. **Vendored gateway lib rename assumed but not executed.** The drop ships
+   `docker/hemlock-runtime/lib/` and `tools/` EMPTY; its Dockerfiles expect
+   `lib/node_modules/hemlock/hemlock.mjs`. Our vendored package is named
+   `openclaw` with 657 dist files self-referencing `.openclaw` (config dir,
+   package resolution). NOTE: renaming inside vendored code violates
+   Governing Principle 3 ("engine, not a brand"). Owner decision required:
+   (a) keep the vendored package's internal name and point the rebranded
+   launcher/Dockerfile at `node_modules/openclaw/openclaw.mjs` as an
+   implementation detail (cheap, invisible, principle-compliant), or
+   (b) fork-rename the vendored lib (expensive, permanent maintenance).
+3. **Semantic flattening.** Gateway and brain both became "Hemlock" —
+   self-contradictory prose in `gen-hemlock-config.py` ("Hemlock runs its
+   own agents with NO Hemlock brains… Hemlock is ignored"), fabricated
+   `docs.hemlock.ai` domain, and five coexisting `HEMLOCK_*` meanings
+   (`_HOME` agent, `_ROOT` gateway, `_DIR` menu repo path, `_DOCKER`,
+   `_MINIMAL`). Needs a naming pass distinguishing gateway vs brain in prose.
+4. **Dashboard wiring.** Nothing serves `hemlock-dashboard/`; decide where
+   it mounts (gateway static assets vs menu-launched app-mode) — depends
+   on item 2's decision.
+5. **Skills-repo coordination.** Curated skills instruct `hermes kanban …`
+   and `${HERMES_HOME}`; against the rebranded runtime those break, and
+   item 1 decides the replacement CLI name. Sweep skills AFTER 1 is fixed.
+6. **Partial tree.** The drop contains only menu.sh + runtime + dashboard —
+   integration is a merge into the repo, never a replace (usb/, blueprint/,
+   README, CHANGELOG, dist/ live only here).

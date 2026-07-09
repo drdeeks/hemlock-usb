@@ -7,6 +7,55 @@ This file is append-only. New entries are added at the top under the appropriate
 
 ## [Unreleased]
 
+### 2026-07-09 — Minimal stick: gateway + brain over MCP, tooling optional, identity kit (CL-041)
+
+**CL-041 — The stick carries the minimal runtime; tooling is optional.**
+- Owner decision: the USB ships the **minimal** variant only — hemlock
+  gateway (control plane) + the brain served over MCP. No dev tooling baked
+  in, no standalone cognition runtime, no skills baked in (skills pull from
+  the repo later via the installer; `/skills` stays an empty mount point).
+- Hemlock Manager option 13 (stage image) now lists every built variant
+  (`hemlock:latest|lean|minimal|core`) and stages the operator's pick instead
+  of hardcoding `hemlock:latest`. Rotation unchanged: the stick keeps ONE
+  staged image; older tars move to `.trash/images/`.
+- Boot orchestrator: the tooling volume is now OPTIONAL — mounted and
+  updated only when `persistence/tooling.dat` exists; a minimal stick logs a
+  one-line skip. (Previously "mount ALWAYS — the bridge for everything".)
+- Persistence Manager option 11: **retire a persistence volume** — moves the
+  `.dat` to `<ventoy>/.trash/persistence/` (never deleted), refuses
+  loop-attached volumes, and warns when profiles still reference the file.
+- Profile manifest editor option 8: **edit env vars** (set `KEY=value`,
+  empty value deletes) — promised by the editor since CL-026, never wired.
+- Owner clarification (same day): "no tooling" means none baked into the
+  IMAGE — `tooling.dat` stays as the designated, transportable data volume
+  every profile mounts. Recreated fresh via Tooling Volume → create (8G,
+  hf-cli + pylib + updater, fsck-clean, 1,170 files), re-added as
+  `data_volume` + `TOOLING_ROOT` to both profiles, identity re-registered.
+- Gateway fixes proven on the way to a bootable minimal image:
+  `openclaw-container` launcher now falls back to system node (bundled node
+  ships only in the full image — the gateway could never start on
+  minimal/lean before); `gen-openclaw-config.py` no longer emits
+  `subagents.delegationMode` / `messages.groupChat.*` keys the vendored
+  gateway fail-closes on. Validated live: gateway ready (5 plugins,
+  HTTP 200 on 1437), brain served over MCP (initialize → tools/list →
+  tools/call round-trip on agent memory), identity kit callable (Node+Python).
+- Staged on the production stick: `hemlock-7dfda88607e4.tar` (434M, sha256
+  verified, 23/23 layers) replacing the full-image tar (rotated to
+  `.trash/images/`); system tree re-synced (193M); orchestrator seed
+  refreshed.
+
+**CL-041 — Agent Identity Kit baked into the minimal image.**
+- `docker/agent-identity-kit/` vendored (source only, 352K — no
+  node_modules, no runtime knowledge/memory state) from the workspace kit.
+- `Dockerfile.runtime-minimal` installs both halves: the Node enforcer
+  daemon + `aik` CLI (`/opt/aik`, runtime deps only, vector model omitted)
+  and the Python `agent_identity_kit` package; build-time health check
+  verifies both import.
+- `entrypoint-minimal.sh` honors config, never forces it: if the operator
+  placed `.agent/constitution.yaml` in the data workspace, the self-healing
+  enforcer starts (audit log at `/logs/enforcer.log`); otherwise it stays
+  idle with the example templates noted. No constitution is baked.
+
 ### 2026-07-09 — Menu finalization: per-volume config, Linux-only assistant, menu-reproducible stick (CL-038..CL-040)
 
 **CL-038 — Per-volume shell + cleanup configuration.**

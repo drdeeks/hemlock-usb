@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # =============================================================================
 # startup.sh — USB-Hemlock boot orchestrator (runs as root via rc.local)
-# Chain: host compute → tooling.dat (the bridge) → hemlock.
-# Sequence: identity log → mount tooling (ALWAYS) → first-boot essentials
-#           → continuous tooling update → operator hooks.
+# Chain: host compute → hemlock. The tooling volume is OPTIONAL (CL-041):
+# mounted and updated only when persistence/tooling.dat exists. Minimal
+# sticks (hemlock gateway + brain over MCP) ship without it.
+# Sequence: identity log → tooling (if present) → first-boot essentials
+#           → tooling update (if mounted) → operator hooks.
 # Everything logs to the USB itself: usb-hemlock/logs/.
 # =============================================================================
 set -u
@@ -35,7 +37,7 @@ STICK_ID="unregistered"
 [ -f "$DEVICE_ID_FILE" ] && STICK_ID=$(python3 -c "import json;print(json.load(open('$DEVICE_ID_FILE')).get('stick_id','unregistered'))" 2>/dev/null || echo unregistered)
 log "=== boot: stick=$STICK_ID host=$(hostname) kernel=$(uname -r) hw=$(cat /sys/class/dmi/id/product_name 2>/dev/null || echo unknown) ==="
 
-# ── 3. Mount the tooling volume — ALWAYS. It is the bridge for everything. ──
+# ── 3. Mount the tooling volume — only if this stick carries one (CL-041) ───
 TOOLING_DAT="$USB_MNT/persistence/tooling.dat"
 TOOLING_MNT="/opt/tooling"
 if [ -f "$TOOLING_DAT" ]; then
@@ -51,10 +53,10 @@ if [ -f "$TOOLING_DAT" ]; then
         grep -q "opt/tooling/env.sh" /etc/profile.d/tooling.sh 2>/dev/null || \
             printf '[ -f /opt/tooling/env.sh ] && . /opt/tooling/env.sh\n' > /etc/profile.d/tooling.sh 2>/dev/null || true
     else
-        log "tooling: MOUNT FAILED — downstream volumes will lack the bridge"
+        log "tooling: MOUNT FAILED — toolchain unavailable this boot"
     fi
 else
-    log "tooling: $TOOLING_DAT missing — create it via the menu (Persistence Manager)"
+    log "tooling: not present — skipping (optional; create via Persistence Manager if wanted)"
 fi
 
 # ── 4. First-boot essentials (once, marker-guarded, correct path) ────────────

@@ -2,5 +2,12 @@
 set -euo pipefail
 # OpenClaw wrapper — container-compatible
 # Uses OPENCLAW_ROOT env var (default: /opt/openclaw)
+# CL-041: bundled node is only baked into the full image; lean/minimal ship
+# system node instead — fall back to it so the gateway starts everywhere.
 OPENCLAW_ROOT="${OPENCLAW_ROOT:-/opt/openclaw}"
-exec "${OPENCLAW_ROOT}/tools/node/bin/node" "${OPENCLAW_ROOT}/lib/node_modules/openclaw/openclaw.mjs" "$@"
+NODE="${OPENCLAW_ROOT}/tools/node/bin/node"
+if [ ! -x "$NODE" ]; then
+    NODE="$(command -v node || true)"
+    [ -n "$NODE" ] || { echo "openclaw: no node runtime (bundled or system)" >&2; exit 127; }
+fi
+exec "$NODE" "${OPENCLAW_ROOT}/lib/node_modules/openclaw/openclaw.mjs" "$@"

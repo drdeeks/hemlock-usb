@@ -269,7 +269,7 @@ _setup_device_interactive() {
       if detect_ventoy_mount; then
         log_success "Ventoy mounted at $VENTOY_MOUNT"
       else
-        log_info "Ventoy detected but not yet mounted (mount via menu option 2)"
+        log_info "Ventoy detected but not yet mounted (mount via option 2: Unified CLI → usb mount)"
       fi ;;
     blank|formatted)
       log_warn "Selected device is ${picked_class^^} — run menu option 1 to install Ventoy"
@@ -900,7 +900,7 @@ _run_startup_manager() {
       ;;
     2)
       if [[ -z "${SELECTED_DEVICE:-}" ]]; then
-        _menu_error "SELECTED_DEVICE not set — use option 14 (USB Device Setup)"
+        _menu_error "SELECTED_DEVICE not set — use option 11 (USB Device Setup)"
         return 1
       fi
       local vmp=""
@@ -1051,6 +1051,7 @@ _run_persistence_manager() {
   _menu_item "8" "Relabel a persistence volume (ext4)"  "" "DATA volumes — protects casper-rw"
   _menu_item "9" "Ventoy.json doctor"                   "" "validate boot routing"
   _menu_item "10" "Volume cleanup tasks"                "" "boot-time cleanup, per volume or shared"
+  _menu_item "11" "Retire a persistence volume (.dat)"  "" "move to stick .trash — never deleted"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -1058,7 +1059,7 @@ _run_persistence_manager() {
     1)
       echo ""
       if [[ -z "${SELECTED_DEVICE:-}" ]]; then
-        _menu_error "No USB device selected — use option 14 (USB Device Setup)"
+        _menu_error "No USB device selected — use option 11 (USB Device Setup)"
         return 0
       fi
       printf "  ${BOLD}Device:${NC} %s\n" "$SELECTED_DEVICE"
@@ -1403,6 +1404,57 @@ _run_persistence_manager() {
             fi ;;
         esac
       done
+      ;;
+    11)
+      # CL-041: retire a volume the stick no longer needs (e.g. tooling.dat on
+      # a minimal stick). Moved to <ventoy>/.trash/persistence/, never rm'd.
+      # Refuses volumes that are loop-attached right now; warns when profiles
+      # still reference the file so the operator fixes the manifest first.
+      local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted — mount USB first"; return 1; }
+      local pdir="$vmp/persistence"
+      local -a vols=() ; local f
+      for f in "$pdir"/*.dat; do [[ -f "$f" ]] && vols+=("$f"); done
+      [[ ${#vols[@]} -eq 0 ]] && { _menu_info "(no .dat volumes in $pdir)"; return 0; }
+      echo ""
+      _menu_subheader "Volumes on $pdir"
+      local i
+      for i in "${!vols[@]}"; do
+        printf "  ${CYAN}%d${NC}) %-28s %s\n" "$((i + 1))" "$(basename "${vols[$i]}")" \
+          "$(du -h "${vols[$i]}" 2>/dev/null | cut -f1)"
+      done
+      _menu_prompt "Volume to retire (0=cancel)"
+      local sel; read -r sel
+      [[ "$sel" == "0" || -z "$sel" ]] && return 0
+      if ! [[ "$sel" =~ ^[0-9]+$ ]] || (( sel < 1 || sel > ${#vols[@]} )); then
+        _menu_error "Bad selection: '$sel'"; return 1
+      fi
+      local dat="${vols[$((sel - 1))]}" name; name=$(basename "$dat")
+      if losetup -nO BACK-FILE 2>/dev/null | grep -qF "$name"; then
+        _menu_error "$name is loop-attached right now — unmount/detach it first"
+        return 1
+      fi
+      local refs
+      refs=$(grep -l "$name" "$vmp"/usb-hemlock/profiles/*.json 2>/dev/null || true)
+      if [[ -n "$refs" ]]; then
+        _menu_warn "Profiles still reference $name:"
+        printf '%s\n' "$refs" | sed 's|.*|    &|'
+        _menu_info "Remove the data_volume entry first (Device/Boot Profiles → edit manifest)"
+        _menu_confirm "Retire anyway (boot will log a missing-volume skip)?" || return 0
+      fi
+      _menu_warn "Retiring $name ($(du -h "$dat" | cut -f1)) -> .trash/persistence/ (same filesystem, recoverable)"
+      _menu_confirm "Proceed?" || return 0
+      if [[ "$DRY_RUN" == "true" ]]; then
+        _menu_info "DRY RUN: would mv $dat -> $vmp/.trash/persistence/$name.$(date +%Y%m%d-%H%M%S)"
+        return 0
+      fi
+      mkdir -p "$vmp/.trash/persistence"
+      if mv "$dat" "$vmp/.trash/persistence/$name.$(date +%Y%m%d-%H%M%S)"; then
+        _menu_success "Retired: $name (recover from .trash/persistence/ if needed)"
+        _menu_info "Refresh device identity (Device/Boot Profiles → register) to record the change"
+      else
+        _menu_error "Move failed — volume untouched"
+        return 1
+      fi
       ;;
     0) return 0 ;;
     *) _menu_error "Invalid option: $choice" ;;
@@ -2533,6 +2585,7 @@ _uca_profile_edit_manifest() {
   _menu_item "5" "Set boot_mode (ventoy/qemu)"      "" "qemu = different ISO"
   _menu_item "6" "Set ISO"                          "" ""
   _menu_item "7" "Open full JSON in \$EDITOR"        "" ""
+  _menu_item "8" "Edit env vars"                    "" "set KEY=value, empty value deletes"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local c; read -r c
@@ -2595,6 +2648,29 @@ _uca_profile_edit_manifest() {
       tmp=$(mktemp); jq --arg i "$iso" '.iso=$i' "$p" > "$tmp" && mv "$tmp" "$p" && _menu_success "iso=$iso"
       ;;
     7) ${EDITOR:-nano} "$p"; _uca_profile_validate "$p" >/dev/null 2>&1 || _menu_warn "manifest now fails validation" ;;
+    8)
+      # CL-041: env editing (promised by this editor since CL-026, never wired)
+      echo ""
+      _menu_subheader "Current env"
+      jq -r '(.env // {}) | to_entries[] | "    \(.key)=\(.value)"' "$p" 2>/dev/null || true
+      printf "  Key to set (empty=cancel): "; local ek; read -r ek
+      [[ -z "$ek" ]] && return 0
+      printf "  Value for %s (empty=DELETE the key): " "$ek"; local ev; read -r ev
+      if [[ "$DRY_RUN" == "true" ]]; then
+        [[ -z "$ev" ]] && _menu_info "DRY RUN: delete env.$ek" || _menu_info "DRY RUN: set env.$ek=$ev"
+        return 0
+      fi
+      tmp=$(mktemp)
+      if [[ -z "$ev" ]]; then
+        jq --arg k "$ek" 'del(.env[$k])' "$p" > "$tmp" \
+          && mv "$tmp" "$p" && _menu_success "Deleted env.$ek" \
+          || { rm -f "$tmp"; _menu_error "Update failed"; }
+      else
+        jq --arg k "$ek" --arg v "$ev" '.env = ((.env // {}) + {($k): $v})' "$p" > "$tmp" \
+          && mv "$tmp" "$p" && _menu_success "Set env.$ek=$ev" \
+          || { rm -f "$tmp"; _menu_error "Update failed"; }
+      fi
+      ;;
     0) return 0 ;;
     *) _menu_error "Invalid option: $c" ;;
   esac
@@ -3311,7 +3387,7 @@ RCLOCAL
 _uca_boot_headless() {
   _uca_qemu_check || return 1
   local dev="${SELECTED_DEVICE:-}"
-  [[ -n "$dev" ]] || { _menu_error "No USB device set (option 14)"; return 1; }
+  [[ -n "$dev" ]] || { _menu_error "No USB device set (option 11)"; return 1; }
   [[ -b "$dev" ]] || { _menu_error "$dev is not a block device"; return 1; }
   local kvm=""; [[ -e /dev/kvm ]] && kvm="-enable-kvm"
   _menu_warn "Booting the whole USB device ($dev) in a VM."
@@ -3338,7 +3414,7 @@ _uca_boot_headless() {
 _uca_boot_gui() {
   _uca_qemu_check || return 1
   local dev="${SELECTED_DEVICE:-}"
-  [[ -b "$dev" ]] || { _menu_error "No USB device set (option 14)"; return 1; }
+  [[ -b "$dev" ]] || { _menu_error "No USB device set (option 11)"; return 1; }
   [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]] || _menu_warn "No DISPLAY/WAYLAND_DISPLAY — a window may not open"
   local kvm=""; [[ -e /dev/kvm ]] && kvm="-enable-kvm"
   _menu_warn "Graphical boot of $dev. Snapshot mode (writes discarded) by default."
@@ -3657,7 +3733,7 @@ _uca_boot_autostart() {
   _menu_subheader "HOST — auto-launch the USB VM (OS-aware)"
   local os; os=$(detect_os 2>/dev/null || echo "Unknown")
   _menu_info "Detected OS: $os"
-  local dev="${SELECTED_DEVICE:-<set via option 14>}"
+  local dev="${SELECTED_DEVICE:-<set via option 11>}"
   echo ""
   case "$os" in
     Linux|WSL)
@@ -3672,7 +3748,7 @@ _uca_boot_autostart() {
       local c; read -r c
       case "$c" in
         1)
-          [[ -b "${SELECTED_DEVICE:-}" ]] || { _menu_error "Set a USB device first (option 14)"; return 1; }
+          [[ -b "${SELECTED_DEVICE:-}" ]] || { _menu_error "Set a USB device first (option 11)"; return 1; }
           _uca_require_host_dep qemu-system-x86_64 "qemu-system-x86 qemu-utils" \
             "The autostart launches QEMU on the host to run the USB headless with SSH forwarding." || return 1
           if [[ "$DRY_RUN" == "true" ]]; then _menu_info "DRY RUN: would write $unit and enable it"; return 0; fi
@@ -3740,14 +3816,34 @@ _run_hemlock_stage_image() {
   _menu_header "Stage Hemlock Image on USB"
   local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted — mount USB first"; return 1; }
   command -v docker >/dev/null 2>&1 || { _menu_error "docker not available on this host"; return 1; }
-  local iid
-  iid=$(docker images hemlock:latest --format '{{.ID}}' 2>/dev/null | head -1)
-  [[ -z "$iid" ]] && { _menu_error "No hemlock:latest image on this host — build it first (option 12)"; return 1; }
-  local size
-  size=$(docker images hemlock:latest --format '{{.Size}}' 2>/dev/null | head -1)
+  # CL-041: the stick carries ONE image — the operator picks which variant.
+  # full = everything baked (~4.2GB); lean = no toolchain, tools from data;
+  # minimal = hemlock gateway + brain over MCP only, no dev tooling.
+  local -a tags=() ; local t
+  while IFS= read -r t; do tags+=("$t"); done < <(
+    docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null \
+      | grep -E '^hemlock:(latest|lean|minimal|core)$' | sort)
+  [[ ${#tags[@]} -eq 0 ]] && { _menu_error "No hemlock image variant on this host — build one first (option 12)"; return 1; }
+  echo ""
+  _menu_subheader "Built variants on this host (latest = full)"
+  local i
+  for i in "${!tags[@]}"; do
+    printf "  ${CYAN}%d${NC}) %-18s %-8s (built %s)\n" "$((i + 1))" "${tags[$i]}" \
+      "$(docker images "${tags[$i]}" --format '{{.Size}}' | head -1)" \
+      "$(docker images "${tags[$i]}" --format '{{.CreatedSince}}' | head -1)"
+  done
+  _menu_prompt "Variant to stage [1]"
+  local sel; read -r sel; sel="${sel:-1}"
+  if ! [[ "$sel" =~ ^[0-9]+$ ]] || (( sel < 1 || sel > ${#tags[@]} )); then
+    _menu_error "Bad selection: '$sel'"; return 1
+  fi
+  local tag="${tags[$((sel - 1))]}"
+  local iid size
+  iid=$(docker images "$tag" --format '{{.ID}}' 2>/dev/null | head -1)
+  size=$(docker images "$tag" --format '{{.Size}}' 2>/dev/null | head -1)
   local imgdir="$vmp/usb-hemlock/images"
   local dest="$imgdir/hemlock-${iid}.tar"
-  _menu_subheader "hemlock:latest ${iid} (${size}) -> $dest"
+  _menu_subheader "$tag ${iid} (${size}) -> $dest"
   if [[ -f "$dest" && -f "$dest.sha256" ]] && (cd "$imgdir" && sha256sum -c "$(basename "$dest").sha256" >/dev/null 2>&1); then
     _menu_success "Already staged and verified: $(basename "$dest")"
     return 0
@@ -3760,12 +3856,12 @@ _run_hemlock_stage_image() {
     return 1
   fi
   if [[ "$DRY_RUN" == "true" ]]; then
-    _menu_info "DRY RUN: would docker save hemlock:latest to $dest"; return 0
+    _menu_info "DRY RUN: would docker save $tag to $dest"; return 0
   fi
   _menu_confirm "Stage now (${size} write to the stick — several minutes)?" || return 0
   mkdir -p "$imgdir"
   _menu_info "Saving (this streams straight to the stick)..."
-  if docker save hemlock:latest -o "$dest"; then
+  if docker save "$tag" -o "$dest"; then
     (cd "$imgdir" && sha256sum "$(basename "$dest")" > "$(basename "$dest").sha256")
     sync
     if (cd "$imgdir" && sha256sum -c "$(basename "$dest").sha256" >/dev/null 2>&1); then
@@ -3810,7 +3906,7 @@ _run_hemlock_manager() {
   _menu_item "10" "Register agent on-chain (stub)"   "" "registrar: create+register agent (CL-020)"
   _menu_item "11" "Registry audit"                   "" "list registrar entries + verify attestations"
   _menu_item "12" "Install / deploy runtime"          "" "install.sh — build variant, load release, USB, native"
-  _menu_item "13" "Stage image on USB"                 "" "docker save hemlock:latest -> usb-hemlock/images/ + sha256"
+  _menu_item "13" "Stage image on USB"                 "" "docker save <variant> -> usb-hemlock/images/ + sha256"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -4778,9 +4874,9 @@ main() {
       log_info "Auto-detected USB device: $SELECTED_DEVICE"
       detect_ventoy_mount 2>/dev/null && log_info "Ventoy mounted at $VENTOY_MOUNT"
     elif [[ ${#dev_array[@]} -gt 1 ]]; then
-      log_info "Multiple USB devices detected — select via menu option 14"
+      log_info "Multiple USB devices detected — select via menu option 11"
     else
-      log_info "No USB device detected — set via menu option 14"
+      log_info "No USB device detected — set via menu option 11"
     fi
   fi
 

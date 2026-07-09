@@ -69,6 +69,21 @@ COPY docker/openclaw-runtime/bin/ /opt/openclaw/bin/
 RUN chmod +x /opt/openclaw/bin/openclaw-container && \
     ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/openclaw
 
+# ── Agent Identity Kit (CL-041) ──────────────────────────────────────────────
+# Identity enforcement + knowledge/memory for the gateway and every agent.
+# Node package = enforcer daemon + `aik` CLI; Python package = same policy
+# class for the brain side. Runtime deps only (--omit=optional skips the
+# vector model — semantic keyword search still works). Constitution/policy
+# are NOT baked: they live in the agent workspace (/data/.agent/); the
+# examples ship as templates.
+COPY docker/agent-identity-kit/ /opt/aik/
+RUN cd /opt/aik/node && \
+    npm install --omit=dev --omit=optional --ignore-scripts && \
+    npm cache clean --force && \
+    chmod +x /opt/aik/node/bin/aik.js && \
+    ln -s /opt/aik/node/bin/aik.js /usr/local/bin/aik && \
+    pip install --no-cache-dir /opt/aik/python
+
 # ── Brain over MCP ────────────────────────────────────────────────────────────
 # Cognition source (the brain's dependency closure lives here); heavy runtime
 # features are simply never started — the ONLY processes are gateway + brain MCP.
@@ -95,6 +110,9 @@ COPY agents/workspace-template/ /data/agents/workspace-template/
 
 # Health: brain imports + config generator present
 RUN python3 -c "import agent_brain_mcp" 2>/dev/null || python3 -c "import sys; sys.path.insert(0,'/opt/hermes'); import agent_brain_mcp; print('brain MCP import OK')"
+
+# Health: identity kit callable on both sides (CL-041)
+RUN aik --help >/dev/null && python3 -c "import agent_identity_kit; print('identity kit OK')"
 
 WORKDIR /
 

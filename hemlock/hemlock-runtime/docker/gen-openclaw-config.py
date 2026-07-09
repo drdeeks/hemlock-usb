@@ -63,15 +63,16 @@ def build(agents):
                 "bootstrapTotalMaxChars": 60000,
                 "bootstrapPromptTruncationWarning": "once",
                 "heartbeat": {"includeSystemPromptSection": True},
-                # Inform, don't force: nudge (not compel) delegation to fresh subagents.
-                "subagents": {"delegationMode": "suggest"},
+                # CL-041: subagents.delegationMode and messages.groupChat.requireMention/
+                # visibleReplies are NOT in the vendored gateway's config schema — it
+                # fail-closes on unrecognized keys and the daemon never starts. Re-add
+                # them only after the vendored engine is updated to a schema that
+                # accepts them (verify with: openclaw doctor).
             },
             "list": [],
         },
         # Lazy-skills cap: only the compact name+description index goes in the prompt.
         "skills": {"limits": {"maxSkillsPromptChars": SKILLS_MAX_CHARS}},
-        # Group defaults: require an explicit mention; post the final reply text directly.
-        "messages": {"groupChat": {"requireMention": True, "visibleReplies": "automatic"}},
         # Channel routing: deployment-specific (real account/peer IDs). Operators/agents add
         # { match:{channel,accountId,peer:{kind,id},...}, agentId } entries here. Until then
         # the agent flagged default:true is the fallback for all inbound messages.

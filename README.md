@@ -267,13 +267,13 @@ brew install jq docker python3
 bash menu.sh
 # → The menu auto-detects USB devices at startup
 # → If a Ventoy USB is found, it is selected automatically
-# → If not found, use option 14 (USB Device Setup) to select one manually
+# → If not found, use option 11 (USB Device Setup) to select one manually
 ```
 
 ### Step 3: Select Your USB Device
 
 ```
-menu.sh → Option 14: USB Device Setup [USB]
+menu.sh → Option 11: USB Device Setup [USB]
 ```
 
 The setup flow will:
@@ -333,7 +333,7 @@ Installs llama.cpp, ollama, rust, foundry, hardhat, playwright, tauri, bun, tail
 ### Step 9: Deploy Hemlock (Optional)
 
 ```
-menu.sh → Option 10: Master Deploy (DEPLOY.sh) [ALL]
+menu.sh → Option 19: Hemlock Manager → Option 3: Master Deploy (DEPLOY.sh)
 ```
 
 Full stack deployment: system + USB + Hemlock. Requires root.
@@ -346,7 +346,7 @@ bash usb/tests/run-all.sh
 # Expected: 201 passed, 0 failed, 1 skipped
 
 # Or via the menu:
-# menu.sh → Option 16: Run Validation [ALL]
+# menu.sh → Option 13: Run Validation [ALL]
 ```
 
 ---
@@ -383,7 +383,7 @@ Dockerized AI agent orchestration platform. Provides:
 **The singular entry point for ALL components.** One command gives you access to every USB, Hemlock, and system feature. The menu:
 
 - **Auto-detects USB devices** at startup — no manual `export SELECTED_DEVICE` needed
-- **Provides interactive device setup** (option 14) — scans, lists, and selects Ventoy drives
+- **Provides interactive device setup** (option 11) — scans, lists, and selects Ventoy drives
 - **Shows device status** at the top of every menu render — mount point, persistence size
 - **Delegates to the correct component** for each task
 - **Honors `--dry-run`** for safe preview of all mutations
@@ -522,6 +522,12 @@ The menu displays the current USB device status at the top, then presents all op
 | # | Component | Target | Description |
 |---|-----------|--------|-------------|
 | 19 | Hemlock Manager | [CONTAINER] | Single submenu consolidating the former separate Hemlock TUI, Status, and Master Deploy entries. Hidden by default — pass `--hemlock` (or `-H`, or `HEMLOCK_ENABLED=true`) to reveal. |
+
+#### Foundation (Option 20)
+
+| # | Component | Target | Description |
+|---|-----------|--------|-------------|
+| 20 | Tooling Volume | [USB] | Optional toolchain bridge (`persistence/tooling.dat`): create/refresh, hf-cli, updater, model tools. Optional since CL-041 — minimal sticks run without it. |
 
 **Install policy:** dev tooling installs onto the USB persistence by default;
 host installs (e.g. QEMU/KVM for headless boot + port-forwarding) are only done
@@ -754,7 +760,7 @@ Three ways to launch USB-Hemlock without a desktop sign-in:
 
 ### 1. Native USB boot
 
-Plug the Ventoy USB into a machine, boot from USB (BIOS / UEFI boot menu, F12/F10/F2 depending on vendor). Ventoy menu → pick ISO. The persistence overlay (`casper-rw` or whichever `.dat` is mapped via `ventoy.json`) auto-mounts and the system comes up with your saved state. `rc.local` runs the boot orchestrator `<usb>/scripts/startup.sh` (identity log → tooling mount → updates → shell/cleanup config → SSH honor → operator hooks) if you installed the hook via the Startup Manager (option 8 → 4).
+Plug the Ventoy USB into a machine, boot from USB (BIOS / UEFI boot menu, F12/F10/F2 depending on vendor). Ventoy menu → pick ISO. The persistence overlay (`casper-rw` or whichever `.dat` is mapped via `ventoy.json`) auto-mounts and the system comes up with your saved state. `rc.local` runs the boot orchestrator `<usb>/scripts/startup.sh` (identity log → tooling mount if present → shell/cleanup config → SSH honor → operator hooks) if you installed the hook via the Startup Manager (option 8 → 4).
 
 ### 2. Headless via VM (QEMU/KVM)
 
@@ -819,8 +825,9 @@ The system has a layered boot sequence:
 
 ```
 USB Boot → Ventoy → casper-rw persistence → rc.local → scripts/startup.sh (orchestrator)
-             identity log → tooling.dat mount → first-boot essentials → tooling update
-             → per-volume shell/cleanup config → SSH honor (menu-configured) → operator hooks
+             identity log → tooling.dat mount+update (OPTIONAL — only if present, CL-041)
+             → first-boot essentials → per-volume shell/cleanup config
+             → SSH honor (menu-configured) → operator hooks
 ```
 
 ### Custom Startup
@@ -843,12 +850,12 @@ bash menu.sh   # → Option 8 → Option 3
 
 ## Persistence Management
 
-### Persistence Manager (Menu Option 12)
+### Persistence Manager (Menu Option 9)
 
 Manages persistence partitions on the USB drive.
 
 ```bash
-bash menu.sh   # → Option 12: Persistence Manager
+bash menu.sh   # → Option 9: Persistence Manager
 ```
 
 **Sub-options:**
@@ -881,12 +888,12 @@ stays consistent and the interrupted file is re-copied, never silently trusted.
 
 ## Bash Profile Management
 
-### Bash Profile Manager (Menu Option 13)
+### Bash Profile Manager (Menu Option 10)
 
 Installs and manages the enhanced bash profile.
 
 ```bash
-bash menu.sh   # → Option 13: Bash Profile Manager
+bash menu.sh   # → Option 10: Bash Profile Manager
 ```
 
 **Sub-options:**
@@ -910,12 +917,12 @@ The `bash_enhanced.sh` profile provides:
 
 ## Per-Device Configuration
 
-### Device Config (Menu Option 14)
+### Device Config (Menu Option 12)
 
 Manages device-specific profiles so different USB drives can have different configs.
 
 ```bash
-bash menu.sh   # → Option 14: Device Config
+bash menu.sh   # → Option 12: Device Config
 ```
 
 **Sub-options:**
@@ -1031,8 +1038,8 @@ bash usb/cli/usbctl validate all        # Run all validations
 Launches the Hemlock agent runtime inside a Docker container.
 
 ```bash
-# Via master menu
-bash menu.sh   # → Option 8
+# Via master menu (reveal with --hemlock)
+bash menu.sh --hemlock   # → Option 19: Hemlock Manager → Option 1: Launch in-container TUI
 
 # Direct
 export HEMLOCK_DIR=$(pwd)/hemlock/hemlock-runtime
@@ -1208,7 +1215,7 @@ Logs auto-rotate at 10 MB (`LOG_MAX_SIZE`). Only the last 5 rotated logs are kep
 
 ```bash
 # Via master menu
-bash menu.sh   # → Option 17: View Logs
+bash menu.sh   # → Option 15: View Logs
 
 # Direct
 tail -f /tmp/usb-hemlock-*.log
