@@ -9,7 +9,7 @@ description: Author, edit, audit, validate, package, and upgrade AgentSkills. Pr
   on phrases like 'create a skill', 'author a skill', 'tidy up a skill', 'audit the
   skill', 'package this skill', 'upgrade skill to enterprise'. Validator runs enterprise-strict
   by default; pass --basic for the lighter-count tier. Every script is directly invokable.
-version: 3.0.9
+version: 3.0.10
 license: MIT
 metadata:
   category: skill-authoring
@@ -349,6 +349,8 @@ Real doctrines carried forward from prior sessions:
 - `references/lessons/version-guard-overwrites.md` — never overwrite a newer copy with an older one
 - `references/lessons/always-scaffold-through-init.md` — always init via `__init__.py --scaffold`, never hand-craft
 - `references/lessons/import-full-tree-not-selective.md` — "copy over" means whole tree, not cherry-pick
+- `references/lessons/chain-enforcement-integration.md` — how the 11-gate pipeline was first chain-locked (historical: superseded by built-in `scripts/chain.py`)
+- `references/lessons/federation-gateway-skills.md` — coordination-gateway skill scaffolding lessons (server stability, health endpoints)
 
 ---
 

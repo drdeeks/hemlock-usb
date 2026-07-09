@@ -1,0 +1,106 @@
+# TOOLS-GUIDE.md.template
+# Tool Usage Documentation for Auto-Fix
+
+## Overview
+This guide documents all tools available to the agent. Each tool is part of the tool-enforcement habit and must be present and executable.
+
+---
+
+## Required Tools (5 Total)
+
+| Tool | Purpose | Location |
+|------|---------|----------|
+| `enforce.sh` | Workspace structure enforcement | `tools/enforce.sh` |
+| `secret.sh` | Encrypted secret management | `tools/secret.sh` |
+| `memory-log.sh` | Daily memory logging | `tools/memory-log.sh` |
+| `memory-promote.sh` | Daily to long-term memory promotion | `tools/memory-promote.sh` |
+| `TOOLS-GUIDE.md` | This documentation | `tools/TOOLS-GUIDE.md` |
+
+---
+
+## Tool Usage
+
+### enforce.sh
+**Purpose:** Validates and enforces workspace structure, tool presence, and file permissions.
+
+```bash
+bash tools/enforce.sh
+```
+
+### secret.sh
+**Purpose:** Encrypted secret management using AES-256-CBC.
+
+```bash
+bash tools/secret.sh set KEY "value"
+bash tools/secret.sh get KEY
+bash tools/secret.sh list
+bash tools/secret.sh delete KEY
+```
+
+### memory-log.sh
+**Purpose:** Append entries to daily memory files.
+
+```bash
+bash tools/memory-log.sh SESSION "content" [[links...]]
+bash tools/memory-log.sh DECISION "content" [[links...]]
+bash tools/memory-log.sh INSIGHT "content" [[links...]]
+```
+
+### memory-promote.sh
+**Purpose:** Curate daily memories into long-term MEMORY.md
+
+```bash
+bash tools/memory-promote.sh
+bash tools/memory-promote.sh --dry-run
+```
+
+---
+
+## File Permissions Reference
+
+| Pattern | Permission | Example |
+|---------|------------|---------|
+| `*.sh` | 755 | `tools/enforce.sh` |
+| `*.md` | 644 | `tools/TOOLS-GUIDE.md` |
+| `.secrets/*` | 600 | `.secrets/GITHUB_TOKEN.enc` |
+| `.secrets/` | 700 | Directory |
+| Directories | 755 | `tools/`, `skills/`, `memory/` |
+
+---
+
+## Workspace Structure
+
+```
+${WORKSPACE}/
+├── .agent/
+│   ├── constitution.yaml
+│   ├── genesis.md
+│   ├── habits/
+│   ├── logs/
+│   ├── metrics/
+│   ├── templates/
+│   └── constitutions/
+├── tools/
+│   ├── enforce.sh
+│   ├── secret.sh
+│   ├── memory-log.sh
+│   ├── memory-promote.sh
+│   └── TOOLS-GUIDE.md
+├── skills/
+├── memory/
+│   ├── daily/
+│   └── MEMORY.md
+├── .secrets/
+└── .secrets/.encryption_key
+```
+
+---
+
+## Enforcement Rules
+
+The tool-enforcement habit runs automatically on:
+1. Before every tool invocation
+2. Agent initialization
+3. Workspace changes
+
+On violation: blocked, auto-fix attempted, violation logged, reflection required.

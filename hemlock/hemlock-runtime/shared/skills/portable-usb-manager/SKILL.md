@@ -1,7 +1,7 @@
 ---
 name: portable-usb-manager
 description: "Comprehensive USB-first portable Linux management. Handles detection, mounting, partitioning, formatting, Ventoy multi-boot setup with persistence, mkusb live/persistent creation, hidden device recovery, chroot install into the persistence volume, boot mode selection (headless SSH or full GUI via QEMU), per-device profile manifests with autoboot, USB-resident profile store with default selection, restart-on-CRUD volume orchestration for agent harnesses, in-persistence essentials installer that mirrors the host dev toolchain (build/edit/net/python/node/crypto/web3/docker/cloud groups with rust/go/ai as opt-in), enhanced bash profile + alias manager, sudo cache + triple-notification consent policy, permission normalization that never uses 0700, cross-OS detection (Linux/macOS/WSL2/Windows), and full plumbing for chroot/QEMU/SSH/Tailscale access. Use for any USB drive whose intent is portable compute rather than file storage."
-version: 2.0.9
+version: 2.0.10
 license: MIT
 metadata:
   category: portable-compute
@@ -238,3 +238,16 @@ runs without an internet connection except for explicit network ops
 - [testing-framework.md](references/testing-framework.md) — Test harness
 - [universal-portable-shell-utilities.md](references/universal-portable-shell-utilities.md) — Lib helpers
 - [skill-updates-summary.md](references/skill-updates-summary.md) — Version history
+- [enhanced-usb-bootstrap.md](references/enhanced-usb-bootstrap.md) — 27-phase initialize.sh (NodeSource fix, sudo caching, Tailscale, QEMU/KVM, LXQt)
+- [master-deployment-pattern.md](references/master-deployment-pattern.md) — DEPLOY.sh 3-phase pattern with dry-run + selective installs
+- [usb-setup-assistant-fixes.md](references/usb-setup-assistant-fixes.md) — Setup-assistant hardening (NodeSource 404, sudo enforcement, menu returns, SSH host manager)
+- [usb-setup-assistant-menu-patterns.md](references/usb-setup-assistant-menu-patterns.md) — run_submenu() helper + 11-option menu anatomy
+- [sudo-enforcement-pattern.md](references/sudo-enforcement-pattern.md) — EUID check, cached sudo, EXIT/INT/TERM cleanup, DRY_RUN
+- [nodesource-fix.md](references/nodesource-fix.md) — Ubuntu codename detection via lsb_release (noble fallback)
+- [lightweight-gui.md](references/lightweight-gui.md) — LXQt + pcmanfm-qt minimal GUI for the persistence
+- [project-manager-guide.md](references/project-manager-guide.md) — Project lifecycle on the USB (checklist templates in `references/templates/project-manager/`)
+- [universal-bash-portable-config.md](references/universal-bash-portable-config.md) — Portable bash profile/alias config (template in `references/templates/bash-config/`)
+- [alias-manager-integration.md](references/alias-manager-integration.md) — Wiring the alias manager into portable profiles
+- [environment-detection.md](references/environment-detection.md) — Host/USB/WSL2 environment detection patterns
+
+Deployable payloads under `references/templates/`: `usb-system/` (full manager), `usb-automount/` (udev rules + systemd unit + setup/teardown), `project-manager/` (checklists), `bash-config/` (enhanced portable bashrc).

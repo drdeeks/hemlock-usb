@@ -1,33 +1,36 @@
 ---
 name: loop-enforcer
-description: "Enforce sequential dependency chains on files, tasks, and services. Locks steps until prior work is verified complete. Interactive menu + agent API. Prevents destructive ops by enforcing additive-only builds with chained verification gates. Use when building projects where files must be created in order, or when agents must not destroy existing work."
-version: 1.0.6
+description: Enforce sequential dependency chains on files, tasks, and services. Locks
+  steps until prior work is verified complete. Interactive menu + agent API. Prevents
+  destructive ops by enforcing additive-only builds with chained verification gates.
+  Use when building projects where files must be created in order, or when agents
+  must not destroy existing work.
+version: 1.0.10
 license: MIT
 metadata:
   openclaw:
-    version: "1.0"
+    version: '1.0'
     category: devops
     complexity: enterprise
   openai:
     type: function
     parameters:
-      - name: command
-        type: string
-      - name: project_dir
-        type: string
-      - name: chain_name
-        type: string
+    - name: command
+      type: string
+    - name: project_dir
+      type: string
+    - name: chain_name
+      type: string
   hermes:
-    tags: [automation, devops, enforcement]
     category: devops
   tags:
-    - chain enforcement
-    - file locking
-    - sequential dependencies
-    - verification gates
-    - destructive prevention
-    - additive builds
-    - audit logging
+  - chain enforcement
+  - file locking
+  - sequential dependencies
+  - verification gates
+  - destructive prevention
+  - additive builds
+  - audit logging
 ---
 
 # Loop Enforcer
@@ -93,6 +96,8 @@ Commands: `[v]erify` `[c]omplete` `[s]tatus` `[l]og` `[a]dd` `[q]uit`
 | `scripts/chain.py` | Core engine — create, check, verify, complete, set-validator, add, list, status, log, menu |
 | `scripts/chain_report.py` | Human-readable chain status with progress bar |
 | `scripts/validate.py` | Unified validator — file exists, non-empty, min lines/chars, required/forbidden patterns, syntax check, custom checks, spec file |
+| `scripts/chain_audit.py` | Audit and compliance reporter — integrity checks, verification gaps, timeline analysis |
+| `scripts/chain_migrate.py` | Chain migration tool — export/import, version upgrades, cross-project sync |
 
 ## Templates
 
@@ -145,6 +150,144 @@ Verify response:
 | `Step must be verified` | Skipped verification | Run `chain.py verify` first |
 | `Validator failed` | File doesn't meet criteria | Fix file, retry verify |
 
+## Kanban Worker Integration (MANDATORY for Phased Tasks)
+
+When a kanban worker is assigned a phased task (title contains "Phase"), the loop-enforcer chain MUST be checked before ANY work begins. This is wired into KANBAN_GUIDANCE step 2b.
+
+### Helper Script: chain_enforce.py
+
+A wrapper that finds the chain, resolves the phase step, and calls chain.py:
+
+```bash
+# Check if phase is active (exit 0 = proceed, exit 1 = blocked)
+python3 <HERMES_HOME>/scripts/chain_enforce.py check <project> <phase_num>
+
+# Verify + complete phase after work is done
+python3 <HERMES_HOME>/scripts/chain_enforce.py complete <project> <phase_num>
+
+# Show chain status for a project
+python3 <HERMES_HOME>/scripts/chain_enforce.py status <project>
+```
+
+### Worker Flow
+
+1. Worker receives task: "Autopilot: Phase 2 — Workflow Orchestration"
+2. Worker runs: `chain_enforce.py check autopilot 2`
+3. If `can_proceed: true` → do the work
+4. If `can_proceed: false` → `kanban_block(reason="Chain locked: prior phase not complete")`
+5. After work: `chain_enforce.py complete autopilot 2`
+6. Log: `kanban_comment(body="Chain enforced: autopilot-blueprint step 2 verified+complete")`
+
+### Common Failure: Out-of-Order Phase Execution
+
+If kanban tasks are dispatched without chain checks, phases run simultaneously and the chain state becomes meaningless. All phases must execute sequentially — Phase 0 complete → Phase 1 active → Phase 1 complete → Phase 2 active, etc.
+
+**Fix:** Reset all phase tasks to `ready`, reset chain state (step[0]=active, rest=locked), and ensure KANBAN_GUIDANCE step 2b is present in the worker prompt.
+
+### Project Directory Mapping
+
+Projects live in `<WORKSPACE_ROOT>/qwen-cloud-2026/<project>/`. Symlinks at the workspace root provide convenient access. Each project has `.chain/<project>-blueprint.json` (or `blueprint-<project>.json`).
+
+---
+
+## Kanban Deployment for Project Verification (Verified 2026-07-06)
+
+### Deploying Verification Kanban Board
+
+```bash
+# 1. Initialize kanban DB
+hermes kanban init
+
+# 2. Create project board
+hermes kanban boards create <board-name> --description "<desc>"
+
+# 3. Switch to board
+hermes kanban boards switch <board-name>
+
+# 4. Create verification tasks for each project
+hermes kanban create "Project: Verify server starts, health endpoints, core API" --assignee <profile>
+
+# 5. Start gateway (runs embedded dispatcher)
+hermes gateway start
+
+# 6. Dispatch tasks
+hermes kanban dispatch
+
+# 7. Monitor progress
+hermes kanban watch
+hermes kanban list
+```
+
+### Verified Task Template (All 5 Hackathon Projects)
+
+| Project | Track | Assignee | Verification Checklist |
+|---------|-------|----------|------------------------|
+| Mnemosyne | 1: MemoryAgent | mnemosyne-lead | Server starts, health/ready endpoints, 4-layer memory API |
+| Autopilot | 4: Workflow Automation | autopilot-architect | Server starts, health/ready, workflow trigger API |
+| Aires | 2: AI Showrunner | aires-director | Server starts, health/ready, production creation API |
+| Agora | 3: Agent Society | agora-architect | demo.js runs all 5 phases (constitutional, legislative, voting, judicial, executive) |
+| Edgewalker | 5: EdgeAgent | edgewalker-architect | `cargo check` passes, kernel runtime starts |
+
+### Infrastructure Verification Tasks
+
+| Component | Assignee | Verification |
+|-----------|----------|--------------|
+| Federation Gateway | autopilot-architect | Port 41207, 5 projects, 600 agents, 20 rooms, TV room plugin |
+| 4 Core Skills | default | Enterprise validation: agent-identity-architecture, crew-knowledge-system, autonomous-crew-autonomous-crew-integration, loop-enforcer |
+
+### Key Findings (2026-07-06)
+
+1. **Gateway is internal A2A infrastructure** — not user-facing. Manage via `hermes kanban watch` / terminal.
+2. **TV Sitcom MCP server (port 41208)** is the ONLY external-facing piece for company integration.
+3. **All 7 tasks completed** in ~20 minutes with zero cross-project dependencies.
+4. **Assignee must exist on disk** — `federation-gateway` and `skill-tester` profiles needed creation or reassignment to existing profiles.
+5. **Enterprise validation** via `skill_enhance.py update --path <skill> --noninteractive` is mandatory for all skills.
+
+
+## Kanban Integration (MANDATORY for Phased Tasks)
+
+**Critical pitfall:** The kanban dispatcher does NOT check chain state before dispatching. If you create Phase 0-6 tasks, the dispatcher will happily run them all simultaneously. Chain enforcement is the WORKER's responsibility, not the dispatcher's.
+
+### How it works
+
+The `KANBAN_GUIDANCE` in `prompt_builder.py` now includes step **2b. Chain enforcement** which mandates:
+
+### Worker Flow
+
+```
+1. kanban_show() — orient
+2. cd $HERMES_KANBAN_WORKSPACE
+2b. chain_enforce.py check <project> <phase>
+    ├─ can_proceed: true  → do the work
+    └─ can_proceed: false → kanban_block("Chain locked: prior phase not complete")
+3. Do the work (heartbeat if long)
+4. chain_enforce.py complete <project> <phase>
+5. kanban_complete(summary, metadata)
+```
+
+### Pitfall: Empty phase markers
+
+NEVER create `.phase-*.marker` files as empty stubs. This signals "done" without
+actual work. Markers should only be created by `chain.py complete` after verification.
+If you find empty markers, delete them and reset the chain step to `active`.
+
+### Pitfall: Root directory vs qwen-cloud-2026
+
+Project code lives in `<WORKSPACE_ROOT>/qwen-cloud-2026/<project>/`.
+Root-level directories (`<WORKSPACE_ROOT>/<project>/`) should be symlinks:
+```bash
+ln -s qwen-cloud-2026/<project> <WORKSPACE_ROOT>/<project>
+```
+The chain JSON paths must point to the REAL directory, not the symlink.
+
+### Pitfall: Chain State Mismatch
+
+If chain points to wrong workspace path (e.g., `<WORKSPACE_ROOT>/hermes-agent/workspaces/hackathon-2026/` instead of `<WORKSPACE_ROOT>/qwen-cloud-2026/`), use `reset_chain.py <project>` to reset to clean state.
+
+### Pitfall: Kanban Dispatcher Does Not Check Chain
+
+The kanban dispatcher does NOT check chain state before dispatching. If you create Phase 0-6 tasks, the dispatcher will happily run them all simultaneously. Chain enforcement is the WORKER's responsibility, not the dispatcher's.
+
 ## Enhancement Hooks
 
 | Skill | Enhancement | When |
@@ -161,6 +304,7 @@ Verify response:
 - `references/state-format.md` — JSON state schema and log format
 - `references/design-principles.md` — additive-only, verification gates, atomicity rules
 - `references/lessons/operational-lessons.md` — real operational learnings from building this skill
+- `references/operational-guide.md` — quick-start guide and operational patterns
 
 ## Sources
 
@@ -169,3 +313,7 @@ Verify response:
 | Python pathlib | docs.python.org/3/library/pathlib.html | 2026-07-04 |
 | Python json | docs.python.org/3/library/json.html | 2026-07-04 |
 | Python subprocess | docs.python.org/3/library/subprocess.html | 2026-07-04 |
+
+## See Also
+
+- `references/enterprise-validation-pitfalls.md` — Hardcoded paths, file type rules, tier requirements when using skill_enhance.py

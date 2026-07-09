@@ -1,0 +1,42 @@
+# Internalized Habit Template
+# Skills become habits — compiled into agent behavior, not tools the agent uses.
+
+name: "{{HABIT_NAME}}"
+version: "1.0.0"
+type: "internalized_habit"
+
+# WHEN this habit fires
+triggers:
+  - event: "before_tool_invocation"
+    priority: 100
+  - event: "agent_initialization"
+    priority: 10
+
+# WHAT it does (the behavior)
+behavior:
+  mode: "internal"  # Not an external script call
+  steps:
+    - name: "{{STEP_NAME}}"
+      description: "{{STEP_DESCRIPTION}}"
+      check: "{{CHECK_TYPE}}"
+
+enforcement:
+  level: "hard"  # hard = cannot bypass, soft = warning
+  on_failure:
+    - action: "block_tool_invocation"
+    - action: "auto_fix_if_possible"
+    - action: "log_violation"
+      to: ".agent/logs/habit-violations.jsonl"
+    - action: "reflect_and_correct"
+      prompt: |
+        "A [{{HABIT_NAME}}] violation occurred.
+         This isn't about the script — it's about the habit.
+         What did I miss? Why didn't I catch this before acting?
+         Fix it, then reflect: what will I do differently?"
+
+metrics:
+  track:
+    - "violations_count"
+    - "auto_fixes_applied"
+    - "reflection_triggers"
+  report_to: ".agent/metrics/{{HABIT_NAME}}.json"

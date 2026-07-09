@@ -39,12 +39,12 @@ def extract_checklist_phases(checklist_path):
     content = Path(checklist_path).read_text(encoding="utf-8")
     phases = []
     
-    # Split by phase headers
-    phase_splits = re.split(r"(^##\s+Phase\s+\d+:.*$)", content, flags=re.MULTILINE)
+    # Split by phase headers - match both "Phase N:" and "Phase N —" and "Phase N "
+    phase_splits = re.split(r"(^##\s+Phase\s+\d+[:—\s][^\n]*$)", content, flags=re.MULTILINE)
     
     current_phase = None
     for part in phase_splits:
-        if re.match(r"^##\s+Phase\s+\d+:", part.strip()):
+        if re.match(r"^##\s+Phase\s+\d+[:—\s]", part.strip()):
             if current_phase:
                 phases.append(current_phase)
             current_phase = {
@@ -56,10 +56,10 @@ def extract_checklist_phases(checklist_path):
             }
         elif current_phase:
             # Extract steps
-            step_matches = re.findall(r"- \[\s*\]\s+\*\*(Step\s+\d+\s*—\s*[^*]+)\*\*", part)
+            step_matches = re.findall(r"-\s*\[\s*\]\s+\*\*(Step\s+\d+\s*—\s*[^*]+)\*\*", part)
             current_phase["steps"].extend(step_matches)
             # Extract gate items
-            gate_matches = re.findall(r"- \[\s*\]\s+\*\*([^*]+)\*\*", part)
+            gate_matches = re.findall(r"-\s*\[\s*\]\s+\*\*([^*]+)\*\*", part)
             for g in gate_matches:
                 if "Confirm" in g or "prior" in g.lower() or "migration" in g.lower() or "agent" in g.lower() or "flag" in g.lower() or "change log" in g.lower():
                     current_phase["gate_items"].append(g.strip())
@@ -96,7 +96,9 @@ def create_blueprint_chain(project_dir, project_name, phases):
         
         # Implementation steps: each step targets an actual file
         for j, step in enumerate(phase.get("steps", [])):
-            step_file = chain_step_dir / f"phase-{i:02d}-step-{j+1:02d}-{step[:25].replace(' ', '-').replace('—', '')}"
+            # Sanitize step name for filename: keep only alphanumeric, dash, underscore
+            step_slug = re.sub(r'[^a-zA-Z0-9_-]+', '-', step[:30]).strip('-')
+            step_file = chain_step_dir / f"phase-{i:02d}-step-{j+1:02d}-{step_slug}"
             step_file.touch()
             step_files.append(str(step_file))
             # Map to actual deliverable (e.g., migration file, source file, config)

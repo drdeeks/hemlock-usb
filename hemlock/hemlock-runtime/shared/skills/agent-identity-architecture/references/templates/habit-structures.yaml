@@ -1,0 +1,142 @@
+# Internalized Habit — Reference Structures
+# From the synthesis-1 implementation (verified operational 2026-07-05)
+
+## 1. Identity-Enforcement Habit
+
+```yaml
+name: "identity-enforcement"
+version: "1.0.0"
+type: "internalized_habit"
+
+triggers:
+  - event: "before_any_action"
+    priority: 200
+  - event: "agent_initialization"
+    priority: 1
+  - event: "completion_claimed"
+    priority: 150
+
+behavior:
+  mode: "internal"
+  steps:
+    - name: "constitution_alignment_check"
+      checks:
+        - "Does this action validate before claiming done?"
+        - "Does this action seek my own flaws?"
+        - "Does this action build for the next agent?"
+        - "Does this action respect constraints?"
+        - "Is this honest about status?"
+
+    - name: "reflection_requirement"
+      triggers_on: "completion_claimed"
+      required_reflection:
+        - "What did I miss?"
+        - "What would the next agent need to know?"
+        - "What would I do differently?"
+
+enforcement:
+  level: "hard"
+  on_failure:
+    - action: "block_action"
+    - action: "require_reflection"
+      prompt: |
+        "This action violates my constitution.
+
+         An agent who validates before claiming done would...
+         An agent who seeks their own flaws would...
+         An agent who builds for the next agent would...
+
+         What principle does this violate?
+         What would the agent I aspire to be do instead?"
+```
+
+## 2. Tool-Enforcement Habit
+
+```yaml
+name: "tool-enforcement"
+version: "1.0.0"
+type: "internalized_habit"
+
+triggers:
+  - event: "before_tool_invocation"
+    priority: 100
+  - event: "agent_initialization"
+    priority: 10
+  - event: "workspace_change"
+    priority: 50
+
+behavior:
+  mode: "internal"
+  steps:
+    - name: "validate_required_tools"
+      required_tools:
+        - "enforce.sh"
+        - "secret.sh"
+        - "memory-log.sh"
+        - "memory-promote.sh"
+        - "TOOLS-GUIDE.md"
+      check: "executable_and_present"
+
+    - name: "validate_workspace_structure"
+      required_dirs:
+        - path: "tools" perms: "755"
+        - path: "skills" perms: "755"
+        - path: "memory" perms: "755"
+        - path: ".secrets" perms: "700"
+
+enforcement:
+  level: "hard"
+  on_failure:
+    - action: "block_tool_invocation"
+    - action: "auto_fix_if_possible"
+    - action: "log_violation"
+    - action: "reflect_and_correct"
+```
+
+## 3. Reflective-Loop Habit
+
+```yaml
+name: "reflective-loop"
+version: "1.0.0"
+type: "internalized_habit"
+
+triggers:
+  - event: "after_tool_invocation"
+    priority: 50
+  - event: "completion_claimed"
+    priority: 100
+  - event: "heartbeat_received"
+    priority: 75
+
+behavior:
+  mode: "internal"
+  steps:
+    - name: "post_action_reflection"
+      triggers_on: "after_tool_invocation"
+      questions:
+        - "Did this action produce the intended result?"
+        - "What side effects occurred?"
+        - "What would I do differently?"
+        - "What did I learn?"
+
+    - name: "completion_reflection"
+      triggers_on: "completion_claimed"
+      required_sections:
+        - "what_was_accomplished"
+        - "what_was_missed"
+        - "what_would_next_agent_need"
+        - "what_would_i_do_differently"
+        - "validation_performed"
+
+    - name: "heartbeat_reflection"
+      triggers_on: "heartbeat_received"
+      questions:
+        - "Since last beat: what did I miss?"
+        - "What did I assume was done that isn't?"
+        - "Am I drifting from my constitution?"
+
+enforcement:
+  level: "hard"
+  on_failure:
+    - action: "require_reflection"
+```

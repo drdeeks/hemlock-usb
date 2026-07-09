@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# memory-log.sh - Log to daily memory
+# Part of synthesis-1 tool-enforcement habit
+
+set -euo pipefail
+
+WORKSPACE="${WORKSPACE}"
+MEMORY_DIR="$WORKSPACE/memory"
+DAILY_DIR="$MEMORY_DIR/daily"
+
+usage() {
+    echo "Usage: $0 <type> <content> [links...]"
+    echo "  type    - Type of entry (SESSION, DECISION, NOTE, ERROR, INSIGHT)"
+    echo "  content - The memory content"
+    echo "  links   - Optional wikilinks [[entity]] to associate"
+    exit 1
+}
+
+mkdir -p "$DAILY_DIR"
+
+DATE=$(date +"%Y-%m-%d")
+TIMESTAMP=$(date +"%Y-%m-%dT%H:%M:%S")
+
+TYPE="${1:-NOTE}"
+CONTENT="${2:-}"
+shift 2 || true
+LINKS=("$@")
+
+if [[ -z "$CONTENT" ]]; then
+    usage
+fi
+
+DAILY_FILE="$DAILY_DIR/${DATE}.md"
+
+LINK_STR=""
+if [[ ${#LINKS[@]} -gt 0 ]]; then
+    LINK_STR=$'\n'$'\n'"$(printf '- [[%s]]\n' "${LINKS[@]}")"
+fi
+
+ENTRY="## $TIMESTAMP — $TYPE"$'\n\n'"$CONTENT""$LINK_STR"$'\n\n'"---"$'\n'
+
+echo "$ENTRY" >> "$DAILY_FILE"
+
+echo "Logged to $DAILY_FILE: $TYPE entry"

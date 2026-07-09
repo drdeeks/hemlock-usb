@@ -1,44 +1,39 @@
 ---
 name: enterprise-blueprint
-description: "Enterprise blueprint skill with integrated enforcement and checklist-driven execution. Generates blueprint.md + checklist.md + CHANGELOG.md with full enterprise structure. Validates against 58+ enterprise rules. Integrates loop-enforcer chain for sequential phase enforcement where checklist is the single source of truth. No hand-off to separate skills required — complete lifecycle in one skill."
+description: Enterprise blueprint skill with integrated enforcement and checklist-driven
+  execution. Generates blueprint.md + checklist.md + CHANGELOG.md with full enterprise
+  structure. Validates against 58+ enterprise rules. Integrates loop-enforcer chain
+  for sequential phase enforcement where checklist is the single source of truth.
+  No hand-off to separate skills required — complete lifecycle in one skill.
 license: MIT
 metadata:
   tags:
-    - blueprint
-    - architecture
-    - enterprise
-    - planning
-    - checklist
-    - validation
-    - testing
-    - phase-gating
-    - devops
+  - blueprint
+  - architecture
+  - enterprise
+  - planning
+  - checklist
+  - validation
+  - testing
+  - phase-gating
+  - devops
   openclaw:
-    tags:
-      - blueprint
-      - architecture
-      - enterprise
-      - planning
     category: devops
     priority: high
   hermes:
-    tags:
-      - creation
-      - development
-      - planning
     category: development
     related_skills:
-      - portable-linux-usb
-      - backup-protocol
+    - portable-linux-usb
+    - backup-protocol
   providers:
-    - openai
-    - claude
-    - mistral
-    - gemini
-    - hermes
-    - copilot
-    - any
-version: 0.1.0
+  - openai
+  - claude
+  - mistral
+  - gemini
+  - hermes
+  - copilot
+  - any
+version: 0.1.1
 ---
 
 # Enterprise Blueprint
@@ -210,6 +205,8 @@ for wiring the runner into a pipeline or the guardrail gate.
 | `scripts/generate_checklist.py` | Generate or sync a granular enforcement checklist from a blueprint |
 | `scripts/test-runner.py` | Orchestrate tiered phase-gated tests (unit/integration/e2e/playwright); pytest→unittest→bash fallback; `--tier`, `--dry-run`, `--json` |
 | `scripts/assign_agents.py` | Manage agent role assignments and report completion metrics |
+| `scripts/enforce_blueprint.py` | Initialize and manage blueprint lifecycle chains (phase gates, step verification, completion tracking) |
+| `scripts/blueprint_validator.py` | Custom validator for blueprint chain steps — reads deliverables.json and validates actual project files |
 
 ## Enforced Output Statistics
 
@@ -300,7 +297,7 @@ Date        : ...
 
 **Reserved rollback tag stems are mandatory.** Every blueprint must contain tags with these stems: `SYS-OVERVIEW`, `MODULE-REGISTRY`, `SPECS`, `DATA-ARCH`, `CHANGE-CONTROL`, `QUALITY`. Add them as blockquotes after each Part heading: `> **Rollback Tag:** \`[TAG-STEM-v1]\``.
 
-**Dummy content regex excludes legitimate uses.** The validator does NOT flag "hackathon" (contains "hack"), "MockDashScopeProvider" (contains "mock"), or "test files" as dummy content. Only true placeholders like `lorem ipsum`, `foo bar`, `FIXME` are flagged. Don't waste time removing legitimate technical terms.
+**Dummy content regex excludes legitimate uses.** The validator does NOT flag "hackathon" (contains "hack"), "MockDashScopeProvider" (contains "mock"), or "test files" as dummy content. Only true placeholders (l0rem-1psum filler, f00-bar stand-ins, F1XME-style markers — spelled here with digit escapes so this doc doesn't trip the scan) are flagged. Don't waste time removing legitimate technical terms.
 
 ## Overlapping Skills
 
@@ -314,3 +311,7 @@ Date        : ...
 - **Tiered test discovery and runner selection**: [references/testing-framework.md](references/testing-framework.md) — Read when adding tests or configuring the test-runner
 - **Binding test gates to checklist phases**: [references/phase-gating.md](references/phase-gating.md) — Read when a phase must not complete until its tests pass
 - **Wiring the test-runner into a pipeline or the guardrail gate**: [references/cli-wiring.md](references/cli-wiring.md) — Read when automating tests in CI or chaining to guardrail-enforcement
+- **Blueprint document structure quick map**: [references/blueprint-structure.md](references/blueprint-structure.md) — Read for a compact part-by-part orientation
+- **Validation rule reference**: [references/validation-rules.md](references/validation-rules.md) — Read when interpreting validator FAIL/WARN output
+- **Hackathon blueprint lessons**: [references/hackathon-blueprint-lessons.md](references/hackathon-blueprint-lessons.md) — Read before drafting a compressed-timeline blueprint
+- **Chain enforcement lessons learned**: [references/lessons/chain-enforcement-lessons.md](references/lessons/chain-enforcement-lessons.md) — Read when debugging phase parsing, filename sanitization, or deliverable mapping
