@@ -39,3 +39,4 @@ usb/volumes/ventoy/ventoy-*-linux.tar.gz
 
 # ── Image tarballs staged for releases (uploaded as RELEASE ASSETS, never tracked) ──
 dist/
+SKILLS_VALIDATION_REPORT.md

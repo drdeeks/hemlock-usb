@@ -9,6 +9,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/helpers.sh"
 
+# On the host tree the seed lives at shared/skills (in-container it is seeded
+# to $RUNTIME_ROOT/skills). Fall back so the report works in both places.
+if [[ ! -d "$SKILLS_DIR" && -d "$SCRIPT_DIR/../shared/skills" ]]; then
+    SKILLS_DIR="$(cd "$SCRIPT_DIR/../shared/skills" && pwd)"
+fi
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -70,7 +76,7 @@ for skill_dir in "$SKILLS_DIR"/*/; do
     [[ "$skill_name" =~ ^\.|README|MANIFEST|APPROVED|VALIDATION|SKILL\.md$ ]] && continue
     
     if [[ -d "$skill_dir" ]] && [[ -f "$skill_dir/SKILL.md" ]]; then
-        ((total++))
+        total=$((total+1))
         
         # Check for YAML frontmatter
         has_frontmatter=$(head -1 "$skill_dir/SKILL.md" 2>/dev/null | grep -c '^---$' || echo 0)
@@ -88,13 +94,13 @@ for skill_dir in "$SKILLS_DIR"/*/; do
         # Determine status
         if [[ "$has_frontmatter" -eq 0 ]] || [[ "$has_name" -eq 0 ]] || [[ "$has_desc" -eq 0 ]]; then
             status="INVALID"
-            ((invalid++))
+            invalid=$((invalid+1))
         elif [[ "$has_version" -eq 0 ]] || [[ "$has_metadata" -eq 0 ]]; then
             status="WARNING"
-            ((warning++))
+            warning=$((warning+1))
         else
             status="VALID"
-            ((valid++))
+            valid=$((valid+1))
         fi
         
         # Format boolean values
