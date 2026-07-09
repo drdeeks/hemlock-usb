@@ -682,9 +682,9 @@ _run_logs() {
     tail -30 "$LOG_FILE"
     _menu_divider
     echo ""
-    _menu_item "1" "Tail log (live — 10s timeout)"
-    _menu_item "2" "Search log"
-    _menu_item "3" "Clear log"
+    _menu_item "1" "Tail log (live — 10s timeout)"  "" "follow new lines as they arrive"
+    _menu_item "2" "Search log"                      "" "grep the log for a term"
+    _menu_item "3" "Clear log"                        "" "truncate the log file"
     _menu_item "0" "Back"
     _menu_prompt "Select option"
     local choice; read -r choice
@@ -832,11 +832,11 @@ _run_startup_manager() {
   echo ""
   _menu_item "1" "List startup scripts"               "" "USB + host"
   _menu_item "2" "Seed/refresh boot orchestrator"     "" "scripts/startup.sh from canonical"
-  _menu_item "3" "View USB persistence rc.local"      "" ""
+  _menu_item "3" "View USB persistence rc.local"      "" "the boot hook on the stick"
   _menu_item "4" "Install boot hook into rc.local"    "" "runs scripts/startup.sh at boot"
   _menu_item "5" "View host rc.local"                 "" "/etc/rc.local"
-  _menu_item "6" "View host profile.d scripts"        "" ""
-  _menu_item "7" "View host systemd services"         "" ""
+  _menu_item "6" "View host profile.d scripts"        "" "/etc/profile.d/ login drop-ins"
+  _menu_item "7" "View host systemd services"         "" "enabled units on this host"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -1042,12 +1042,12 @@ _run_persistence_manager() {
   _menu_header "Persistence Manager"
   _menu_subheader "USB — persistence partitions"
   echo ""
-  _menu_item "1" "View persistence status"              "" ""
+  _menu_item "1" "View persistence status"              "" "size, label, type of each state"
   _menu_item "2" "Create persistence"                   "" "WARNING: formats .dat file"
   _menu_item "3" "Resize persistence"                   "" "WARNING: destructive"
   _menu_item "4" "Browse persistence"                   "" "loop-mount read-only"
   _menu_item "5" "Check persistence health"             "" "fsck"
-  _menu_item "6" "View Ventoy partition layout"         "" ""
+  _menu_item "6" "View Ventoy partition layout"         "" "lsblk of the whole USB"
   _menu_item "7" "Rename a persistence volume (.dat)"   "" "filename only"
   _menu_item "8" "Relabel a persistence volume (ext4)"  "" "DATA volumes — protects casper-rw"
   _menu_item "9" "Ventoy.json doctor"                   "" "validate boot routing"
@@ -1521,10 +1521,10 @@ _run_bash_profile() {
   _menu_header "Bash Profile Manager"
   _menu_subheader "Target: ${dest_label}"
   echo ""
-  _menu_item "1" "Install enhanced bash profile"                     "" ""
-  _menu_item "2" "View current ~/.bashrc"                            "" ""
-  _menu_item "3" "View enhanced profile (bash_enhanced.sh)"          "" ""
-  _menu_item "4" "Source aliases into current shell"                 "" ""
+  _menu_item "1" "Install enhanced bash profile"                     "" "adds sourcing to the shell rc"
+  _menu_item "2" "View current ~/.bashrc"                            "" "the active shell rc"
+  _menu_item "3" "View enhanced profile (bash_enhanced.sh)"          "" "what gets sourced in"
+  _menu_item "4" "Source aliases into current shell"                 "" "apply now without re-login"
   _menu_item "5" "Show all alias sources"                            "" "$install_root/*"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
@@ -1649,17 +1649,17 @@ _run_device_config() {
   _menu_info "Location     : $(_uca_profile_location_label)"
   _menu_info "A profile marked 'default' is auto-loaded at startup (autoboot)."
   echo ""
-  _menu_item "1" "Show current device config"          "" ""
-  _menu_item "2" "List all saved profiles"             "" ""
-  _menu_item "3" "Save current as a profile"           "" ""
-  _menu_item "4" "Load/switch profile"                 "" ""
-  _menu_item "5" "Delete profile"                      "" ""
-  _menu_item "6" "Generate host-id for current device" "" ""
-  _menu_item "7" "Set default (autoboot) profile"      "" ""
-  _menu_item "8" "Edit profile manifest"               "" "primary + data volumes"
+  _menu_item "1" "Show current device config"          "" "resolved paths + selected device"
+  _menu_item "2" "List all saved profiles"             "" "profiles in usb-hemlock/profiles/"
+  _menu_item "3" "Save current as a profile"           "" "snapshot device + volumes to a profile"
+  _menu_item "4" "Load/switch profile"                 "" "make a saved profile the active one"
+  _menu_item "5" "Delete profile"                      "" "remove a saved profile (JSON only)"
+  _menu_item "6" "Generate host-id for current device" "" "deterministic ID from serial + model"
+  _menu_item "7" "Set default (autoboot) profile"      "" "which profile boots by default"
+  _menu_item "8" "Edit profile manifest"               "" "primary + data volumes + env"
   _menu_item "9" "Compile profile → ventoy.json"       "" "boot routing (backed up)"
   _menu_item "10" "Apply profile mounts to primary"    "" "systemd auto-mount"
-  _menu_item "11" "Preview profile (read-only)"        "" ""
+  _menu_item "11" "Preview profile (read-only)"        "" "show the manifest without changes"
   _menu_item "12" "Register/refresh stick identity"    "" "device-identity.json from live facts"
   _menu_item "13" "Sync system tree to USB"            "" "sterile deploy of the platform code"
   _menu_item "0" "Back"
@@ -3161,9 +3161,9 @@ _uca_manage_env() {
     _menu_info "(no env file yet)"
   fi
   echo ""
-  _menu_item "1" "Add / update a variable" "" ""
-  _menu_item "2" "Remove a variable"       "" ""
-  _menu_item "3" "Open env file in \$EDITOR" "" ""
+  _menu_item "1" "Add / update a variable" "" "set KEY=value in the env file"
+  _menu_item "2" "Remove a variable"       "" "delete a KEY from the env file"
+  _menu_item "3" "Open env file in \$EDITOR" "" "raw edit; reloaded on save"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -3274,6 +3274,123 @@ _uca_unmount_tree() {
   sudo rmdir "$mnt" 2>/dev/null || true
 }
 
+# CL-043: Compute profile & feasibility advisor.
+# Detect the real hardware, explain what each RUN MODE can actually give you
+# (native boot / native headless / VM-on-top), and — for the VM case — offer
+# three resource-commitment tiers computed from detected RAM/cores. Every line
+# carries a plain-language stub for people who don't live in this stuff.
+# Applying a tier writes UCA_QEMU_RAM / UCA_QEMU_CPUS (persisted), with a guard
+# so you can't hand a VM more than the machine safely has.
+_uca_qemu_ram_to_mb() {  # "4G" / "2048M" / "3072" -> MB integer
+  local v="${1:-0}"
+  case "$v" in
+    *G|*g) echo $(( ${v%[Gg]} * 1024 )) ;;
+    *M|*m) echo $(( ${v%[Mm]} )) ;;
+    *)     echo $(( v )) ;;
+  esac
+}
+_uca_mb_to_qemu() {  # MB integer -> "NG" when clean, else "NM"
+  local mb="$1"
+  if (( mb % 1024 == 0 )); then echo "$(( mb / 1024 ))G"; else echo "${mb}M"; fi
+}
+_uca_compute_profile() {
+  _menu_header "Compute Profile & Feasibility"
+  _menu_subheader "detect the machine → what each run mode can give → pick a VM tier"
+
+  # ── Detect (lightweight, always-available; the runtime hardware-scanner adds
+  #    richer GPU/backend detail when present) ────────────────────────────────
+  local threads ram_mb ram_gb gpu virt
+  threads=$(nproc 2>/dev/null || echo 1)
+  ram_mb=$(awk '/MemTotal/{printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo 0)
+  ram_gb=$(awk -v m="$ram_mb" 'BEGIN{printf "%.1f", m/1024}')
+  gpu=$(lspci 2>/dev/null | grep -iE 'vga|3d|display' | sed 's/.*: //' | head -1)
+  [[ -z "$gpu" ]] && gpu="none detected"
+  virt=$(systemd-detect-virt 2>/dev/null || echo unknown)
+
+  local scanner="hemlock/hemlock-runtime/scripts/system/hardware-scanner.sh"
+  echo ""
+  _menu_subheader "Detected hardware"
+  printf "  ${BOLD}CPU threads:${NC} %s\n" "$threads"
+  printf "  ${BOLD}RAM total:${NC}   %s GB (%s MB)\n" "$ram_gb" "$ram_mb"
+  printf "  ${BOLD}GPU:${NC}         %s\n" "$gpu"
+  printf "  ${BOLD}Running in:${NC}  %s\n" "$([[ "$virt" == none ]] && echo "bare metal (not a VM)" || echo "$virt")"
+  [[ -f "$SCRIPT_DIR/$scanner" ]] && _menu_info "Deeper GPU/LLM-backend scan available: $scanner"
+
+  # ── Run-mode feasibility (the info stubs the operator actually needs) ───────
+  echo ""
+  _menu_subheader "What each run mode can give you"
+  printf "  ${GREEN}${BOLD}Native boot${NC} ${DIM}(reboot the machine FROM the stick)${NC}\n"
+  printf "    ${DIM}The stick IS the machine: 100%% of RAM, every core, the GPU, zero\n"
+  printf "    overhead. Reach it on the console, or over Tailscale once SSH is up.${NC}\n"
+  printf "  ${GREEN}${BOLD}Native headless${NC} ${DIM}(auto-boot, no desktop — you SSH in)${NC}\n"
+  printf "    ${DIM}Same full hardware, even leaner (no GUI). Best performance. You never\n"
+  printf "    see a screen — reach it at its Tailscale IP on :22.${NC}\n"
+  printf "  ${YELLOW}${BOLD}VM on top${NC} ${DIM}(runs beside your current OS — no reboot)${NC}\n"
+  printf "    ${DIM}Convenient, but capped to the tier you pick below and NO GPU (a VM\n"
+  printf "    can't reach the card without passthrough). Reached via the host:%s->:22 forward.${NC}\n" "$UCA_QEMU_SSH_PORT"
+
+  # ── VM resource tiers (computed from detected RAM/cores) ────────────────────
+  local seam_mb rest_mb red_mb seam_cpu rest_cpu red_cpu
+  seam_mb=$(( ram_mb * 20 / 100 ))
+  rest_mb=$(( ram_mb * 70 / 100 ))
+  red_mb=$(( ram_mb - 1024 ))
+  (( seam_mb < 1024 )) && seam_mb=$(( ram_mb / 2 ))   # tiny-RAM: don't go below half
+  (( red_mb  < 1024 )) && red_mb=$ram_mb              # tiny-RAM: redline = everything (dangerous)
+  seam_cpu=$(( threads / 4 )); (( seam_cpu < 1 )) && seam_cpu=1
+  rest_cpu=$(( threads * 3 / 4 )); (( rest_cpu < 1 )) && rest_cpu=1
+  red_cpu=$(( threads - 1 )); (( red_cpu < 1 )) && red_cpu=1
+
+  echo ""
+  _menu_subheader "VM-on-top resource tiers (host keeps the rest)"
+  printf "  ${CYAN}1${NC}) ${BOLD}Seamless${NC}   %-8s %d vCPU  ${DIM}host keeps ~%d%%${NC}\n" \
+    "$(_uca_mb_to_qemu "$seam_mb")" "$seam_cpu" "$(( 100 - seam_mb*100/ram_mb ))"
+  printf "     ${DIM}Flawless — the VM never fights the host. Use it while you're also\n"
+  printf "     using the laptop normally.${NC}\n"
+  printf "  ${CYAN}2${NC}) ${BOLD}Restricted${NC} %-8s %d vCPU  ${DIM}host keeps ~%d%%${NC}\n" \
+    "$(_uca_mb_to_qemu "$rest_mb")" "$rest_cpu" "$(( 100 - rest_mb*100/ram_mb ))"
+  printf "     ${DIM}Aggressive — the VM takes the lion's share. Fine if the host is\n"
+  printf "     mostly idle; heavy host use may stutter.${NC}\n"
+  printf "  ${CYAN}3${NC}) ${BOLD}Redline${NC}    %-8s %d vCPU  ${DIM}host keeps ~1G${NC}\n" \
+    "$(_uca_mb_to_qemu "$red_mb")" "$red_cpu"
+  printf "     ${YELLOW}Risking it — the host gets bare-survival RAM. Expect instability if\n"
+  printf "     anything else runs. Only for a dedicated push.${NC}\n"
+
+  # ── Honesty check for small machines ───────────────────────────────────────
+  if (( ram_mb < 8192 )); then
+    echo ""
+    _menu_warn "This machine has ${ram_gb}G RAM — VM-on-top is genuinely tight here."
+    _menu_info  "Even Seamless leaves the guest only $(_uca_mb_to_qemu "$seam_mb"). Native headless"
+    _menu_info  "gives the guest the FULL ${ram_gb}G with no overhead — strongly better on this box."
+  fi
+
+  echo ""
+  printf "  ${DIM}Current QEMU allocation: %s RAM / %s vCPU${NC}\n" "$UCA_QEMU_RAM" "$UCA_QEMU_CPUS"
+  _menu_prompt "Apply a tier to the VM config (1/2/3), or Enter to leave as-is"
+  local pick; read -r pick
+  local new_mb new_cpu tier
+  case "$pick" in
+    1) new_mb=$seam_mb; new_cpu=$seam_cpu; tier="Seamless" ;;
+    2) new_mb=$rest_mb; new_cpu=$rest_cpu; tier="Restricted" ;;
+    3) new_mb=$red_mb;  new_cpu=$red_cpu;  tier="Redline" ;;
+    *) _menu_info "Left unchanged."; return 0 ;;
+  esac
+  # Guard: never hand a VM more than (physical − 1G) even at Redline.
+  local ceiling=$(( ram_mb - 1024 )); (( ceiling < 512 )) && ceiling=$ram_mb
+  if (( new_mb > ceiling )); then
+    _menu_warn "Capping $(_uca_mb_to_qemu "$new_mb") to $(_uca_mb_to_qemu "$ceiling") (leave the host ~1G to survive)."
+    new_mb=$ceiling
+  fi
+  if [[ "$DRY_RUN" == "true" ]]; then
+    _menu_info "DRY RUN: would set UCA_QEMU_RAM=$(_uca_mb_to_qemu "$new_mb") UCA_QEMU_CPUS=$new_cpu"
+    return 0
+  fi
+  UCA_QEMU_RAM="$(_uca_mb_to_qemu "$new_mb")"; export UCA_QEMU_RAM
+  UCA_QEMU_CPUS="$new_cpu"; export UCA_QEMU_CPUS
+  _uca_save_paths_config >/dev/null 2>&1 || true
+  _menu_success "$tier applied + saved: $UCA_QEMU_RAM RAM / $UCA_QEMU_CPUS vCPU (VM-on-top)"
+  _menu_info "Native boot ignores this — it always gets the whole machine."
+}
+
 _run_usb_access() {
   _menu_header "USB Access & Boot"
   _menu_subheader "USB+HOST — terminal, chroot, QEMU, SSH"
@@ -3293,6 +3410,7 @@ _run_usb_access() {
   _menu_item "9" "Install dev tooling INTO USB"        "" "comprehensive (default)"
   _menu_item "10" "Validate services (ssh/docker)"     "" "offline + runtime"
   _menu_item "11" "Headless-boot autostart"            "" "OS-aware (host)"
+  _menu_item "12" "Compute profile & feasibility"      "" "detect HW; native vs VM; set VM resource tier"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -3308,6 +3426,7 @@ _run_usb_access() {
     9) _uca_install_tooling_usb ;;
     10) _uca_validate_services ;;
     11) _uca_boot_autostart ;;
+    12) _uca_compute_profile ;;
     0) return 0 ;;
     *) _menu_error "Invalid option: $choice" ;;
   esac
@@ -3760,9 +3879,9 @@ _uca_boot_autostart() {
       local unit_dir="$HOME/.config/systemd/user"
       local unit="$unit_dir/usb-headless.service"
       _menu_info "systemd user service: $unit"
-      _menu_item "1" "Enable autostart (snapshot, SSH :$UCA_QEMU_SSH_PORT)" "" ""
-      _menu_item "2" "Disable autostart" "" ""
-      _menu_item "3" "Show service status" "" ""
+      _menu_item "1" "Enable autostart (snapshot, SSH :$UCA_QEMU_SSH_PORT)" "" "systemd user unit: boot the VM at login"
+      _menu_item "2" "Disable autostart" "" "remove the systemd user unit"
+      _menu_item "3" "Show service status" "" "systemctl --user status of the unit"
       _menu_item "0" "Back"
       _menu_prompt "Select option"
       local c; read -r c
@@ -4397,7 +4516,7 @@ _run_hemlock_doctor() {
   _menu_item "1" "Quick check"          "" "paths + env + imports"
   _menu_item "2" "Full check"           "" "all 8 validator categories"
   _menu_item "3" "Full check + auto-fix" "" "--fix where safe"
-  _menu_item "4" "JSON output (machine-readable)" "" ""
+  _menu_item "4" "JSON output (machine-readable)" "" "structured result for scripts/CI"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local c; read -r c
