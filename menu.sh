@@ -183,7 +183,8 @@ _setup_device_interactive() {
   # /proc/mounts + ventoy-marker) lives in _detect_usb_devices and runs
   # below. Result is persisted to SELECTED_DEVICE for the rest of the
   # session; manual entry remains available as a fallback.
-  log_section "USB Device Setup" "Identify and select any USB drive (Ventoy or blank)"
+  _menu_header "USB Device Setup"
+  _menu_subheader "Identify and select any USB drive (Ventoy or blank)"
 
   echo ""
   echo "  Scanning for USB devices..."
@@ -458,7 +459,8 @@ log_info "Dry-run: $DRY_RUN"
 
 # ── Component Runners ───────────────────────────────────────────────────────
 _run_usb_setup() {
-  log_section "USB Setup Assistant" "Interactive installer"
+  _menu_header "USB Setup Assistant"
+  _menu_subheader "Interactive installer"
   local args=()
   [[ "$DRY_RUN" == "true" ]] && args+=(--dry-run)
   bash "$USB_DIR/usb-setup-assistant.sh" "${args[@]+"${args[@]}"}" || log_warn "USB setup exited with code $?"
@@ -535,26 +537,30 @@ _run_alias_manager() {
   # itself via _uca_install_root. CL-031: optional per-volume scope.
   _uca_choose_volume_target
   local tgt; tgt=$(_uca_install_root 2>/dev/null || echo "$HOME")
-  log_section "Alias Manager" "${UCA_MODE^^}${UCA_TARGET_VOLUME:+ · vol:$UCA_TARGET_VOLUME} — ${tgt}/bash_aliases.sh"
+  _menu_header "Alias Manager"
+  _menu_subheader "${UCA_MODE^^}${UCA_TARGET_VOLUME:+ · vol:$UCA_TARGET_VOLUME} — ${tgt}/bash_aliases.sh"
   local args=()
   [[ "$DRY_RUN" == "true" ]] && args+=(--dry-run)
   bash "$USB_DIR/scripts/alias_manager.sh" "${args[@]+"${args[@]}"}" "$@"
 }
 
 _run_ssh_manager() {
-  log_section "SSH Host Manager" "HOST — ~/.ssh/hosts_usb"
+  _menu_header "SSH Host Manager"
+  _menu_subheader "HOST — ~/.ssh/hosts_usb"
   local args=()
   [[ "$DRY_RUN" == "true" ]] && args+=(--dry-run)
   bash "$USB_DIR/scripts/ssh_host_manager.sh" "${args[@]+"${args[@]}"}" "$@"
 }
 
 _run_sysman() {
-  log_section "System Manager" "HOST — health, network, disk, services"
+  _menu_header "System Manager"
+  _menu_subheader "HOST — health, network, disk, services"
   bash "$USB_DIR/sysman.sh" "$@"
 }
 
 _run_hemlock_tui() {
-  log_section "Hemlock Agent Runtime TUI" "CONTAINER — agent management"
+  _menu_header "Hemlock Agent Runtime TUI"
+  _menu_subheader "CONTAINER — agent management"
   if [[ -z "$HEMLOCK_DIR" || ! -d "$HEMLOCK_DIR/scripts" ]]; then
     log_error "HEMLOCK_DIR not set or invalid: ${HEMLOCK_DIR:-<unset>}"
     log_info "Set HEMLOCK_DIR to the absolute path of hemlock-runtime/"
@@ -565,7 +571,8 @@ _run_hemlock_tui() {
 }
 
 _run_hemlock_status() {
-  log_section "Hemlock Runtime Status" "CONTAINER — runtime check"
+  _menu_header "Hemlock Runtime Status"
+  _menu_subheader "CONTAINER — runtime check"
   if [[ -n "$HEMLOCK_DIR" && -f "$HEMLOCK_DIR/scripts/hemlock" ]]; then
     bash "$HEMLOCK_DIR/scripts/hemlock" status 2>&1 || log_warn "Hemlock status check failed"
   else
@@ -823,9 +830,9 @@ _run_startup_manager() {
   _menu_subheader "USB-FIRST — boot scripts default to USB persistence (option 4 = inject)"
   echo ""
   _menu_item "1" "List startup scripts"               "" "USB + host"
-  _menu_item "2" "Edit USB startup.sh"                "" ""
+  _menu_item "2" "Seed/refresh boot orchestrator"     "" "scripts/startup.sh from canonical"
   _menu_item "3" "View USB persistence rc.local"      "" ""
-  _menu_item "4" "Inject startup.sh into rc.local"    "" ""
+  _menu_item "4" "Install boot hook into rc.local"    "" "runs scripts/startup.sh at boot"
   _menu_item "5" "View host rc.local"                 "" "/etc/rc.local"
   _menu_item "6" "View host profile.d scripts"        "" ""
   _menu_item "7" "View host systemd services"         "" ""
@@ -861,14 +868,17 @@ _run_startup_manager() {
         _menu_info "(no USB device selected)"
       fi
       echo ""
-      _menu_subheader "USB startup.sh"
+      _menu_subheader "USB boot orchestrator (scripts/startup.sh)"
       if [[ -n "${SELECTED_DEVICE:-}" ]]; then
         local vmp2=""
         vmp2=$(_resolve_ventoy_mount) || vmp2=""
-        if [[ -n "$vmp2" && -f "$vmp2/startup.sh" ]]; then
-          cat "$vmp2/startup.sh"
+        if [[ -n "$vmp2" && -f "$vmp2/scripts/startup.sh" ]]; then
+          head -8 "$vmp2/scripts/startup.sh"
+          _menu_info "($(wc -l < "$vmp2/scripts/startup.sh") lines — option 2 to view/edit in full)"
+        elif [[ -n "$vmp2" && -f "$vmp2/startup.sh" ]]; then
+          _menu_warn "LEGACY root startup.sh found — reseed via option 2 (contract: only ISOs at root)"
         else
-          _menu_info "(no startup.sh on USB)"
+          _menu_info "(no boot orchestrator on USB — seed via option 2)"
         fi
       fi
       echo ""
@@ -899,25 +909,33 @@ _run_startup_manager() {
         _menu_error "Ventoy not mounted — mount USB first"
         return 1
       fi
-      local startup="$vmp/startup.sh"
+      # Contract: nothing lives at the USB root except ISOs — the orchestrator
+      # lives at scripts/startup.sh and is seeded from the canonical copy
+      # (usb/tooling/startup-orchestrator.sh), not an inline stub. Operator
+      # customizations belong in usb-hemlock/etc/uca/custom-startup.sh, which
+      # the orchestrator runs as its final step.
+      mkdir -p "$vmp/scripts"
+      local startup="$vmp/scripts/startup.sh"
+      local canon="$USB_DIR/tooling/startup-orchestrator.sh"
       if [[ ! -f "$startup" ]]; then
-        cat > "$startup" << 'STARTUP'
-#!/usr/bin/env bash
-# USB Startup Script — runs on every boot of the USB live environment
-# This script is executed by rc.local during boot.
-# Add your custom startup commands below.
-
-# Wait for network
-sleep 3
-
-# Your custom commands here:
-# echo "USB boot complete — $(date)"
-STARTUP
-        chmod +x "$startup"
-        _menu_success "Created $startup with template"
+        if [[ -f "$canon" ]]; then
+          cp "$canon" "$startup" && chmod +x "$startup"
+          _menu_success "Seeded $startup from the canonical orchestrator"
+        else
+          _menu_error "Canonical orchestrator missing: $canon"
+          return 1
+        fi
+      elif [[ -f "$canon" ]] && ! cmp -s "$canon" "$startup"; then
+        _menu_warn "startup.sh differs from the canonical orchestrator."
+        if _menu_confirm "Refresh it from canonical (custom hooks in etc/uca are unaffected)?"; then
+          cp "$canon" "$startup" && chmod +x "$startup"
+          _menu_success "Refreshed from canonical"
+        fi
       fi
-      ${EDITOR:-nano} "$startup"
-      _menu_success "Startup script saved: $startup"
+      if _menu_confirm "Open scripts/startup.sh in an editor?"; then
+        ${EDITOR:-nano} "$startup"
+      fi
+      _menu_info "Operator hooks: $vmp/usb-hemlock/etc/uca/custom-startup.sh (run by the orchestrator)"
       ;;
     3)
       if [[ -n "${SELECTED_DEVICE:-}" ]]; then
@@ -958,32 +976,31 @@ STARTUP
         _menu_error "Persistence file not found"
         return 1
       fi
-      if [[ ! -f "$vmp/startup.sh" ]]; then
-        _menu_error "No startup.sh on USB — create one first (option 2)"
+      if [[ ! -f "$vmp/scripts/startup.sh" ]]; then
+        _menu_error "No scripts/startup.sh on USB — seed it first (option 2)"
         return 1
       fi
       local tmpmnt="/tmp/usb-persist-$$"
       mkdir -p "$tmpmnt"
       if _uca_safe_loop_mount "$pfile" "$tmpmnt"; then
         local rclocal="$tmpmnt/etc/rc.local"
-        if [[ -f "$rclocal" ]]; then
-          if grep -q "startup.sh" "$rclocal"; then
-            _menu_info "startup.sh already referenced in rc.local"
-          else
-            echo "" >> "$rclocal"
-            echo "# Run USB startup script" >> "$rclocal"
-            echo "bash /media/*/Ventoy/startup.sh &" >> "$rclocal"
-            _menu_success "Injected startup.sh into rc.local"
-          fi
+        if [[ -f "$rclocal" ]] && grep -q "startup.sh" "$rclocal"; then
+          _menu_info "startup.sh already referenced in rc.local"
         else
+          # Path-agnostic hook: finds the Ventoy partition wherever the live
+          # system mounted it; prefers scripts/startup.sh, legacy root as
+          # fallback. Matches the shipped persistence/rc.local seed.
           cat > "$rclocal" << 'RCLOCAL'
 #!/bin/bash
-# USB persistence autostart
-bash /media/*/Ventoy/startup.sh &
+# USB-Hemlock boot hook — delegates to the orchestrator on the Ventoy partition.
+for m in /media/*/Ventoy /run/media/*/Ventoy /mnt/ventoy; do
+    if   [ -f "$m/scripts/startup.sh" ]; then bash "$m/scripts/startup.sh" & break
+    elif [ -f "$m/startup.sh" ];        then bash "$m/startup.sh" & break; fi
+done
 exit 0
 RCLOCAL
           chmod +x "$rclocal"
-          _menu_success "Created rc.local with startup.sh reference"
+          _menu_success "Installed boot hook in persistence /etc/rc.local"
         fi
         _uca_safe_umount "$tmpmnt" || true
       else
@@ -1590,6 +1607,8 @@ _run_device_config() {
   _menu_item "9" "Compile profile → ventoy.json"       "" "boot routing (backed up)"
   _menu_item "10" "Apply profile mounts to primary"    "" "systemd auto-mount"
   _menu_item "11" "Preview profile (read-only)"        "" ""
+  _menu_item "12" "Register/refresh stick identity"    "" "device-identity.json from live facts"
+  _menu_item "13" "Sync system tree to USB"            "" "sterile deploy of the platform code"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -1730,6 +1749,84 @@ _run_device_config() {
     9)  _uca_profile_compile_ventoy ;;
     10) _uca_profile_apply_mounts ;;
     11) _uca_profile_preview ;;
+    12)
+      # Source-first: stick identity is menu-produced from live facts (device
+      # serial, volumes, profiles on the drive) — never hand-placed JSON.
+      local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted — mount USB first"; return 1; }
+      local idfile="$vmp/usb-hemlock/etc/uca/device-identity.json"
+      mkdir -p "$(dirname "$idfile")"
+      local cur_sid=""; cur_sid=$(jq -r '.stick_id // empty' "$idfile" 2>/dev/null) || cur_sid=""
+      printf "  Stick ID [%s]: " "${cur_sid:-usb-hemlock-$(date +%Y%m%d)}"
+      local sid; read -r sid
+      [[ -z "$sid" ]] && sid="${cur_sid:-usb-hemlock-$(date +%Y%m%d)}"
+      local cur_desc=""; cur_desc=$(jq -r '.description // empty' "$idfile" 2>/dev/null) || cur_desc=""
+      printf "  Description [keep existing]: "
+      local sdesc; read -r sdesc
+      [[ -z "$sdesc" ]] && sdesc="$cur_desc"
+      local serial=""
+      [[ -n "${SELECTED_DEVICE:-}" ]] && serial=$(lsblk -dno SERIAL "$SELECTED_DEVICE" 2>/dev/null | tr -d ' ')
+      local vols_json="{}" profs_json="[]" f
+      for f in "$vmp"/persistence/*.dat; do
+        [[ -f "$f" ]] || continue
+        local vn vsz vlbl
+        vn=$(basename "$f"); vsz=$(du -h "$f" 2>/dev/null | cut -f1)
+        vlbl=$(sudo blkid -o value -s LABEL "$f" 2>/dev/null || echo "?")
+        vols_json=$(jq --arg n "$vn" --arg v "${vsz:-?} (label: ${vlbl:-?})" '. + {($n):$v}' <<<"$vols_json")
+      done
+      for f in "$vmp"/usb-hemlock/profiles/*.json; do
+        [[ -f "$f" ]] || continue
+        profs_json=$(jq --arg p "$(basename "$f" .json)" '. + [$p]' <<<"$profs_json")
+      done
+      if [[ "$DRY_RUN" == "true" ]]; then
+        _menu_info "DRY RUN: would write $idfile (stick_id=$sid)"; return 0
+      fi
+      if jq -n --arg sid "$sid" --arg desc "$sdesc" --arg serial "$serial" \
+            --arg host "$(hostname)" --argjson vols "$vols_json" --argjson profs "$profs_json" \
+            '{stick_id:$sid, description:$desc, device_serial:$serial,
+              registered:(now|todate), registered_on_host:$host,
+              profiles:$profs, volumes:$vols, models_dir:"/models"}' > "$idfile"; then
+        _menu_success "Identity registered: $idfile"
+        jq '.' "$idfile" 2>/dev/null | sed 's/^/  /'
+      else
+        _menu_error "Failed to write identity"
+      fi
+      ;;
+    13)
+      # Deploy/refresh the platform's own code onto the stick. STRICT excludes
+      # keep live agent state, secrets and runtime data off the sterile tree —
+      # rsync protects excluded paths from --delete by default.
+      local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted — mount USB first"; return 1; }
+      local dest="$vmp/usb-hemlock/system"
+      echo ""
+      _menu_info "Source: $SCRIPT_DIR"
+      _menu_info "Dest  : $dest (sterile mirror — agent state/secrets excluded)"
+      _menu_confirm "Sync the system tree now?" || return 0
+      mkdir -p "$dest"
+      local rs_args=(-a --delete
+        --exclude '.git/' --exclude '.env' --exclude '.secrets/'
+        --exclude '*.log' --exclude '*.db' --exclude 'dist/'
+        --exclude 'hemlock/hemlock-runtime/agents/active/'
+        --exclude 'hemlock/hemlock-runtime/agents/archive/'
+        --exclude 'hemlock/hemlock-runtime/agents/registrar/'
+        --exclude 'hemlock/hemlock-runtime/crews/active/'
+        --exclude 'hemlock/hemlock-runtime/crews/archive/'
+        --exclude 'hemlock/hemlock-runtime/data/'
+        --exclude 'hemlock/hemlock-runtime/runtime/'
+        --exclude 'hemlock/hemlock-runtime/logs/'
+        --exclude 'hemlock/hemlock-runtime/knowledge/'
+        --exclude 'hemlock/hemlock-runtime/models/'
+        --exclude 'hemlock/hemlock-runtime/volumes/'
+        --exclude 'hemlock/hemlock-runtime/srv/'
+        --exclude 'hemlock/hemlock-runtime/docker/openclaw-runtime/'
+        --exclude 'node_modules/')
+      [[ "$DRY_RUN" == "true" ]] && rs_args+=(-n -v)
+      if rsync "${rs_args[@]}" "$SCRIPT_DIR/" "$dest/"; then
+        sync
+        _menu_success "System tree synced ($(du -sh "$dest" 2>/dev/null | cut -f1))"
+      else
+        _menu_error "rsync failed"
+      fi
+      ;;
     0) return 0 ;;
     *) log_error "Invalid option: $choice" ;;
   esac

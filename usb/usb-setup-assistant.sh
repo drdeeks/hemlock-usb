@@ -14,7 +14,7 @@
 # - Informative descriptions of what each component does
 # - Clear distinction between required and optional steps
 # - Progress tracking and validation
-# - Cross-platform compatible (conceptual logic for Windows/macOS/Linux)
+# - Linux host only (the platform's host contract: whiptail/udev/rc.local)
 #
 # Usage: ./usb-setup-assistant.sh
 #
@@ -36,10 +36,7 @@ LOG_FILE="/tmp/usb-setup-assistant-$(date +%Y%m%d-%H%M%S).log"
 VENTOY_TARBALL="$SCRIPT_DIR/volumes/ventoy/ventoy-1.0.99-linux.tar.gz"
 VENTOY_VERSION="1.0.99"
 BACKUP_DIR="/tmp/usb-setup-backup-$(date +%Y%m%d-%H%M%S)"
-UTM_APP_NAME="UTM"
 DOCKER_COMPOSE_FILE="docker-compose.yml"
-LAUNCH_AGENT_NAME="com.usbcompute.autostart"
-LAUNCH_AGENT_PLIST="$HOME/Library/LaunchAgents/${LAUNCH_AGENT_NAME}.plist"
 
 # USB detection configuration
 VENDOR_PRODUCT_KEY="Ventoy"
@@ -255,30 +252,21 @@ detect_ventoy_mount() {
     
     # Method 2: Check df output
     if [[ -z "$VENTOY_MOUNT" ]]; then
-        if [[ "$OS" == "Darwin" ]]; then
-            VENTOY_MOUNT=$(df 2>/dev/null | grep -m1 "${SELECTED_DEVICE}s1" | awk '{print $NF}' || true)
-        else
-            VENTOY_MOUNT=$(df 2>/dev/null | grep -m1 "${SELECTED_DEVICE}1" | awk '{print $NF}' || true)
-        fi
+        VENTOY_MOUNT=$(df 2>/dev/null | grep -m1 "${SELECTED_DEVICE}1" | awk '{print $NF}' || true)
     fi
-    
-    # Method 3: Check findmnt (Linux)
+
+    # Method 3: Check findmnt
     if [[ -z "$VENTOY_MOUNT" ]] && command -v findmnt &>/dev/null; then
         VENTOY_MOUNT=$(findmnt -n -o TARGET "${SELECTED_DEVICE}1" 2>/dev/null || true)
     fi
-    
+
     # Method 4: Check lsblk output for mountpoint
     if [[ -z "$VENTOY_MOUNT" ]] && command -v lsblk &>/dev/null; then
         VENTOY_MOUNT=$(lsblk -n -o MOUNTPOINT "${SELECTED_DEVICE}1" 2>/dev/null | head -1 || true)
         [[ "$VENTOY_MOUNT" == "null" || "$VENTOY_MOUNT" == "" ]] && VENTOY_MOUNT=""
     fi
-    
-    # Method 5: Check diskutil (macOS)
-    if [[ -z "$VENTOY_MOUNT" ]] && [[ "$OS" == "Darwin" ]] && command -v diskutil &>/dev/null; then
-        VENTOY_MOUNT=$(diskutil info "${SELECTED_DEVICE}s1" 2>/dev/null | grep "Mount Point" | awk '{print $NF}' || true)
-    fi
-    
-    # Method 6: Verify the mount point exists and has Ventoy files
+
+    # Method 5: Verify the mount point exists and has Ventoy files
     if [[ -n "$VENTOY_MOUNT" ]] && [[ -d "$VENTOY_MOUNT" ]]; then
         # Check for Ventoy signature files
         if [[ -f "$VENTOY_MOUNT/ventoy/ventoy.json" ]] || [[ -f "$VENTOY_MOUNT/grub/grub.cfg" ]] || ls "$VENTOY_MOUNT"/*.iso &>/dev/null 2>&1; then
@@ -286,36 +274,24 @@ detect_ventoy_mount() {
         fi
     fi
     
-    # Method 7: Try to mount the partition
+    # Method 6: Try to mount the partition
     VENTOY_MOUNT=""
-    local mount_point=""
-    if [[ "$OS" == "Darwin" ]]; then
-        mount_point="/Volumes/Ventoy"
-    else
-        mount_point="/mnt/ventoy"
-    fi
-    
+    local mount_point="/mnt/ventoy"
     mkdir -p "$mount_point" 2>/dev/null || true
-    
-    if [[ "$OS" == "Darwin" ]]; then
-        if mount "${SELECTED_DEVICE}s1" "$mount_point" 2>/dev/null; then
-            VENTOY_MOUNT="$mount_point"
-        fi
-    else
-        if mount "${SELECTED_DEVICE}1" "$mount_point" 2>/dev/null; then
-            VENTOY_MOUNT="$mount_point"
-        fi
+
+    if mount "${SELECTED_DEVICE}1" "$mount_point" 2>/dev/null; then
+        VENTOY_MOUNT="$mount_point"
     fi
-    
-    # Method 8: Try exFAT mount options (Linux)
-    if [[ -z "$VENTOY_MOUNT" ]] && [[ "$OS" != "Darwin" ]]; then
+
+    # Method 7: Try exFAT mount options
+    if [[ -z "$VENTOY_MOUNT" ]]; then
         if mount -t exfat "${SELECTED_DEVICE}1" "$mount_point" 2>/dev/null; then
             VENTOY_MOUNT="$mount_point"
         fi
     fi
-    
-    # Method 9: Try NTFS mount options (Linux)
-    if [[ -z "$VENTOY_MOUNT" ]] && [[ "$OS" != "Darwin" ]]; then
+
+    # Method 8: Try NTFS mount options
+    if [[ -z "$VENTOY_MOUNT" ]]; then
         if mount -t ntfs-3g "${SELECTED_DEVICE}1" "$mount_point" 2>/dev/null; then
             VENTOY_MOUNT="$mount_point"
         fi
@@ -342,7 +318,7 @@ detect_ventoy_mount() {
 unmount_ventoy() {
     if [[ -n "$VENTOY_MOUNT" ]]; then
         # Only unmount if we mounted it to a known path
-        if [[ "$VENTOY_MOUNT" == "/Volumes/Ventoy" ]] || [[ "$VENTOY_MOUNT" == "/mnt/ventoy" ]]; then
+        if [[ "$VENTOY_MOUNT" == "/mnt/ventoy" ]]; then
             umount "$VENTOY_MOUNT" 2>/dev/null || true
         fi
         VENTOY_MOUNT=""
@@ -460,17 +436,11 @@ select_usb_device() {
     print_info "Detecting USB devices..."
     local usb_devices=()
 
-    if [[ "$OS" == "Darwin" ]]; then
-        while IFS= read -r line; do
-            usb_devices+=("$line")
-        done < <(diskutil list external physical | grep -E "^/dev/" | awk '{print $1}')
-    elif [[ "$OS" == "Linux" ]]; then
-        # Whole USB disks only: TYPE==disk AND TRAN==usb. (The old
-        # grep 'usb|disk' matched every internal disk as well.)
-        while IFS= read -r line; do
-            usb_devices+=("$line")
-        done < <(lsblk -dno NAME,TYPE,TRAN | awk '$2=="disk" && $3=="usb" {print "/dev/" $1}')
-    fi
+    # Whole USB disks only: TYPE==disk AND TRAN==usb. (The old
+    # grep 'usb|disk' matched every internal disk as well.)
+    while IFS= read -r line; do
+        usb_devices+=("$line")
+    done < <(lsblk -dno NAME,TYPE,TRAN | awk '$2=="disk" && $3=="usb" {print "/dev/" $1}')
 
     if [[ ${#usb_devices[@]} -eq 0 ]]; then
         print_error "No USB devices detected"
@@ -480,30 +450,19 @@ select_usb_device() {
 
     echo "Found USB devices:"
     echo ""
-    if [[ "$OS" == "Darwin" ]]; then
-        printf "    ${BOLD}%-10s %-10s %-10s %-15s %-30s${NC}\n" "DEVICE" "SIZE" "TYPE" "CONNECTION" "DESCRIPTION"
-    else
-        printf "    ${BOLD}%-10s %-10s %-10s %-15s %-30s${NC}\n" "DEVICE" "SIZE" "TYPE" "TRANSPORT" "MODEL"
-    fi
+    printf "    ${BOLD}%-10s %-10s %-10s %-15s %-30s${NC}\n" "DEVICE" "SIZE" "TYPE" "TRANSPORT" "MODEL"
     echo "─────────────────────────────────────────────────────────────────────────────"
 
     local index=1
     for device in "${usb_devices[@]}"; do
         local size type connection model
 
-        if [[ "$OS" == "Darwin" ]]; then
-            size=$(diskutil info "$device" | grep "Total Size" | awk '{print $3,$4}')
-            type=$(diskutil info "$device" | grep "Device Node" | awk '{print $3}')
-            connection=$(diskutil info "$device" | grep "Protocol" | awk '{print $2}')
-            model=$(diskutil info "$device" | grep "Device / Media Name" | awk -F': ' '{print $2}')
-        else
-            # -d: the device row only — without it lsblk prints one line per
-            # partition and the embedded newlines mangled the table.
-            size=$(lsblk -dno SIZE "$device" 2>/dev/null | tr -d ' ')
-            type=$(lsblk -dno TYPE "$device" 2>/dev/null)
-            connection=$(lsblk -dno TRAN "$device" 2>/dev/null)
-            model=$(lsblk -dno MODEL "$device" 2>/dev/null | sed 's/^ *//;s/ *$//')
-        fi
+        # -d: the device row only — without it lsblk prints one line per
+        # partition and the embedded newlines mangled the table.
+        size=$(lsblk -dno SIZE "$device" 2>/dev/null | tr -d ' ')
+        type=$(lsblk -dno TYPE "$device" 2>/dev/null)
+        connection=$(lsblk -dno TRAN "$device" 2>/dev/null)
+        model=$(lsblk -dno MODEL "$device" 2>/dev/null | sed 's/^ *//;s/ *$//')
 
         printf "${CYAN}%2d)${NC} %-10s %-10s %-10s %-15s %-30s\n" \
             "$index" "$device" "${size:--}" "${type:--}" "${connection:--}" "${model:--}"
@@ -523,7 +482,7 @@ select_usb_device() {
             # Guard: is this the stick we are RUNNING FROM? Destructive ops
             # (Ventoy install, persistence format) against it can corrupt the
             # live environment — require an explicit opt-in.
-            if [[ -n "$SCRIPT_ON_USB" && "$OS" == "Linux" ]]; then
+            if [[ -n "$SCRIPT_ON_USB" ]]; then
                 local host_part host_disk
                 host_part=$(findmnt -nro SOURCE --target "$SCRIPT_ON_USB" 2>/dev/null || true)
                 host_disk=$(lsblk -no PKNAME "$host_part" 2>/dev/null | head -1 || true)
@@ -605,14 +564,9 @@ check_script_location() {
     local usb_paths=(
         "/media/*/Ventoy"
         "/mnt/ventoy"
-        "/Volumes/Ventoy"
         "/run/media/*/Ventoy"
         "/media/*/usb*"
         "/mnt/usb*"
-        # Windows/WSL paths
-        "/mnt/c/*/Ventoy"
-        "/mnt/d/*/Ventoy"
-        "/mnt/e/*/Ventoy"
     )
     
     # Running from the stick's own system tree is the NORMAL deployment — the
@@ -634,38 +588,27 @@ check_script_location() {
 }
 
 # ============================================================================
-# TOOL SELECTION (Optimized cross-platform tool detection)
+# TOOL SELECTION (Linux host)
 # ============================================================================
 
 select_best_tool() {
     local tool_category="$1"
     local preferred_tools=()
     local available_tools=()
-    
+
     case "$tool_category" in
         terminal_emulator)
             # Priority order: most featured -> basic
-            preferred_tools=("gnome-terminal" "konsole" "terminator" "alacritty" "kitty" "wezterm" "xterm" "tmux" "wt.exe" "WindowsTerminal.exe")
+            preferred_tools=("gnome-terminal" "konsole" "terminator" "alacritty" "kitty" "wezterm" "xterm" "tmux")
             ;;
         virtualization)
-            # Priority: native hypervisor -> cross-platform
-            case "$OS" in
-                Linux)
-                    preferred_tools=("qemu-system-x86_64" "virt-manager" "libvirt" "virtualbox" "vmware")
-                    ;;
-                macOS)
-                    preferred_tools=("UTM" "qemu-system-x86_64" "virtualbox" "vmware-fusion" "parallels")
-                    ;;
-                Windows|WSL*)
-                    preferred_tools=("hyper-v" "wsl2" "virtualbox" "vmware" "qemu-system-x86_64")
-                    ;;
-            esac
+            preferred_tools=("qemu-system-x86_64" "virt-manager" "libvirt" "virtualbox" "vmware")
             ;;
         container_runtime)
             preferred_tools=("docker" "podman" "nerdctl")
             ;;
         usb_imager)
-            preferred_tools=("ventoy" "mkusb" "balenaetcher" "rufus" "dd")
+            preferred_tools=("ventoy" "mkusb" "balenaetcher" "dd")
             ;;
         network_tool)
             preferred_tools=("ssh" "tailscale" "wireguard" "socat" "ngrok" "cloudflared")
@@ -674,9 +617,9 @@ select_best_tool() {
             preferred_tools=("code" "vim" "nano" "micro" "helix" "zed")
             ;;
     esac
-    
+
     for tool in "${preferred_tools[@]}"; do
-        if command -v "$tool" &>/dev/null || [[ -n "$(which "$tool" 2>/dev/null)" ]] || [[ -x "/Applications/${tool}.app/Contents/MacOS/${tool}" ]]; then
+        if command -v "$tool" &>/dev/null; then
             available_tools+=("$tool")
         fi
     done
@@ -696,25 +639,21 @@ select_tool_interactive() {
     local tools=()
     case "$tool_category" in
         terminal_emulator)
-            tools=("gnome-terminal" "konsole" "terminator" "alacritty" "kitty" "wezterm" "xterm" "tmux" "wt.exe" "WindowsTerminal.exe" "osascript (macOS Terminal)")
+            tools=("gnome-terminal" "konsole" "terminator" "alacritty" "kitty" "wezterm" "xterm" "tmux")
             ;;
         virtualization)
-            case "$OS" in
-                Linux) tools=("qemu/kvm" "virtualbox" "vmware" "libvirt/virt-manager") ;;
-                macOS) tools=("UTM" "qemu" "virtualbox" "vmware-fusion" "parallels") ;;
-                Windows|WSL*) tools=("hyper-v" "wsl2" "virtualbox" "vmware" "qemu") ;;
-            esac
+            tools=("qemu/kvm" "virtualbox" "vmware" "libvirt/virt-manager")
             ;;
         container_runtime)
             tools=("docker" "podman" "nerdctl")
             ;;
     esac
-    
+
     # Filter to only available tools
     local available=()
     for tool in "${tools[@]}"; do
         local cmd="${tool%% *}"
-        if command -v "$cmd" &>/dev/null || [[ "$tool" == "osascript"* ]]; then
+        if command -v "$cmd" &>/dev/null; then
             available+=("$tool")
         fi
     done
@@ -768,26 +707,18 @@ initialize() {
     print_info "Logs will be saved to: $LOG_FILE"
     print_info "Backups will be saved to: $BACKUP_DIR"
     
-    # Check OS with WSL detection
-    if [[ "$(uname)" == "Darwin" ]]; then
-        OS="macOS"
-    elif [[ "$(expr substr $(uname -s) 1 5)" == "Linux" ]]; then
-        # Check for WSL
-        if grep -qi microsoft /proc/version 2>/dev/null || [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
-            OS="WSL"
-            WSL_VERSION="${WSL_VERSION:-2}"
-            print_info "Windows Subsystem for Linux detected (WSL $WSL_VERSION)"
-        else
-            OS="Linux"
-        fi
-    elif [[ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]] || [[ "$(expr substr $(uname -s) 1 10)" == "MINGW64_NT" ]]; then
-        OS="Windows"
-    else
-        print_error "Unsupported operating system: $(uname)"
-        print_info "Supported: macOS, Linux, WSL2, Windows (via WSL2)"
+    # Linux host only — the platform contract (whiptail menu, udev automount,
+    # rc.local boot chain) is Linux-native. Other hosts get a clear refusal
+    # instead of half-working conceptual flows.
+    if [[ "$(uname -s)" != "Linux" ]]; then
+        print_error "Unsupported host OS: $(uname -s) — this platform manages a Linux host + Ventoy USB."
         return 1
     fi
-    
+    OS="Linux"
+    if grep -qi microsoft /proc/version 2>/dev/null || [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
+        print_warning "WSL detected: USB passthrough and loop mounts are unreliable here — prefer a native Linux host."
+    fi
+
     print_info "Detected OS: $OS"
     
     # Detect best tools for this platform
@@ -1797,209 +1728,34 @@ setup_vm_boot() {
         print_error "USB device $SELECTED_DEVICE is not detected"
         print_info "How to resolve:"
         print_info "  1. Ensure the USB drive is plugged in"
-        print_info "  2. Check if it appears in: lsblk (Linux) or diskutil list (macOS)"
+        print_info "  2. Check if it appears in: lsblk"
         print_info "  3. Try unplugging and re-plugging the USB"
         print_info "  4. If using a USB hub, try a direct port instead"
         return 1
     fi
-    
+
     # Check if Ventoy is installed
     local ventoy_installed=0
-    if [[ "$OS" == "Darwin" ]]; then
-        if [[ -b "${SELECTED_DEVICE}s1" ]]; then
-            local vol_name
-            vol_name=$(diskutil info "${SELECTED_DEVICE}s1" 2>/dev/null | grep "Volume Name" | awk '{print $3}' || true)
-            if [[ "$vol_name" == "Ventoy" ]]; then
-                ventoy_installed=1
-            fi
-        fi
-    else
-        if [[ -b "${SELECTED_DEVICE}1" ]]; then
-            local label
-            label=$(blkid -o value -s LABEL "${SELECTED_DEVICE}1" 2>/dev/null || true)
-            if [[ "$label" == "Ventoy" ]]; then
-                ventoy_installed=1
-            fi
+    if [[ -b "${SELECTED_DEVICE}1" ]]; then
+        local label
+        label=$(blkid -o value -s LABEL "${SELECTED_DEVICE}1" 2>/dev/null || true)
+        if [[ "$label" == "Ventoy" ]]; then
+            ventoy_installed=1
         fi
     fi
-    
+
     if [[ $ventoy_installed -eq 0 ]]; then
         print_error "Ventoy is not installed on $SELECTED_DEVICE"
         print_info "How to resolve: Please prepare the USB drive first using Option 2 from the main menu."
         return 1
     fi
-    
-    # Platform-specific VM setup
-    if [[ "$OS" == "Darwin" ]]; then
-        setup_utm_vm
-    elif [[ "$OS" == "Linux" ]]; then
-        setup_qemu_vm
-    else
-        print_warning "Windows VM setup not implemented in this demo"
-        print_info "Please configure your VM manually:"
-        echo "  • Use Hyper-V or VirtualBox"
-        echo "  • Configure to boot from USB"
-        echo "  • Enable headless mode"
-        echo "  • Set up SSH port forwarding (Host:2222 → Guest:22)"
-        return 0
-    fi
-    
+
+    setup_qemu_vm
+
     # Setup auto-boot service
     setup_autoboot_service
     
     print_success "VM auto-boot and headless configuration completed!"
-    return 0
-}
-
-setup_utm_vm() {
-    print_info "Configuring UTM VM for headless boot..."
-    
-    # Create UTM automation script
-    local script_dir="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts}"
-    if ! mkdir -p "$script_dir"; then
-        print_error "Failed to create scripts directory at $script_dir"
-        print_info "How to resolve: Check if you have write permissions to the parent directory."
-        return 1
-    fi
-    
-    # Create a wrapper script that will be called by LaunchAgent
-    local wrapper_script="$script_dir/usb-detector.sh"
-    local detected_script_dir
-    detected_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    cat > "$wrapper_script" << EOF
-#!/usr/bin/env bash
-# USB Detector Script - Called by LaunchAgent when USB devices change
-
-LOG_FILE="/tmp/usb-compute-automation-\$(date +%Y%m%d).log"
-SCRIPT_DIR="$detected_script_dir"
-VM_NAME="USB Compute VM"  # This should match the VM name in UTM
-
-log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE"
-}
-
-# Check if specific USB is connected
-is_target_usb_connected() {
-    # This is a simplified check - in practice, you'd check for specific USB identifiers
-    # For Ventoy, we could check for the Ventoy partition label
-    if [[ "$(uname)" == "Darwin" ]]; then
-        # macOS check
-        if diskutil list external | grep -q "Ventoy"; then
-            return 0
-        fi
-    else
-        # Linux check
-        if blkid -l 2>/dev/null | grep -q "Ventoy"; then
-            return 0
-        fi
-    fi
-    return 1
-}
-
-# Start the UTM VM
-start_utm_vm() {
-    log "Target USB detected, attempting to start UTM VM: $VM_NAME"
-    
-    # Check if UTM is running
-    if pgrep -q "UTM"; then
-        log "UTM is already running"
-    else
-        log "Starting UTM application..."
-        open -a "UTM" &
-        # Wait for UTM to launch
-        sleep 5
-    fi
-    
-    # Use AppleScript to start the specific VM
-    # Note: This requires UTM to be running and the VM to be pre-configured
-    /usr/bin/osascript << EOS
-    tell application "UTM"
-        if it is running then
-            try
-                start virtual machine id of (first virtual machine whose name is "$VM_NAME")
-                log message "Started VM: $VM_NAME"
-            on error errMsg
-                log message "Error starting VM: $errMsg"
-            end try
-        end if
-    end tell
-EOS
-}
-
-# Main execution
-log "USB detector script executed"
-
-if is_target_usb_connected; then
-    log "Target USB device detected"
-    start_utm_vm
-else
-    log "Target USB device not connected"
-fi
-EOF
-    
-    if ! chmod +x "$wrapper_script"; then
-        print_error "Failed to make wrapper script executable"
-        print_info "How to resolve: Check file permissions: ls -la $wrapper_script"
-        return 1
-    fi
-    
-    # Create the LaunchAgent plist
-    local launch_agent_plist="$HOME/Library/LaunchAgents/com.usbcompute.autostart.plist"
-    if ! mkdir -p "$(dirname "$launch_agent_plist")"; then
-        print_error "Failed to create LaunchAgents directory"
-        print_info "How to resolve: Ensure $HOME/Library/LaunchAgents/ exists and is writable."
-        return 1
-    fi
-    
-    cat > "$launch_agent_plist" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.usbcompute.autostart</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>$wrapper_script</string>
-    </array>
-    <key>WatchPaths</key>
-    <array>
-        <string>/dev</string>
-    </array>
-    <key>StartInterval</key>
-    <integer>10</integer>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>/tmp/usb-compute-automation.out</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/usb-compute-automation.err</string>
-</dict>
-</plist>
-EOF
-    
-    # Load the LaunchAgent
-    print_info "Loading Launch Agent..."
-    if ! launchctl load "$launch_agent_plist" 2>/dev/null; then
-        print_warning "Could not auto-load Launch Agent (this is normal if already loaded)"
-        print_info "How to resolve if needed:"
-        print_info "  1. Unload first: launchctl unload $launch_agent_plist"
-        print_info "  2. Reload: launchctl load $launch_agent_plist"
-    fi
-    
-    print_success "UTM VM automation configured!"
-    print_info "To complete the setup:"
-    echo "  1. Open UTM"
-    echo "  2. Create a new VM or configure an existing one"
-    echo "  3. Set the boot device to your Ventoy USB"
-    echo "  4. Configure 2 CPU cores and 4GB RAM"
-    echo "  5. Enable headless mode (no GUI)"
-    echo "  6. Add port forwarding: Host $SSH_PORT_FORWARD_HOST → Guest $SSH_PORT_FORWARD_GUEST (SSH)"
-    echo "  7. Save the VM as 'USB Compute VM'"
-    echo "  8. The system will now automatically detect when the USB is plugged in"
-    echo "     and start the VM in headless mode"
-    echo ""
-    
     return 0
 }
 
@@ -2126,20 +1882,14 @@ EOF
 
 setup_autoboot_service() {
     print_info "Setting up automatic USB detection service..."
-    
-    if [[ "$OS" == "Darwin" ]]; then
-        print_success "Launch Agent for USB detection has been configured!"
-        print_info "The system will now detect when the Ventoy USB is plugged in"
-        print_info "and automatically start the UTM VM in headless mode"
-    elif [[ "$OS" == "Linux" ]]; then
-        print_info "To enable the USB detection service:"
-        echo "  1. Copy the service file to /etc/systemd/system/usb-compute-vm.service"
-        echo "  2. Run: sudo systemctl daemon-reload"
-        echo "  3. Run: sudo systemctl enable usb-compute-vm.service"
-        echo "  4. Run: sudo systemctl start usb-compute-vm.service"
-        echo "  5. Check status: sudo systemctl status usb-compute-vm.service"
-    fi
-    
+
+    print_info "To enable the USB detection service:"
+    echo "  1. Copy the service file to /etc/systemd/system/usb-compute-vm.service"
+    echo "  2. Run: sudo systemctl daemon-reload"
+    echo "  3. Run: sudo systemctl enable usb-compute-vm.service"
+    echo "  4. Run: sudo systemctl start usb-compute-vm.service"
+    echo "  5. Check status: sudo systemctl status usb-compute-vm.service"
+
     return 0
 }
 
@@ -2429,25 +2179,15 @@ cd /opt/llama.cpp
 ARCH=$(uname -m)
 OS=$(uname -s)
 
-if [[ "$OS" == "Darwin" ]]; then
-    if [[ "$ARCH" == "arm64" ]]; then
-        echo "Detected Apple Silicon — building with Metal support" | tee -a /var/log/usb-essentials.log
-        make -j$(sysctl -n hw.ncpu) LLAMA_METAL=1 2>&1 | tee -a /var/log/usb-essentials.log
-    else
-        echo "Detected Intel Mac — building with Accelerate framework" | tee -a /var/log/usb-essentials.log
-        make -j$(sysctl -n hw.ncpu) LLAMA_ACCELERATE=1 2>&1 | tee -a /var/log/usb-essentials.log
-    fi
-elif [[ "$OS" == "Linux" ]]; then
-    if command -v nvidia-smi &>/dev/null; then
-        echo "Detected NVIDIA GPU — building with CUDA support" | tee -a /var/log/usb-essentials.log
-        make -j$(nproc) LLAMA_CUDA=1 2>&1 | tee -a /var/log/usb-essentials.log
-    elif command -v rocm-smi &>/dev/null || [[ -d "/opt/rocm" ]]; then
-        echo "Detected AMD GPU — building with ROCm support" | tee -a /var/log/usb-essentials.log
-        make -j$(nproc) LLAMA_HIPBLAS=1 2>&1 | tee -a /var/log/usb-essentials.log
-    else
-        echo "No GPU detected — building with CPU optimizations (AVX2/BLAS)" | tee -a /var/log/usb-essentials.log
-        make -j$(nproc) LLAMA_BLAS=1 2>&1 | tee -a /var/log/usb-essentials.log
-    fi
+if command -v nvidia-smi &>/dev/null; then
+    echo "Detected NVIDIA GPU — building with CUDA support" | tee -a /var/log/usb-essentials.log
+    make -j$(nproc) LLAMA_CUDA=1 2>&1 | tee -a /var/log/usb-essentials.log
+elif command -v rocm-smi &>/dev/null || [[ -d "/opt/rocm" ]]; then
+    echo "Detected AMD GPU — building with ROCm support" | tee -a /var/log/usb-essentials.log
+    make -j$(nproc) LLAMA_HIPBLAS=1 2>&1 | tee -a /var/log/usb-essentials.log
+else
+    echo "No GPU detected — building with CPU optimizations (AVX2/BLAS)" | tee -a /var/log/usb-essentials.log
+    make -j$(nproc) LLAMA_BLAS=1 2>&1 | tee -a /var/log/usb-essentials.log
 fi
 LLAMA_EOF
 
@@ -2536,17 +2276,10 @@ configure_network() {
     local host_ram=""
     local host_gpu=""
 
-    if [[ "$OS" == "Darwin" ]]; then
-        host_model=$(system_profiler SPHardwareDataType 2>/dev/null | grep "Model Name" | awk -F': ' '{print $2}' || echo "Unknown Mac")
-        host_cpu=$(system_profiler SPHardwareDataType 2>/dev/null | grep "Chip" | awk -F': ' '{print $2}' || echo "Unknown")
-        host_ram=$(system_profiler SPHardwareDataType 2>/dev/null | grep "Memory" | awk -F': ' '{print $2}' || echo "Unknown")
-        host_gpu=$(system_profiler SPDisplaysDataType 2>/dev/null | grep "Chipset Model" | awk -F': ' '{print $2}' || echo "Unknown")
-    elif [[ "$OS" == "Linux" ]]; then
-        host_model=$(cat /sys/class/dmi/id/product_name 2>/dev/null || dmidecode -s system-product-name 2>/dev/null || echo "Unknown")
-        host_cpu=$(lscpu 2>/dev/null | grep "Model name" | awk -F': ' '{print $2}' || echo "Unknown")
-        host_ram=$(free -h 2>/dev/null | grep Mem | awk '{print $2}' || echo "Unknown")
-        host_gpu=$(lspci 2>/dev/null | grep -i vga | head -1 | awk -F': ' '{print $2}' || echo "Unknown")
-    fi
+    host_model=$(cat /sys/class/dmi/id/product_name 2>/dev/null || dmidecode -s system-product-name 2>/dev/null || echo "Unknown")
+    host_cpu=$(lscpu 2>/dev/null | grep "Model name" | awk -F': ' '{print $2}' || echo "Unknown")
+    host_ram=$(free -h 2>/dev/null | grep Mem | awk '{print $2}' || echo "Unknown")
+    host_gpu=$(lspci 2>/dev/null | grep -i vga | head -1 | awk -F': ' '{print $2}' || echo "Unknown")
 
     echo "  Model: $host_model"
     echo "  CPU:   $host_cpu"
@@ -2622,18 +2355,9 @@ _configure_ssh_forward() {
         return 1
     fi
 
-    if [[ "$OS" == "Linux" ]]; then
-        sudo_run iptables -t nat -A PREROUTING -p tcp --dport "$SSH_PORT_FORWARD_HOST" -j REDIRECT --to-port "$SSH_PORT_FORWARD_GUEST" 2>/dev/null && \
-            print_success "Port forward configured via iptables" || \
-            print_warning "iptables failed"
-    elif [[ "$OS" == "Darwin" ]]; then
-        local pf_conf="/etc/pf.conf"
-        local rule="rdr pass on lo0 inet proto tcp from any to any port $SSH_PORT_FORWARD_HOST -> 127.0.0.1 port $SSH_PORT_FORWARD_GUEST"
-
-        echo "$rule" | sudo_run pfctl -ef - 2>/dev/null && \
-            print_success "Port forward configured via pfctl" || \
-            print_warning "pfctl failed — may need manual setup"
-    fi
+    sudo_run iptables -t nat -A PREROUTING -p tcp --dport "$SSH_PORT_FORWARD_HOST" -j REDIRECT --to-port "$SSH_PORT_FORWARD_GUEST" 2>/dev/null && \
+        print_success "Port forward configured via iptables" || \
+        print_warning "iptables failed"
 
     print_info "SSH command: ssh -p $SSH_PORT_FORWARD_HOST user@localhost"
 }
@@ -2689,13 +2413,8 @@ _add_port_forward() {
 
     print_info "Adding forward: Host:$host_port → Guest:$guest_port"
 
-    if [[ "$OS" == "Linux" ]]; then
-        sudo_run iptables -t nat -A PREROUTING -p tcp --dport "$host_port" -j REDIRECT --to-port "$guest_port" 2>/dev/null && \
-            print_success "Forward added" || print_error "Failed"
-    elif [[ "$OS" == "Darwin" ]]; then
-        local rule="rdr pass on lo0 inet proto tcp from any to any port $host_port -> 127.0.0.1 port $guest_port"
-        echo "$rule" | sudo_run pfctl -ef - 2>/dev/null && print_success "Forward added" || print_error "Failed"
-    fi
+    sudo_run iptables -t nat -A PREROUTING -p tcp --dport "$host_port" -j REDIRECT --to-port "$guest_port" 2>/dev/null && \
+        print_success "Forward added" || print_error "Failed"
 }
 
 _remove_port_forward() {
@@ -2716,27 +2435,16 @@ _remove_port_forward() {
         return 1
     fi
 
-    if [[ "$OS" == "Linux" ]]; then
-        sudo_run iptables -t nat -D PREROUTING -p tcp --dport "$host_port" -j REDIRECT --to-port "$host_port" 2>/dev/null && \
-            print_success "Forward removed" || print_error "Failed"
-    elif [[ "$OS" == "Darwin" ]]; then
-        print_info "Manual removal: sudo pfctl -F all && reconfigure"
-    fi
+    sudo_run iptables -t nat -D PREROUTING -p tcp --dport "$host_port" -j REDIRECT --to-port "$host_port" 2>/dev/null && \
+        print_success "Forward removed" || print_error "Failed"
 }
 
 _list_port_forwards() {
     print_header "Active Port Forwards"
 
-    if [[ "$OS" == "Linux" ]]; then
-        if command -v iptables &>/dev/null; then
-            echo "  iptables NAT rules:"
-            iptables -t nat -L PREROUTING -n -v 2>/dev/null | sed 's/^/    /' || print_info "No rules or need sudo"
-        fi
-    elif [[ "$OS" == "Darwin" ]]; then
-        if command -v pfctl &>/dev/null; then
-            echo "  pfctl rules:"
-            sudo pfctl -sr 2>/dev/null | grep rdr | sed 's/^/    /' || print_info "No rules or need sudo"
-        fi
+    if command -v iptables &>/dev/null; then
+        echo "  iptables NAT rules:"
+        iptables -t nat -L PREROUTING -n -v 2>/dev/null | sed 's/^/    /' || print_info "No rules or need sudo"
     fi
 }
 
@@ -3031,11 +2739,7 @@ _scan_network() {
     print_header "Scan Local Network"
 
     local subnet
-    if [[ "$OS" == "Linux" ]]; then
-        subnet=$(ip route 2>/dev/null | grep default | awk '{print $3}' | head -1 | awk -F. '{print $1"."$2"."$3".0/24}' || echo "192.168.1.0/24")
-    elif [[ "$OS" == "Darwin" ]]; then
-        subnet=$(netstat -rn 2>/dev/null | grep default | awk '{print $2}' | head -1 | awk -F. '{print $1"."$2"."$3".0/24}' || echo "192.168.1.0/24")
-    fi
+    subnet=$(ip route 2>/dev/null | grep default | awk '{print $3}' | head -1 | awk -F. '{print $1"."$2"."$3".0/24}' || echo "192.168.1.0/24")
 
     read -p "$(echo -e "${YELLOW}Subnet to scan [default: $subnet]: ${NC}")" input_subnet
     [[ -n "$input_subnet" ]] && subnet="$input_subnet"
@@ -3126,25 +2830,14 @@ _full_system_scan() {
 
     # Hardware
     print_header "Hardware"
-    if [[ "$OS" == "Darwin" ]]; then
-        local model=$(system_profiler SPHardwareDataType 2>/dev/null | grep "Model Name" | awk -F': ' '{print $2}')
-        local chip=$(system_profiler SPHardwareDataType 2>/dev/null | grep "Chip" | awk -F': ' '{print $2}')
-        local ram=$(system_profiler SPHardwareDataType 2>/dev/null | grep "Memory" | awk -F': ' '{print $2}')
-        local serial=$(system_profiler SPHardwareDataType 2>/dev/null | grep "Serial Number" | awk -F': ' '{print $2}')
-        echo "  Model:    ${model:-Unknown}"
-        echo "  Chip:     ${chip:-Unknown}"
-        echo "  Memory:   ${ram:-Unknown}"
-        echo "  Serial:   ${serial:-Unknown}"
-    elif [[ "$OS" == "Linux" ]]; then
-        local model=$(cat /sys/class/dmi/id/product_name 2>/dev/null || echo "Unknown")
-        local cpu=$(lscpu 2>/dev/null | grep "Model name" | awk -F': ' '{print $2}' || echo "Unknown")
-        local ram=$(free -h 2>/dev/null | grep Mem | awk '{print $2}' || echo "Unknown")
-        local cores=$(nproc 2>/dev/null || echo "Unknown")
-        echo "  Model:    $model"
-        echo "  CPU:      $cpu"
-        echo "  Cores:    $cores"
-        echo "  Memory:   $ram"
-    fi
+    local model=$(cat /sys/class/dmi/id/product_name 2>/dev/null || echo "Unknown")
+    local cpu=$(lscpu 2>/dev/null | grep "Model name" | awk -F': ' '{print $2}' || echo "Unknown")
+    local ram=$(free -h 2>/dev/null | grep Mem | awk '{print $2}' || echo "Unknown")
+    local cores=$(nproc 2>/dev/null || echo "Unknown")
+    echo "  Model:    $model"
+    echo "  CPU:      $cpu"
+    echo "  Cores:    $cores"
+    echo "  Memory:   $ram"
     echo ""
 
     # OS
@@ -3166,11 +2859,6 @@ _full_system_scan() {
         echo "  ✓ VirtualBox: $(VBoxManage --version 2>/dev/null)"
     else
         echo "  ✗ VirtualBox: not installed"
-    fi
-    if [[ -d "/Applications/UTM.app" ]]; then
-        echo "  ✓ UTM: installed"
-    else
-        echo "  ✗ UTM: not installed"
     fi
     echo ""
 
@@ -3231,11 +2919,7 @@ _network_status() {
 
     # Active port forwards
     echo "  Port Forwards:"
-    if [[ "$OS" == "Linux" ]]; then
-        iptables -t nat -L PREROUTING -n -v 2>/dev/null | grep -v "^Chain\|^target" | sed 's/^/    /' || echo "    (none or need sudo)"
-    elif [[ "$OS" == "Darwin" ]]; then
-        sudo pfctl -sr 2>/dev/null | grep rdr | sed 's/^/    /' || echo "    (none or need sudo)"
-    fi
+    iptables -t nat -L PREROUTING -n -v 2>/dev/null | grep -v "^Chain\|^target" | sed 's/^/    /' || echo "    (none or need sudo)"
     echo ""
 
     # Tailscale
@@ -3325,73 +3009,6 @@ _disk_usage() {
     fi
 }
 
-check_macos_status() {
-    print_info "macOS Status:"
-    
-    # Check UTM
-    if [[ -d "/Applications/UTM.app" ]]; then
-        print_success "UTM is installed"
-    else
-        print_error "UTM is not installed"
-    fi
-    
-    # Check LaunchAgent
-    if [[ -f "$LAUNCH_AGENT_PLIST" ]]; then
-        if launchctl list | grep -q "$LAUNCH_AGENT_NAME"; then
-            print_success "Launch Agent is loaded and active"
-        else
-            print_warning "Launch Agent exists but is not loaded"
-        fi
-    else
-        print_warning "Launch Agent does not exist"
-    fi
-    
-    # Check Homebrew
-    if check_dependency "brew"; then
-        print_success "Homebrew is installed"
-    else
-        print_warning "Homebrew is not installed (optional but recommended)"
-    fi
-}
-
-check_linux_status() {
-    print_info "Linux Status:"
-    
-    # Check QEMU/KVM
-    if check_dependency "qemu-system-x86_64"; then
-        print_success "QEMU is available"
-    else
-        print_error "QEMU is not available"
-    fi
-    
-    # Check KVM
-    if [[ -r "/dev/kvm" ]]; then
-        print_success "KVM acceleration is available"
-    else
-        print_warning "KVM is not available (will use slower software emulation)"
-    fi
-    
-    # Check systemd service
-    if [[ -f "/etc/systemd/system/usb-compute-vm.service" ]]; then
-        if systemctl is-active --quiet usb-compute-vm.service; then
-            print_success "USB Compute VM service is active"
-        else
-            print_warning "USB Compute VM service exists but is not active"
-        fi
-    else
-        print_warning "USB Compute VM service does not exist"
-    fi
-}
-
-check_windows_status() {
-    print_info "Windows Status:"
-    print_info "Windows status checking not implemented in this demo"
-    print_info "Please check:"
-    echo "  • Hyper-V or VirtualBox installation"
-    echo "  • Task Scheduler for auto-boot"
-    echo "  • VM configuration for USB passthrough"
-}
-
 check_usb_status() {
     print_info "USB Status:"
     
@@ -3410,27 +3027,15 @@ check_usb_status() {
     
     # Show partition info
     print_info "Partition layout:"
-    if [[ "$OS" == "Darwin" ]]; then
-        diskutil list "$SELECTED_DEVICE" 2>/dev/null | head -20 || true
-    else
-        lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,MOUNTPOINT "$SELECTED_DEVICE" 2>/dev/null || true
-    fi
+    lsblk -o NAME,SIZE,TYPE,FSTYPE,LABEL,MOUNTPOINT "$SELECTED_DEVICE" 2>/dev/null || true
     echo ""
-    
+
     # Check if it's Ventoy
     local is_ventoy=0
-    if [[ "$OS" == "Darwin" ]]; then
-        if [[ -b "${SELECTED_DEVICE}s1" ]]; then
-            local vol_name
-            vol_name=$(diskutil info "${SELECTED_DEVICE}s1" 2>/dev/null | grep "Volume Name" | awk '{print $3}' || true)
-            [[ "$vol_name" == "Ventoy" ]] && is_ventoy=1
-        fi
-    else
-        if [[ -b "${SELECTED_DEVICE}1" ]]; then
-            local label
-            label=$(blkid -o value -s LABEL "${SELECTED_DEVICE}1" 2>/dev/null || true)
-            [[ "$label" == "Ventoy" ]] && is_ventoy=1
-        fi
+    if [[ -b "${SELECTED_DEVICE}1" ]]; then
+        local label
+        label=$(blkid -o value -s LABEL "${SELECTED_DEVICE}1" 2>/dev/null || true)
+        [[ "$label" == "Ventoy" ]] && is_ventoy=1
     fi
     
     if [[ $is_ventoy -eq 0 ]]; then
@@ -3478,37 +3083,21 @@ check_usb_status() {
 
 check_vm_status() {
     print_info "VM Status:"
-    
-    if [[ "$OS" == "Darwin" ]]; then
-        # Check if UTM is running
-        if pgrep -q "UTM"; then
-            print_success "UTM application is running"
-        else
-            print_warning "UTM application is not currently running"
-        fi
-        
-        # Check if our specific VM is running (simplified)
-        print_info "To check if your VM is running:"
-        echo "  • Open UTM and look for 'USB Compute VM'"
-        echo "  • Or check Activity Monitor for QEMU processes"
-    elif [[ "$OS" == "Linux" ]]; then
-        # Check if QEMU is running
-        if pgrep -q "qemu"; then
-            print_success "QEMU process is running"
-        else
-            print_warning "No QEMU processes detected"
-        fi
-        
-        # Check systemd service
-        if [[ -f "/etc/systemd/system/usb-compute-vm.service" ]]; then
-            if systemctl is-active --quiet usb-compute-vm.service; then
-                print_success "USB Compute VM service is active"
-            else
-                print_warning "USB Compute VM service is not active"
-            fi
-        fi
+
+    # Check if QEMU is running
+    if pgrep -q "qemu"; then
+        print_success "QEMU process is running"
     else
-        print_info "Windows VM status checking not implemented in this demo"
+        print_warning "No QEMU processes detected"
+    fi
+
+    # Check systemd service
+    if [[ -f "/etc/systemd/system/usb-compute-vm.service" ]]; then
+        if systemctl is-active --quiet usb-compute-vm.service; then
+            print_success "USB Compute VM service is active"
+        else
+            print_warning "USB Compute VM service is not active"
+        fi
     fi
 }
 
@@ -3651,42 +3240,24 @@ backup_persistence() {
     
     # Mount USB
     local ventoy_mount_point=""
-    if [[ "$OS" == "Darwin" ]]; then
-        ventoy_mount_point=$(df | grep "${SELECTED_DEVICE}s1" | awk '{print $NF}' || true)
-    else
-        ventoy_mount_point=$(df | grep "${SELECTED_DEVICE}1" | awk '{print $NF}' || true)
-    fi
-    
+    ventoy_mount_point=$(df | grep "${SELECTED_DEVICE}1" | awk '{print $NF}' || true)
+
     if [[ -z "$ventoy_mount_point" ]]; then
-        if [[ "$OS" == "Darwin" ]]; then
-            mkdir -p "/Volumes/VENTOY" || { print_error "Failed to create mount point"; return 1; }
-            if ! mount "${SELECTED_DEVICE}s1" "/Volumes/VENTOY"; then
-                print_error "Failed to mount USB partition"
-                print_info "How to resolve: Ensure the USB is plugged in and not in use."
-                return 1
-            fi
-            ventoy_mount_point="/Volumes/VENTOY"
-        else
-            mkdir -p "/mnt/VENTOY" || { print_error "Failed to create mount point"; return 1; }
-            if ! mount "${SELECTED_DEVICE}1" "/mnt/VENTOY"; then
-                print_error "Failed to mount USB partition"
-                print_info "How to resolve: Ensure the USB is plugged in and not in use."
-                return 1
-            fi
-            ventoy_mount_point="/mnt/VENTOY"
+        mkdir -p "/mnt/VENTOY" || { print_error "Failed to create mount point"; return 1; }
+        if ! mount "${SELECTED_DEVICE}1" "/mnt/VENTOY"; then
+            print_error "Failed to mount USB partition"
+            print_info "How to resolve: Ensure the USB is plugged in and not in use."
+            return 1
         fi
+        ventoy_mount_point="/mnt/VENTOY"
     fi
-    
+
     # Check if persistence file exists
     local persistence_file="$ventoy_mount_point/persistence/ubuntu-persistence.dat"
     if [[ ! -f "$persistence_file" ]]; then
         print_error "Persistence file not found at $persistence_file"
         print_info "How to resolve: Run Option 2 first to create the persistence file."
-        if [[ "$OS" == "Darwin" ]]; then
-            umount "/Volumes/VENTOY" 2>/dev/null || true
-        else
-            umount "/mnt/VENTOY" 2>/dev/null || true
-        fi
+        umount "/mnt/VENTOY" 2>/dev/null || true
         return 1
     fi
     
@@ -3710,12 +3281,8 @@ backup_persistence() {
     fi
     
     # Unmount
-    if [[ "$OS" == "Darwin" ]]; then
-        umount "/Volumes/VENTOY" 2>/dev/null || print_warning "Could not unmount /Volumes/VENTOY"
-    else
-        umount "/mnt/VENTOY" 2>/dev/null || print_warning "Could not unmount /mnt/VENTOY"
-    fi
-    
+    umount "/mnt/VENTOY" 2>/dev/null || print_warning "Could not unmount /mnt/VENTOY"
+
     return 0
 }
 
@@ -3784,32 +3351,18 @@ restore_persistence() {
     
     # Mount USB
     local ventoy_mount_point=""
-    if [[ "$OS" == "Darwin" ]]; then
-        ventoy_mount_point=$(df | grep "${SELECTED_DEVICE}s1" | awk '{print $NF}' || true)
-    else
-        ventoy_mount_point=$(df | grep "${SELECTED_DEVICE}1" | awk '{print $NF}' || true)
-    fi
-    
+    ventoy_mount_point=$(df | grep "${SELECTED_DEVICE}1" | awk '{print $NF}' || true)
+
     if [[ -z "$ventoy_mount_point" ]]; then
-        if [[ "$OS" == "Darwin" ]]; then
-            mkdir -p "/Volumes/VENTOY" || { print_error "Failed to create mount point"; return 1; }
-            if ! mount "${SELECTED_DEVICE}s1" "/Volumes/VENTOY"; then
-                print_error "Failed to mount USB partition"
-                print_info "How to resolve: Ensure the USB is plugged in and not in use."
-                return 1
-            fi
-            ventoy_mount_point="/Volumes/VENTOY"
-        else
-            mkdir -p "/mnt/VENTOY" || { print_error "Failed to create mount point"; return 1; }
-            if ! mount "${SELECTED_DEVICE}1" "/mnt/VENTOY"; then
-                print_error "Failed to mount USB partition"
-                print_info "How to resolve: Ensure the USB is plugged in and not in use."
-                return 1
-            fi
-            ventoy_mount_point="/mnt/VENTOY"
+        mkdir -p "/mnt/VENTOY" || { print_error "Failed to create mount point"; return 1; }
+        if ! mount "${SELECTED_DEVICE}1" "/mnt/VENTOY"; then
+            print_error "Failed to mount USB partition"
+            print_info "How to resolve: Ensure the USB is plugged in and not in use."
+            return 1
         fi
+        ventoy_mount_point="/mnt/VENTOY"
     fi
-    
+
     # Perform restore
     local persistence_file="$ventoy_mount_point/persistence/ubuntu-persistence.dat"
     print_info "Restoring persistence file from: $selected_backup"
@@ -3824,12 +3377,8 @@ restore_persistence() {
     fi
     
     # Unmount
-    if [[ "$OS" == "Darwin" ]]; then
-        umount "/Volumes/VENTOY" 2>/dev/null || print_warning "Could not unmount /Volumes/VENTOY"
-    else
-        umount "/mnt/VENTOY" 2>/dev/null || print_warning "Could not unmount /mnt/VENTOY"
-    fi
-    
+    umount "/mnt/VENTOY" 2>/dev/null || print_warning "Could not unmount /mnt/VENTOY"
+
     return 0
 }
 
@@ -4620,20 +4169,9 @@ launch_hemlock_popout() {
     elif command -v tmux &>/dev/null; then
         terminal_cmd="tmux new-session -d -s hemlock-tui \; send-keys 'HEMLOCK_DIR=\"$hemlock_dir\" \"$hemlock_tui\"' Enter \; attach-session -t hemlock-tui"
         terminal_name="tmux (new session)"
-    elif [[ "$OSTYPE" == "darwin"* ]] && command -v osascript &>/dev/null; then
-        # macOS - use osascript to open new Terminal window
-        osascript <<EOF
-tell application "Terminal"
-    do script "HEMLOCK_DIR=\"$hemlock_dir\" \"$hemlock_tui\""
-    activate
-end tell
-EOF
-        print_success "Launched Hemlock TUI in new macOS Terminal window"
-        return 0
     else
         print_error "No supported terminal emulator found."
         print_info "Supported: gnome-terminal, konsole, xterm, terminator, alacritty, kitty, wezterm, tmux"
-        print_info "On macOS: Uses native Terminal.app via osascript"
         return 1
     fi
     
@@ -5631,78 +5169,16 @@ setup_auto_start_services() {
     
     local hemlock_dir="${HEMLOCK_DIR:-/tmp/hemlock-minimal/hemlock-minimal}"
     
-    # Platform-specific service setup
-    if [[ "$OS" == "Darwin" ]]; then
-        setup_launchagent_hemlock "$hemlock_dir"
-    elif [[ "$OS" == "Linux" ]]; then
-        setup_systemd_hemlock "$hemlock_dir"
-    else
-        print_warning "Windows auto-start not implemented"
-        return 0
-    fi
-    
+    setup_systemd_hemlock "$hemlock_dir"
+
     print_success "Auto-start services configured!"
     print_info "On next USB plug-in:"
-    print_info "  1. VM auto-boots (existing LaunchAgent/ssytemd)"
-    print_info "  2. Hemlock gateway auto-starts (systemd/LaunchAgent)"
+    print_info "  1. VM auto-boots (systemd)"
+    print_info "  2. Hemlock gateway auto-starts (systemd)"
     print_info "  3. Agents auto-attach to gateway"
     print_info "  4. SSH available at port $SSH_PORT_FORWARD_HOST"
     print_info "  5. Hemlock TUI ready for agent management"
     echo ""
-}
-
-setup_launchagent_hemlock() {
-    local hemlock_dir="$1"
-    local plist_path="$HOME/Library/LaunchAgents/com.hemlock.gateway.plist"
-    local hemlock_cli="$hemlock_dir/scripts/hemlock"
-    local entrypoint_sh="$hemlock_dir/entrypoint.sh"
-    
-    mkdir -p "$(dirname "$plist_path")"
-    
-    cat > "$plist_path" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.hemlock.gateway</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/bin/bash</string>
-        <string>-c</string>
-        <string>HEMLOCK_DIR="$hemlock_dir" $entrypoint_sh gateway</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <dict>
-        <key>SuccessfulExit</key>
-        <false/>
-        <key>Crashed</key>
-        <true/>
-    </dict>
-    <key>RestartInterval</key>
-    <integer>10</integer>
-    <key>StandardOutPath</key>
-    <string>/tmp/hemlock-gateway.out</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/hemlock-gateway.err</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>OPENCLAW_GATEWAY_TOKEN</key>
-        <string>\${OPENCLAW_GATEWAY_TOKEN:-test-token-12345}</string>
-        <key>IMRSG_REMOTE_HOST</key>
-        <string>\${IMRSG_REMOTE_HOST:-}</string>
-    </dict>
-</dict>
-</plist>
-EOF
-    
-    print_info "Created LaunchAgent: $plist_path"
-    
-    # Load it
-    launchctl load "$plist_path" 2>/dev/null || true
-    print_success "Hemlock LaunchAgent loaded"
 }
 
 setup_systemd_hemlock() {
