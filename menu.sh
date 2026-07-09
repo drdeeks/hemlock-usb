@@ -353,6 +353,10 @@ _menu_item() {
   local num="$1" desc="$2" target="${3:-}" detail="${4:-}"
   if [[ -n "$target" ]]; then
     printf "  ${CYAN}%-4s${NC}) %-34s ${GREEN}[%s]${NC}    %s\n" "$num" "$desc" "$target" "$detail"
+  elif [[ -n "$detail" ]]; then
+    # No target tag but an informative detail — show it dimmed, aligned with
+    # the tagged form (details were silently dropped here before).
+    printf "  ${CYAN}%-4s${NC}) %-34s ${DIM}%s${NC}\n" "$num" "$desc" "$detail"
   else
     printf "  ${CYAN}%-4s${NC}) %s\n" "$num" "$desc"
   fi
@@ -491,11 +495,47 @@ _run_usbctl() {
   esac
 }
 
+# CL-031: pick which persistence volume a config write targets. Shared config
+# applies to every boot/volume; a per-volume choice scopes aliases/profile/
+# cleanup to that one .dat (sourced only when that volume is mounted). Sets or
+# clears UCA_TARGET_VOLUME (exported so child scripts resolve the same root).
+# No-op outside usb mode or when no Ventoy mount / no extra volumes exist.
+_uca_choose_volume_target() {
+  unset UCA_TARGET_VOLUME
+  [[ "${UCA_MODE:-host}" == "usb" ]] || return 0
+  local vmp=""; vmp=$(_resolve_ventoy_mount 2>/dev/null) || return 0
+  [[ -d "$vmp/persistence" ]] || return 0
+  local vols=() f
+  while IFS= read -r -d '' f; do vols+=("$f"); done \
+    < <(find "$vmp/persistence" -maxdepth 1 -name '*.dat' -print0 2>/dev/null | sort -z)
+  [[ ${#vols[@]} -gt 0 ]] || return 0
+  echo ""
+  _menu_subheader "Config scope"
+  _menu_item "1" "Shared (all volumes & boots)" "" "usb-hemlock/etc/uca/"
+  local i=2
+  for f in "${vols[@]}"; do
+    local name sz; name=$(basename "$f" .dat); sz=$(du -h "$f" 2>/dev/null | cut -f1)
+    _menu_item "$i" "Volume: $name" "" "${sz:-?} — etc/uca/volumes/$name/"
+    i=$((i+1))
+  done
+  _menu_prompt "Target [1]"
+  local pick; read -r pick; pick="${pick:-1}"
+  if [[ "$pick" =~ ^[0-9]+$ ]] && (( pick >= 2 && pick <= ${#vols[@]} + 1 )); then
+    UCA_TARGET_VOLUME=$(basename "${vols[$((pick-2))]}" .dat)
+    export UCA_TARGET_VOLUME
+    _menu_info "Scope: volume '$UCA_TARGET_VOLUME' only (sourced when it is mounted)"
+  else
+    _menu_info "Scope: shared (all volumes)"
+  fi
+  return 0
+}
+
 _run_alias_manager() {
   # CL-030: target follows UCA_MODE — alias_manager.sh resolves the file
-  # itself via _uca_install_root.
+  # itself via _uca_install_root. CL-031: optional per-volume scope.
+  _uca_choose_volume_target
   local tgt; tgt=$(_uca_install_root 2>/dev/null || echo "$HOME")
-  log_section "Alias Manager" "${UCA_MODE^^} — ${tgt}/bash_aliases.sh"
+  log_section "Alias Manager" "${UCA_MODE^^}${UCA_TARGET_VOLUME:+ · vol:$UCA_TARGET_VOLUME} — ${tgt}/bash_aliases.sh"
   local args=()
   [[ "$DRY_RUN" == "true" ]] && args+=(--dry-run)
   bash "$USB_DIR/scripts/alias_manager.sh" "${args[@]+"${args[@]}"}" "$@"
@@ -993,6 +1033,7 @@ _run_persistence_manager() {
   _menu_item "7" "Rename a persistence volume (.dat)"   "" "filename only"
   _menu_item "8" "Relabel a persistence volume (ext4)"  "" "DATA volumes — protects casper-rw"
   _menu_item "9" "Ventoy.json doctor"                   "" "validate boot routing"
+  _menu_item "10" "Volume cleanup tasks"                "" "boot-time cleanup, per volume or shared"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -1296,6 +1337,56 @@ _run_persistence_manager() {
         _menu_error "Relabel failed (volume mounted? dirty? not ext4?)"
       fi
       ;;
+    10)
+      # CL-031: per-volume cleanup tasks. Config lives on the Ventoy partition
+      # (usb-hemlock/etc/uca[/volumes/<vol>]/cleanup.conf) and is executed by
+      # the boot orchestrator inside the booted system when that volume is in
+      # play ("/" for the active casper backend, its mountpoint otherwise).
+      _uca_choose_volume_target
+      local root; root=$(_uca_install_root) || { _menu_error "No install root (mount USB first)"; return 1; }
+      local conf="$root/cleanup.conf"
+      declare -A tasks=( [APT_CACHE]=off [JOURNAL_VACUUM]=off [TMP_DIRS]=off [PIP_CACHE]=off [NPM_CACHE]=off [OLD_LOGS]=off )
+      local order=(APT_CACHE JOURNAL_VACUUM TMP_DIRS PIP_CACHE NPM_CACHE OLD_LOGS)
+      if [[ -f "$conf" ]]; then
+        local k v
+        while IFS='=' read -r k v; do [[ -n "${tasks[$k]+x}" ]] && tasks[$k]="$v"; done \
+          < <(grep -E '^[A-Z_]+=' "$conf" 2>/dev/null)
+      fi
+      while true; do
+        echo ""
+        _menu_subheader "Cleanup tasks — scope: ${UCA_TARGET_VOLUME:-shared}"
+        _menu_info "Runs at boot inside the live system; toggles persist in $conf"
+        local i=1 t
+        for t in "${order[@]}"; do
+          _menu_item "$i" "$(printf '%-16s [%s]' "$t" "${tasks[$t]}")" "" ""
+          i=$((i+1))
+        done
+        _menu_item "s" "Save & exit" "" ""
+        _menu_item "0" "Cancel (discard changes)" "" ""
+        _menu_prompt "Toggle task number, or s to save"
+        local pick; read -r pick
+        case "$pick" in
+          0) return 0 ;;
+          s|S)
+            if [[ "$DRY_RUN" == "true" ]]; then
+              _menu_info "DRY RUN: would write $conf"; return 0
+            fi
+            { echo "# uca cleanup tasks — executed by the boot orchestrator (startup.sh)"
+              echo "# scope: ${UCA_TARGET_VOLUME:-shared}   written: $(date +%F)"
+              for t in "${order[@]}"; do echo "$t=${tasks[$t]}"; done
+            } > "$conf"
+            _menu_success "Saved: $conf"
+            return 0 ;;
+          *)
+            if [[ "$pick" =~ ^[0-9]+$ ]] && (( pick >= 1 && pick <= ${#order[@]} )); then
+              t="${order[$((pick-1))]}"
+              if [[ "${tasks[$t]}" == "on" ]]; then tasks[$t]=off; else tasks[$t]=on; fi
+            else
+              _menu_error "Invalid option: $pick"
+            fi ;;
+        esac
+      done
+      ;;
     0) return 0 ;;
     *) _menu_error "Invalid option: $choice" ;;
   esac
@@ -1348,11 +1439,12 @@ _uca_auto_install_llmrl_after_profile() {
 }
 
 _run_bash_profile() {
-  # CL-030: install target follows UCA_MODE.
+  # CL-030: install target follows UCA_MODE. CL-031: optional per-volume scope.
+  _uca_choose_volume_target
   local install_root dest_label
   install_root=$(_uca_install_root) || install_root="$HOME"
   if [[ "${UCA_MODE:-host}" == "usb" ]]; then
-    dest_label="USB persistence ($install_root)"
+    dest_label="USB persistence${UCA_TARGET_VOLUME:+ · vol:$UCA_TARGET_VOLUME} ($install_root)"
   else
     dest_label="host ($install_root)"
   fi
@@ -1391,7 +1483,11 @@ _run_bash_profile() {
       # location. In USB mode, the line still goes into host .bashrc (one-time
       # bridge write) so the operator's shell can find the profile on USB.
       local source_line="source \"$profile_dest\" 2>/dev/null || true"
-      if ! grep -q "bash_profile.sh" "$HOME/.bashrc" 2>/dev/null && \
+      # CL-031: per-volume profiles are sourced by the BOOTED system (startup
+      # orchestrator) when that volume is mounted — never bridge them into the
+      # host's ~/.bashrc.
+      if [[ -z "${UCA_TARGET_VOLUME:-}" ]] && \
+         ! grep -q "bash_profile.sh" "$HOME/.bashrc" 2>/dev/null && \
          ! grep -q "bash_profile_enhanced" "$HOME/.bashrc" 2>/dev/null; then
         echo "" >> "$HOME/.bashrc"
         echo "# USB-Hemlock enhanced profile (CL-030) — points at ${UCA_MODE^^} install root" >> "$HOME/.bashrc"
@@ -4227,16 +4323,20 @@ _main_menu_render() {
   printf "  ${CYAN}16${NC}) USB Paths & Environment    ${GREEN}[HOST]${NC}     Configure paths, schema & env\n"
   if [[ "${UCA_MODE:-host}" == "usb" ]]; then
     printf "  ${CYAN}17${NC}) USB Access & Boot          ${GREEN}[USB+HOST]${NC} Terminal/chroot/QEMU/SSH\n"
-    printf "  ${CYAN}20${NC}) Tooling Volume             ${GREEN}[USB]${NC} foundation bridge: hf-cli/updater/models\n"
   fi
   printf "  ${CYAN}18${NC}) Toggle Dry-Run             Current: ${YELLOW}%s${NC}\n" "$DRY_RUN"
-  if [[ "$HEMLOCK_ENABLED" == "true" && "${UCA_MODE:-host}" == "usb" ]]; then
-    printf "\n${BOLD}Hemlock:${NC}\n"
-    printf "  ${CYAN}19${NC}) Hemlock Manager            ${GREEN}[CONTAINER]${NC} Runtime/agents/crews/deploy\n"
-  elif [[ "${UCA_MODE:-host}" != "usb" ]]; then
-    printf "\n${DIM}  (USB + Hemlock options hidden — re-launch with --mode usb to reveal)${NC}\n"
+  if [[ "${UCA_MODE:-host}" == "usb" ]]; then
+    if [[ "$HEMLOCK_ENABLED" == "true" ]]; then
+      printf "\n${BOLD}Hemlock:${NC}\n"
+      printf "  ${CYAN}19${NC}) Hemlock Manager            ${GREEN}[CONTAINER]${NC} Runtime/agents/crews/deploy\n"
+    fi
+    printf "\n${BOLD}Foundation:${NC}\n"
+    printf "  ${CYAN}20${NC}) Tooling Volume             ${GREEN}[USB]${NC}      Bridge: hf-cli/updater/models\n"
+    if [[ "$HEMLOCK_ENABLED" != "true" ]]; then
+      printf "\n${DIM}  (Hemlock options hidden — re-launch with --hemlock or -H to reveal)${NC}\n"
+    fi
   else
-    printf "\n${DIM}  (Hemlock options hidden — re-launch with --hemlock or -H to reveal)${NC}\n"
+    printf "\n${DIM}  (USB + Hemlock options hidden — re-launch with --mode usb to reveal)${NC}\n"
   fi
   printf "\n"
 }
@@ -4347,7 +4447,6 @@ _main_menu_whiptail() {
       "15" "View Logs                    [HOST]"
       "16" "USB Paths & Environment      [HOST]"
       "17" "USB Access & Boot            [USB+HOST]"
-      "20" "Tooling Volume               [USB]"
       "18" "$dry_label"
     )
   else
@@ -4366,6 +4465,9 @@ _main_menu_whiptail() {
   fi
   if [[ "$HEMLOCK_ENABLED" == "true" && "${UCA_MODE:-host}" == "usb" ]]; then
     items+=( "19" "Hemlock Manager              [CONTAINER]" )
+  fi
+  if [[ "${UCA_MODE:-host}" == "usb" ]]; then
+    items+=( "20" "Tooling Volume               [USB]" )
   fi
   # size the box to the real terminal so no option is ever cropped off-screen
   local th tw wh ww wl

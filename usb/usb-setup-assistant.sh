@@ -47,6 +47,9 @@ MOUNT_POINT_PREFIX="/media"
 
 # Selected USB device (initialized empty; set by select_usb_device)
 SELECTED_DEVICE=""
+# Set by check_script_location when this script runs from a USB mount —
+# select_usb_device uses it to guard destructive ops against our own stick.
+SCRIPT_ON_USB=""
 
 # Port forwarding configuration (compute resource access)
 # SSH for VM access
@@ -379,48 +382,59 @@ NC='\033[0m' # No Color
 # LOGGING FUNCTIONS
 # ============================================================================
 
+# File-only log line (timestamped). The print_* helpers write ONE colored line
+# to the console and mirror it here — never two console lines per message.
+# (The old pattern echoed AND called log(), which tees to the console too, so
+# every message appeared twice and multi-line boxes rendered garbled.)
+_logf() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+# Timestamped line on console AND log — for standalone progress lines only.
 log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" 2>/dev/null | tee -a "$LOG_FILE" 2>/dev/null || echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*"
+    _logf "$*"
 }
 
 print_header() {
-    echo -e "\n${CYAN}${BOLD}=== $1 ===${NC}\n" 2>/dev/null | tee -a "$LOG_FILE" 2>/dev/null || echo -e "\n${CYAN}${BOLD}=== $1 ===${NC}\n"
+    echo -e "\n${CYAN}${BOLD}=== $1 ===${NC}\n"
+    _logf "=== $1 ==="
 }
 
 print_success() {
-    echo -e "${GREEN}✓${NC} $1" 2>/dev/null | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${GREEN}✓${NC} $1"
-    log "SUCCESS: $1"
+    echo -e "${GREEN}✓${NC} $1"
+    _logf "SUCCESS: $1"
 }
 
 print_error() {
-    echo -e "${RED}✗${NC} $1" 2>/dev/null | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${RED}✗${NC} $1"
-    log "ERROR: $1"
+    echo -e "${RED}✗${NC} $1"
+    _logf "ERROR: $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠${NC} $1" 2>/dev/null | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${YELLOW}⚠${NC} $1"
-    log "WARNING: $1"
+    echo -e "${YELLOW}⚠${NC} $1"
+    _logf "WARNING: $1"
 }
 
 print_info() {
-    echo -e "${BLUE}ℹ${NC} $1" 2>/dev/null | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${BLUE}ℹ${NC} $1"
-    log "INFO: $1"
+    echo -e "${BLUE}ℹ${NC} $1"
+    _logf "INFO: $1"
 }
 
 # --- Requirement/Action/Status messaging ---
 print_requirement() {
-    echo -e "${CYAN}[REQUIRED]${NC} $*" 2>/dev/null | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${CYAN}[REQUIRED]${NC} $*"
-    log "REQUIREMENT: $*"
+    echo -e "${CYAN}[REQUIRED]${NC} $*"
+    _logf "REQUIREMENT: $*"
 }
 
 print_action() {
-    echo -e "${GREEN}[ACTION]${NC} $*" 2>/dev/null | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${GREEN}[ACTION]${NC} $*"
-    log "ACTION: $*"
+    echo -e "${GREEN}[ACTION]${NC} $*"
+    _logf "ACTION: $*"
 }
 
 print_status() {
-    echo -e "${BLUE}[STATUS]${NC} $*" 2>/dev/null | tee -a "$LOG_FILE" 2>/dev/null || echo -e "${BLUE}[STATUS]${NC} $*"
-    log "STATUS: $*"
+    echo -e "${BLUE}[STATUS]${NC} $*"
+    _logf "STATUS: $*"
 }
 
 # ============================================================================
@@ -451,9 +465,11 @@ select_usb_device() {
             usb_devices+=("$line")
         done < <(diskutil list external physical | grep -E "^/dev/" | awk '{print $1}')
     elif [[ "$OS" == "Linux" ]]; then
+        # Whole USB disks only: TYPE==disk AND TRAN==usb. (The old
+        # grep 'usb|disk' matched every internal disk as well.)
         while IFS= read -r line; do
             usb_devices+=("$line")
-        done < <(lsblk -ndo NAME,SIZE,TYPE,TRAN,MODEL | grep -E 'usb|disk' | grep -v 'loop' | awk '{print "/dev/" $1}')
+        done < <(lsblk -dno NAME,TYPE,TRAN | awk '$2=="disk" && $3=="usb" {print "/dev/" $1}')
     fi
 
     if [[ ${#usb_devices[@]} -eq 0 ]]; then
@@ -465,9 +481,9 @@ select_usb_device() {
     echo "Found USB devices:"
     echo ""
     if [[ "$OS" == "Darwin" ]]; then
-        printf "${BOLD}%-10s %-10s %-10s %-15s %-30s${NC}\n" "DEVICE" "SIZE" "TYPE" "CONNECTION" "DESCRIPTION"
+        printf "    ${BOLD}%-10s %-10s %-10s %-15s %-30s${NC}\n" "DEVICE" "SIZE" "TYPE" "CONNECTION" "DESCRIPTION"
     else
-        printf "${BOLD}%-10s %-10s %-10s %-15s %-30s${NC}\n" "DEVICE" "SIZE" "TYPE" "TRANSPORT" "MODEL"
+        printf "    ${BOLD}%-10s %-10s %-10s %-15s %-30s${NC}\n" "DEVICE" "SIZE" "TYPE" "TRANSPORT" "MODEL"
     fi
     echo "─────────────────────────────────────────────────────────────────────────────"
 
@@ -481,15 +497,17 @@ select_usb_device() {
             connection=$(diskutil info "$device" | grep "Protocol" | awk '{print $2}')
             model=$(diskutil info "$device" | grep "Device / Media Name" | awk -F': ' '{print $2}')
         else
-            size=$(lsblk -no SIZE "$device")
-            type=$(lsblk -no TYPE "$device")
-            connection=$(lsblk -no TRAN "$device")
-            model=$(lsblk -no MODEL "$device")
+            # -d: the device row only — without it lsblk prints one line per
+            # partition and the embedded newlines mangled the table.
+            size=$(lsblk -dno SIZE "$device" 2>/dev/null | tr -d ' ')
+            type=$(lsblk -dno TYPE "$device" 2>/dev/null)
+            connection=$(lsblk -dno TRAN "$device" 2>/dev/null)
+            model=$(lsblk -dno MODEL "$device" 2>/dev/null | sed 's/^ *//;s/ *$//')
         fi
 
         printf "${CYAN}%2d)${NC} %-10s %-10s %-10s %-15s %-30s\n" \
-            "$index" "$size" "$type" "$connection" "$model"
-        ((index++))
+            "$index" "$device" "${size:--}" "${type:--}" "${connection:--}" "${model:--}"
+        index=$((index+1))
     done
     echo ""
 
@@ -502,6 +520,22 @@ select_usb_device() {
 
         if [[ "$selection" =~ ^[0-9]+$ ]] && [[ "$selection" -ge 1 ]] && [[ "$selection" -le "$count" ]]; then
             SELECTED_DEVICE="${usb_devices[$((selection-1))]}"
+            # Guard: is this the stick we are RUNNING FROM? Destructive ops
+            # (Ventoy install, persistence format) against it can corrupt the
+            # live environment — require an explicit opt-in.
+            if [[ -n "$SCRIPT_ON_USB" && "$OS" == "Linux" ]]; then
+                local host_part host_disk
+                host_part=$(findmnt -nro SOURCE --target "$SCRIPT_ON_USB" 2>/dev/null || true)
+                host_disk=$(lsblk -no PKNAME "$host_part" 2>/dev/null | head -1 || true)
+                if [[ -n "$host_disk" && "$SELECTED_DEVICE" == "/dev/$host_disk" ]]; then
+                    print_warning "$SELECTED_DEVICE hosts the running script ($SCRIPT_ON_USB)."
+                    print_warning "Formatting or reinstalling Ventoy on it can corrupt this session."
+                    if ! confirm "Select it anyway?" "n"; then
+                        SELECTED_DEVICE=""
+                        continue
+                    fi
+                fi
+            fi
             print_success "Selected: $SELECTED_DEVICE"
             return 0
         else
@@ -581,33 +615,18 @@ check_script_location() {
         "/mnt/e/*/Ventoy"
     )
     
+    # Running from the stick's own system tree is the NORMAL deployment — the
+    # menu and this assistant live on the USB. The only real hazard is a
+    # destructive operation (Ventoy install / persistence format) aimed at the
+    # very device we are running from; select_usb_device guards that case
+    # using SCRIPT_ON_USB recorded here.
+    SCRIPT_ON_USB=""
     for pattern in "${usb_paths[@]}"; do
         for path in $pattern; do
             if [[ -d "$path" ]] && [[ "$script_path" == "$path"* ]]; then
-                print_error "================================================================="
-                print_error "  WARNING: SCRIPT RUNNING FROM USB DRIVE!"
-                print_error "================================================================="
-                print_error ""
-                print_error "  This script MUST run from the HOST system, not from the USB drive."
-                print_error ""
-                print_error "  Current location: $script_path"
-                print_error "  Detected USB path: $path"
-                print_error ""
-                print_error "  REQUIRED ACTION:"
-                print_error "  1. Copy this script to your host system:"
-                print_error "     cp \"$script_path\" ~/usb-setup-assistant.sh"
-                print_error "  2. Run it from the host:"
-                print_error "     sudo bash ~/usb-setup-assistant.sh"
-                print_error ""
-                print_error "  WHY? Operations like Ventoy installation, persistence formatting, "
-                print_error "  debootstrap, and chroot REQUIRE host privileges and will FAIL or "
-                print_error "  CORRUPT the USB if run from within the USB environment."
-                print_error ""
-                print_error "================================================================="
-                
-                if ! confirm "Continue anyway? (NOT RECOMMENDED)" "n"; then
-                    exit 1
-                fi
+                SCRIPT_ON_USB="$path"
+                print_info "Running from USB-mounted path: $path"
+                print_info "Management tasks are fine; destructive operations against THIS stick will ask for explicit confirmation."
                 return 0
             fi
         done
@@ -733,15 +752,16 @@ select_tool_interactive() {
 # ============================================================================
 
 initialize() {
+    # Create the log file BEFORE anything writes to it (truncating later
+    # silently dropped the first lines of every session).
+    : > "$LOG_FILE"
+
     print_header "$SCRIPT_NAME v$VERSION"
     log "Starting USB Compute Automation Setup Assistant"
-    
+
     # Check if running from USB - MUST BE FIRST
     check_script_location
-    
-    # Create log file
-    : > "$LOG_FILE"
-    
+
     # Create backup directory
     mkdir -p "$BACKUP_DIR"
     
@@ -1690,26 +1710,21 @@ fi
 PROFILE
         chmod +x "$persist_mount/etc/profile.d/usb-essentials.sh"
         
-        # Copy bash_enhanced.sh to USB if it exists
+        # Copy the shell-experience scripts to USB. They live in scripts/
+        # next to this assistant (sysman.sh sits at the top level) — the old
+        # flat-sibling paths never matched, so nothing was ever copied.
         local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        if [[ -f "$script_dir/bash_enhanced.sh" ]]; then
-            cp "$script_dir/bash_enhanced.sh" "$persist_mount/" 2>/dev/null || true
-            print_info "Copied bash_enhanced.sh to USB"
-        fi
-        
-        # Copy alias and SSH host managers to USB
-        if [[ -f "$script_dir/alias_manager.sh" ]]; then
-            cp "$script_dir/alias_manager.sh" "$persist_mount/" 2>/dev/null || true
-        fi
-        if [[ -f "$script_dir/ssh_host_manager.sh" ]]; then
-            cp "$script_dir/ssh_host_manager.sh" "$persist_mount/" 2>/dev/null || true
-        fi
-        if [[ -f "$script_dir/sysman.sh" ]]; then
-            cp "$script_dir/sysman.sh" "$persist_mount/" 2>/dev/null || true
-        fi
-        if [[ -f "$script_dir/clean-local.sh" ]]; then
-            cp "$script_dir/clean-local.sh" "$persist_mount/" 2>/dev/null || true
-        fi
+        local comp
+        for comp in scripts/bash_enhanced.sh scripts/alias_manager.sh \
+                    scripts/ssh_host_manager.sh scripts/clean-local.sh sysman.sh; do
+            if [[ -f "$script_dir/$comp" ]]; then
+                cp "$script_dir/$comp" "$persist_mount/" 2>/dev/null \
+                    && print_info "Copied $(basename "$comp") to USB" \
+                    || print_warning "Could not copy $(basename "$comp")"
+            else
+                print_warning "Missing component: $script_dir/$comp"
+            fi
+        done
         
         # Unmount persistence
         umount "$persist_mount" 2>/dev/null || true
@@ -3861,7 +3876,7 @@ _system_cleanup() {
     
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local sysman_script="$script_dir/sysman.sh"
-    local clean_script="$script_dir/clean-local.sh"
+    local clean_script="$script_dir/scripts/clean-local.sh"
     
     echo -e "${CYAN}1)${NC} Launch System Manager Dashboard (sysman)"
     echo -e "${CYAN}2)${NC} Launch Clean Local Script"
@@ -3929,7 +3944,7 @@ _alias_manager() {
     print_header "Manage Custom Aliases"
     
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local alias_script="$script_dir/alias_manager.sh"
+    local alias_script="$script_dir/scripts/alias_manager.sh"
     local alias_file="$HOME/.bash_aliases_usb"
     
     echo -e "${CYAN}1)${NC} Launch Alias Manager (interactive)"
@@ -4026,7 +4041,7 @@ _ssh_host_manager() {
     print_header "Manage SSH Hosts"
     
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local ssh_script="$script_dir/ssh_host_manager.sh"
+    local ssh_script="$script_dir/scripts/ssh_host_manager.sh"
     local hosts_file="$HOME/.ssh/hosts_usb"
     local ssh_config="$HOME/.ssh/config"
     
