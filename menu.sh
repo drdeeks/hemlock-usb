@@ -207,7 +207,7 @@ _setup_device_interactive() {
 
   if [[ ${#dev_array[@]} -eq 0 ]]; then
     echo ""
-    echo "  ${YELLOW}No USB device auto-detected.${NC}"
+    printf '%b\n' "  ${YELLOW}No USB device auto-detected.${NC}"
     echo ""
     echo "  This is normal if:"
     echo "    - No USB drive is plugged in"
@@ -230,7 +230,7 @@ _setup_device_interactive() {
   # CL-031: render every device with its classification + size + label so the
   # operator sees at a glance which is Ventoy, which is a blank target, etc.
   echo ""
-  echo "  ${BOLD}USB devices found:${NC}"
+  printf '%b\n' "  ${BOLD}USB devices found:${NC}"
   local i=1 d class size label
   for d in "${dev_array[@]}"; do
     class=$(_classify_usb_device "$d")
@@ -245,7 +245,7 @@ _setup_device_interactive() {
     esac
     i=$((i + 1))
   done
-  echo "  ${CYAN}0)${NC} Enter manually"
+  printf '%b\n' "  ${CYAN}0)${NC} Enter manually"
   printf "\n  Select device number [1]: "
   local idx; read -r idx
   idx="${idx:-1}"
@@ -4367,9 +4367,15 @@ _main_menu_whiptail() {
   if [[ "$HEMLOCK_ENABLED" == "true" && "${UCA_MODE:-host}" == "usb" ]]; then
     items+=( "19" "Hemlock Manager              [CONTAINER]" )
   fi
+  # size the box to the real terminal so no option is ever cropped off-screen
+  local th tw wh ww wl
+  th=$(tput lines 2>/dev/null || echo 40); tw=$(tput cols 2>/dev/null || echo 100)
+  wh=$(( th - 2 )); (( wh > 34 )) && wh=34; (( wh < 14 )) && wh=14
+  ww=$(( tw - 4 )); (( ww > 96 )) && ww=96; (( ww < 60 )) && ww=60
+  wl=$(( wh - 9 )); (( wl < 6 )) && wl=6
   if ! choice=$(whiptail --title "USB-Hemlock — Mode: ${mode_tag}" \
     --cancel-button "Quit" --menu \
-    "$dev_label\nMode: ${mode_tag} (re-launch with --mode to change)\nSelect a component to manage (Quit/ESC to exit):" 38 78 24 \
+    "$dev_label\nMode: ${mode_tag} (re-launch with --mode to change)\nSelect a component to manage (Quit/ESC to exit):" "$wh" "$ww" "$wl" \
     "${items[@]}" \
     3>&1 1>&2 2>&3); then
     return 1
