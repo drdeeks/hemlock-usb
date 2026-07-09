@@ -1911,9 +1911,96 @@ LAUNCHEOF
 # user wants. Defaults derive from the live mount; overrides persist in a
 # sourced KEY=VALUE file the user can edit by hand or via the menu.
 
-UCA_CFG_DIR="${UCA_CONFIG_DIR:-$HOME/.config/usb-compute-automation}"
+# ── Per-device configuration isolation (CL-044) ─────────────────────────────
+# The stick is portable; every host it touches is a different physical machine
+# with different RAM/CPU/GPU. Configuration therefore MUST NOT travel — each
+# device detects, decides, and stores its own tuning (QEMU allocation, SSH
+# port, environment, boot target, profiles, sudo policy) under its own
+# namespace keyed by a stable hardware fingerprint. Plug the same stick into
+# machine A then machine B and each is recognized and configured independently;
+# neither ever inherits the other's numbers.
+#
+# Fingerprint sources, best→fallback. A plain read of the root-only DMI uuid
+# succeeds when we ARE root (e.g. native USB boot) and silently falls through
+# otherwise — we NEVER invoke sudo here, so nothing prompts at startup:
+#   1) DMI product_uuid          — true per-machine hardware UUID
+#   2) composite of readable DMI ids + primary permanent MAC
+#   3) /etc/machine-id (or dbus) — stable per OS install
+#   4) hostname                  — last resort
+_uca_device_fingerprint() {
+  local raw="" src=""
+  if [[ -r /sys/class/dmi/id/product_uuid ]]; then
+    raw=$(tr -d '[:space:]' < /sys/class/dmi/id/product_uuid 2>/dev/null)
+    [[ -n "$raw" ]] && src="dmi-uuid"
+  fi
+  if [[ -z "$raw" ]]; then
+    local parts=() f
+    for f in sys_vendor product_name product_family board_vendor board_name product_version; do
+      [[ -r "/sys/class/dmi/id/$f" ]] && parts+=("$(cat "/sys/class/dmi/id/$f" 2>/dev/null)")
+    done
+    local nic mac
+    for nic in /sys/class/net/*; do
+      [[ -r "$nic/address" ]] || continue
+      case "${nic##*/}" in lo|docker*|veth*|br-*|virbr*|tap*|tun*|zt*|tailscale*) continue;; esac
+      mac=$(cat "$nic/address" 2>/dev/null)
+      [[ -n "$mac" && "$mac" != "00:00:00:00:00:00" ]] && { parts+=("$mac"); break; }
+    done
+    if ((${#parts[@]})); then raw=$(printf '%s|' "${parts[@]}"); src="dmi-composite"; fi
+  fi
+  if [[ -z "$raw" ]]; then
+    if [[ -r /etc/machine-id ]]; then raw=$(cat /etc/machine-id 2>/dev/null); src="machine-id"
+    elif [[ -r /var/lib/dbus/machine-id ]]; then raw=$(cat /var/lib/dbus/machine-id 2>/dev/null); src="dbus-machine-id"; fi
+  fi
+  [[ -z "$raw" ]] && { raw=$(hostname 2>/dev/null || echo unknown); src="hostname"; }
+  local hash
+  hash=$(printf '%s' "$raw" | sha256sum 2>/dev/null | cut -c1-12)
+  [[ -n "$hash" ]] || hash="unknown00000"
+  printf '%s %s\n' "$hash" "$src"
+}
+
+# Human-readable machine name for display (vendor + model), hostname fallback.
+_uca_device_label() {
+  local vendor="" model=""
+  [[ -r /sys/class/dmi/id/sys_vendor ]]   && vendor=$(tr -d '\n' < /sys/class/dmi/id/sys_vendor 2>/dev/null)
+  [[ -r /sys/class/dmi/id/product_name ]] && model=$(tr -d '\n' < /sys/class/dmi/id/product_name 2>/dev/null)
+  local label; label=$(printf '%s %s' "$vendor" "$model" | sed 's/^ *//; s/ *$//; s/  */ /g')
+  # DMI often ships useless placeholders on whiteboxes/VMs.
+  case "$label" in ""|"To Be Filled By O.E.M."*|"System Product Name"*|"Default string"*) label="";; esac
+  [[ -n "$label" ]] || label=$(hostname 2>/dev/null || echo "this machine")
+  printf '%s\n' "$label"
+}
+
+UCA_BASE_CFG_DIR="${UCA_CONFIG_DIR:-$HOME/.config/usb-compute-automation}"
+if [[ -z "${UCA_DEVICE_ID:-}" ]]; then
+  UCA_DEVICE_ID=""; UCA_DEVICE_ID_SRC=""
+  read -r UCA_DEVICE_ID UCA_DEVICE_ID_SRC < <(_uca_device_fingerprint) || true
+  [[ -n "$UCA_DEVICE_ID" ]] || { UCA_DEVICE_ID="unknown00000"; UCA_DEVICE_ID_SRC="fallback"; }
+else
+  UCA_DEVICE_ID_SRC="override"
+fi
+# Every host's config lives in its OWN dir; nothing is shared between machines.
+UCA_CFG_DIR="$UCA_BASE_CFG_DIR/devices/$UCA_DEVICE_ID"
 UCA_PATHS_CONF="$UCA_CFG_DIR/usb-paths.conf"
 UCA_ENV_CONF="$UCA_CFG_DIR/usb-env.conf"
+
+# Ensure the per-device config dir exists; migrate any legacy flat config ONCE.
+# Pre-CL-044 installs kept a single flat config under the base dir. Those files
+# were written on THIS machine, so they belong to THIS device's namespace —
+# move (not copy) them in so nothing lingers to leak onto another host.
+_uca_ensure_cfg_dir() {
+  mkdir -p "$UCA_CFG_DIR" 2>/dev/null || true
+  [[ "$UCA_BASE_CFG_DIR" == "$UCA_CFG_DIR" ]] && return 0
+  local f
+  for f in usb-paths.conf usb-env.conf sudo-policy; do
+    if [[ -f "$UCA_BASE_CFG_DIR/$f" && ! -e "$UCA_CFG_DIR/$f" ]]; then
+      mv "$UCA_BASE_CFG_DIR/$f" "$UCA_CFG_DIR/$f" 2>/dev/null || true
+    fi
+  done
+  if [[ -d "$UCA_BASE_CFG_DIR/profiles" && ! -e "$UCA_CFG_DIR/profiles" ]]; then
+    mv "$UCA_BASE_CFG_DIR/profiles" "$UCA_CFG_DIR/profiles" 2>/dev/null || true
+  fi
+  return 0
+}
 
 # Configurable values (defaults; overridden by usb-paths.conf when present).
 : "${UCA_VENTOY_MOUNT:=}"             # explicit mount override; empty = auto-detect
@@ -2105,6 +2192,7 @@ _uca_normalize_permissions() {
 }
 
 _uca_load_paths_config() {
+  _uca_ensure_cfg_dir
   if [[ -f "$UCA_PATHS_CONF" ]]; then
     # shellcheck disable=SC1090
     source "$UCA_PATHS_CONF" 2>/dev/null || _menu_warn "Could not load $UCA_PATHS_CONF"
@@ -2118,7 +2206,7 @@ _uca_load_paths_config() {
 }
 
 _uca_save_paths_config() {
-  mkdir -p "$UCA_CFG_DIR" 2>/dev/null || true
+  _uca_ensure_cfg_dir
   if [[ "$DRY_RUN" == "true" ]]; then
     _menu_info "DRY RUN: would write $UCA_PATHS_CONF"
     return 0
@@ -3312,6 +3400,9 @@ _uca_compute_profile() {
   local scanner="hemlock/hemlock-runtime/scripts/system/hardware-scanner.sh"
   echo ""
   _menu_subheader "Detected hardware"
+  printf "  ${BOLD}Device:${NC}      %s ${DIM}[%s · %s]${NC}\n" "$(_uca_device_label)" "$UCA_DEVICE_ID" "$UCA_DEVICE_ID_SRC"
+  printf "  ${DIM}Config for THIS machine is isolated at %s\n" "$UCA_CFG_DIR"
+  printf "  Another machine gets its own — no tuning ever travels on the stick.${NC}\n"
   printf "  ${BOLD}CPU threads:${NC} %s\n" "$threads"
   printf "  ${BOLD}RAM total:${NC}   %s GB (%s MB)\n" "$ram_gb" "$ram_mb"
   printf "  ${BOLD}GPU:${NC}         %s\n" "$gpu"
