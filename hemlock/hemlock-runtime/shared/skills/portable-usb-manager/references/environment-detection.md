@@ -63,7 +63,7 @@ _detect_persistent_storage() {
 ### Creating Marker File on USB
 ```bash
 # On USB root partition
-touch /media/user/USB_LABEL/.usb-persistence-marker
+touch ${USB_MOUNT}/USB_LABEL/.usb-persistence-marker
 ```
 
 ### Explicit Path File

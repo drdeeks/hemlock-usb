@@ -1,7 +1,7 @@
 ---
 name: portable-usb-manager
 description: "Comprehensive USB-first portable Linux management. Handles detection, mounting, partitioning, formatting, Ventoy multi-boot setup with persistence, mkusb live/persistent creation, hidden device recovery, chroot install into the persistence volume, boot mode selection (headless SSH or full GUI via QEMU), per-device profile manifests with autoboot, USB-resident profile store with default selection, restart-on-CRUD volume orchestration for agent harnesses, in-persistence essentials installer that mirrors the host dev toolchain (build/edit/net/python/node/crypto/web3/docker/cloud groups with rust/go/ai as opt-in), enhanced bash profile + alias manager, sudo cache + triple-notification consent policy, permission normalization that never uses 0700, cross-OS detection (Linux/macOS/WSL2/Windows), and full plumbing for chroot/QEMU/SSH/Tailscale access. Use for any USB drive whose intent is portable compute rather than file storage."
-version: 2.0.10
+version: 2.0.13
 license: MIT
 metadata:
   category: portable-compute
@@ -48,12 +48,31 @@ HOST ── lsblk/udev/blkid auto-detect ─► USB device
                                                 └─ /data/<profile>       (per-profile volumes)
 ```
 
+## The Access Point (start here)
+
+One clear, identifiable entry — no digging through nested directories. The
+managed stick carries a root-level `menu.sh` launcher (seeded by the platform's
+system-tree sync; exFAT can't symlink, so it's a 5-line wrapper), and this
+skill carries the finder that reaches it from anywhere:
+
+```bash
+bash scripts/launch-menu.sh            # opens the master menu (auto-locates it)
+bash scripts/launch-menu.sh --text     # any menu args pass straight through
+USB_MENU=/path/to/menu.sh bash scripts/launch-menu.sh   # explicit override
+```
+
+Resolution order: `$USB_MENU` → ancestor directories (skill deployed on-stick)
+→ mounted Ventoy volumes (`/media/*/Ventoy`, `/run/media/*/Ventoy`)
+→ `findmnt LABEL=Ventoy` for any non-standard mountpoint. The same menu drives the full
+platform with or without Hemlock (Hemlock stays opt-in via `--hemlock`).
+
 ## Core Scripts
 
 Quick map (every entry is also documented below with usage):
 
 | Path | Purpose |
 |------|---------|
+| `scripts/launch-menu.sh` | **THE access point** — finds the platform's master menu (stick root launcher, system tree, or `$USB_MENU`) and execs it from anywhere this skill lives |
 | `scripts/usb-manager.sh` | Main CLI — analyze/recover/ventoy/mkusb/clone/images/docker-on-USB (flag-based) |
 | `scripts/setup.py` | Ventoy + persistence provisioner (idempotent) |
 | `scripts/pipeline.py` | Workflow orchestrator (chained stages with JSON status) |

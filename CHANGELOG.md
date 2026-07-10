@@ -28,6 +28,18 @@ This file is append-only. New entries are added at the top under the appropriate
 - `install.sh --release` recognizes `hemlock-usb-kit-*` assets and extracts
   them instead of feeding them to docker load.
 
+**Baked kernel grows to 8: portable-usb-manager joins the bootstrap set.**
+- `Dockerfile.runtime`, `Dockerfile.runtime-minimal`, `Dockerfile.runtime-lean`
+  now `COPY shared/skills/portable-usb-manager/` into `/opt/skills_seed/`, so
+  every future image ships the full USB-management skill offline (the stick can
+  regenerate its own menu/template without a runtime fetch). `Dockerfile.runtime-core`
+  is source-built and bakes no kernel, unchanged. Existing v1.0.0 images stay
+  7-skill until rebuilt — image drift until the next build.
+- `portable-usb-manager` bumped to **v2.0.13** in the canonical skills repo and
+  synced into `shared/skills/`: its bundled `usb-system` template is refreshed
+  from the live master menu (release-first image manager, kit-mode deploy) and
+  gains the persistent `tooling/` subtree. `validate-all-skills` → 18/18 VALID.
+
 **Verified (docket-style, this session):**
 - Container/tooling isolation: compose mounts named `hemlock_*` volumes +
   imports/exports binds ONLY; `/opt/tooling` and `persistence/*.dat` never

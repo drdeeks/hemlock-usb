@@ -6,7 +6,7 @@
 #
 # Usage:
 #   bash menu.sh                     # Interactive menu (default)
-#   bash menu.sh --text              # Force text menu (no whiptail)
+#   bash menu.sh --text              # Accepted no-op (always a styled text TUI)
 #   bash menu.sh --dry-run           # Dry-run mode (no mutations)
 #   bash menu.sh --hemlock|-H        # Reveal the Hemlock Manager (opt-in)
 #   bash menu.sh --log-file PATH     # Custom log file path
@@ -183,7 +183,8 @@ _setup_device_interactive() {
   # /proc/mounts + ventoy-marker) lives in _detect_usb_devices and runs
   # below. Result is persisted to SELECTED_DEVICE for the rest of the
   # session; manual entry remains available as a fallback.
-  log_section "USB Device Setup" "Identify and select any USB drive (Ventoy or blank)"
+  _menu_header "USB Device Setup"
+  _menu_subheader "Identify and select any USB drive (Ventoy or blank)"
 
   echo ""
   echo "  Scanning for USB devices..."
@@ -207,7 +208,7 @@ _setup_device_interactive() {
 
   if [[ ${#dev_array[@]} -eq 0 ]]; then
     echo ""
-    echo "  ${YELLOW}No USB device auto-detected.${NC}"
+    printf '%b\n' "  ${YELLOW}No USB device auto-detected.${NC}"
     echo ""
     echo "  This is normal if:"
     echo "    - No USB drive is plugged in"
@@ -230,7 +231,7 @@ _setup_device_interactive() {
   # CL-031: render every device with its classification + size + label so the
   # operator sees at a glance which is Ventoy, which is a blank target, etc.
   echo ""
-  echo "  ${BOLD}USB devices found:${NC}"
+  printf '%b\n' "  ${BOLD}USB devices found:${NC}"
   local i=1 d class size label
   for d in "${dev_array[@]}"; do
     class=$(_classify_usb_device "$d")
@@ -245,7 +246,7 @@ _setup_device_interactive() {
     esac
     i=$((i + 1))
   done
-  echo "  ${CYAN}0)${NC} Enter manually"
+  printf '%b\n' "  ${CYAN}0)${NC} Enter manually"
   printf "\n  Select device number [1]: "
   local idx; read -r idx
   idx="${idx:-1}"
@@ -268,7 +269,7 @@ _setup_device_interactive() {
       if detect_ventoy_mount; then
         log_success "Ventoy mounted at $VENTOY_MOUNT"
       else
-        log_info "Ventoy detected but not yet mounted (mount via menu option 2)"
+        log_info "Ventoy detected but not yet mounted (mount via option 2: Unified CLI → usb mount)"
       fi ;;
     blank|formatted)
       log_warn "Selected device is ${picked_class^^} — run menu option 1 to install Ventoy"
@@ -353,6 +354,10 @@ _menu_item() {
   local num="$1" desc="$2" target="${3:-}" detail="${4:-}"
   if [[ -n "$target" ]]; then
     printf "  ${CYAN}%-4s${NC}) %-34s ${GREEN}[%s]${NC}    %s\n" "$num" "$desc" "$target" "$detail"
+  elif [[ -n "$detail" ]]; then
+    # No target tag but an informative detail — show it dimmed, aligned with
+    # the tagged form (details were silently dropped here before).
+    printf "  ${CYAN}%-4s${NC}) %-34s ${DIM}%s${NC}\n" "$num" "$desc" "$detail"
   else
     printf "  ${CYAN}%-4s${NC}) %s\n" "$num" "$desc"
   fi
@@ -395,9 +400,10 @@ _menu_confirm() {
   [[ "${ans,,}" != "n" && "${ans,,}" != "no" ]]
 }
 
-# ── Whiptail Detection ─────────────────────────────────────────────────────
-HAS_WHIPTAIL=false
-command -v whiptail >/dev/null 2>&1 && HAS_WHIPTAIL=true
+# ── Rendering ───────────────────────────────────────────────────────────────
+# CL-043: strictly a styled text TUI — no whiptail. One consistent look for the
+# main menu and every submenu (which always used the text helpers). `--text` is
+# accepted as a harmless no-op for anyone with it in muscle memory / scripts.
 FORCE_TEXT=false
 
 # Hemlock is OPT-IN. The Hemlock Manager option only appears when --hemlock /
@@ -409,7 +415,7 @@ HEMLOCK_ENABLED="${HEMLOCK_ENABLED:-false}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)   DRY_RUN=true; export DRY_RUN; shift ;;
-    --text)      FORCE_TEXT=true; shift ;;
+    --text)      FORCE_TEXT=true; shift ;;  # CL-043: no-op; always text TUI now
     --log-file)  LOG_FILE="$2"; export LOG_FILE; shift 2 ;;
     --hemlock|-H) HEMLOCK_ENABLED=true; export HEMLOCK_ENABLED; shift ;;
     --mode)
@@ -423,8 +429,8 @@ while [[ $# -gt 0 ]]; do
       echo "USB-Hemlock Unified Compute Platform — Master Menu"
       echo ""
       echo "Usage:"
-      echo "  $0                     Interactive menu (whiptail or text fallback)"
-      echo "  $0 --text              Force text-based menu"
+      echo "  $0                     Interactive styled TUI menu"
+      echo "  $0 --text              Accepted no-op (the menu is always text TUI)"
       echo "  $0 --dry-run           Dry-run mode (no mutations)"
       echo "  $0 --hemlock | -H      Show the Hemlock Manager option (opt-in)"
       echo "  $0 --mode usb|host     Skip the boot prompt; force install target"
@@ -454,7 +460,8 @@ log_info "Dry-run: $DRY_RUN"
 
 # ── Component Runners ───────────────────────────────────────────────────────
 _run_usb_setup() {
-  log_section "USB Setup Assistant" "Interactive installer"
+  _menu_header "USB Setup Assistant"
+  _menu_subheader "Interactive installer"
   local args=()
   [[ "$DRY_RUN" == "true" ]] && args+=(--dry-run)
   bash "$USB_DIR/usb-setup-assistant.sh" "${args[@]+"${args[@]}"}" || log_warn "USB setup exited with code $?"
@@ -491,30 +498,70 @@ _run_usbctl() {
   esac
 }
 
+# CL-038: pick which persistence volume a config write targets. Shared config
+# applies to every boot/volume; a per-volume choice scopes aliases/profile/
+# cleanup to that one .dat (sourced only when that volume is mounted). Sets or
+# clears UCA_TARGET_VOLUME (exported so child scripts resolve the same root).
+# No-op outside usb mode or when no Ventoy mount / no extra volumes exist.
+_uca_choose_volume_target() {
+  unset UCA_TARGET_VOLUME
+  [[ "${UCA_MODE:-host}" == "usb" ]] || return 0
+  local vmp=""; vmp=$(_resolve_ventoy_mount 2>/dev/null) || return 0
+  [[ -d "$vmp/persistence" ]] || return 0
+  local vols=() f
+  while IFS= read -r -d '' f; do vols+=("$f"); done \
+    < <(find "$vmp/persistence" -maxdepth 1 -name '*.dat' -print0 2>/dev/null | sort -z)
+  [[ ${#vols[@]} -gt 0 ]] || return 0
+  echo ""
+  _menu_subheader "Config scope"
+  _menu_item "1" "Shared (all volumes & boots)" "" "usb-hemlock/etc/uca/"
+  local i=2
+  for f in "${vols[@]}"; do
+    local name sz; name=$(basename "$f" .dat); sz=$(du -h "$f" 2>/dev/null | cut -f1)
+    _menu_item "$i" "Volume: $name" "" "${sz:-?} — etc/uca/volumes/$name/"
+    i=$((i+1))
+  done
+  _menu_prompt "Target [1]"
+  local pick; read -r pick; pick="${pick:-1}"
+  if [[ "$pick" =~ ^[0-9]+$ ]] && (( pick >= 2 && pick <= ${#vols[@]} + 1 )); then
+    UCA_TARGET_VOLUME=$(basename "${vols[$((pick-2))]}" .dat)
+    export UCA_TARGET_VOLUME
+    _menu_info "Scope: volume '$UCA_TARGET_VOLUME' only (sourced when it is mounted)"
+  else
+    _menu_info "Scope: shared (all volumes)"
+  fi
+  return 0
+}
+
 _run_alias_manager() {
   # CL-030: target follows UCA_MODE — alias_manager.sh resolves the file
-  # itself via _uca_install_root.
+  # itself via _uca_install_root. CL-038: optional per-volume scope.
+  _uca_choose_volume_target
   local tgt; tgt=$(_uca_install_root 2>/dev/null || echo "$HOME")
-  log_section "Alias Manager" "${UCA_MODE^^} — ${tgt}/bash_aliases.sh"
+  _menu_header "Alias Manager"
+  _menu_subheader "${UCA_MODE^^}${UCA_TARGET_VOLUME:+ · vol:$UCA_TARGET_VOLUME} — ${tgt}/bash_aliases.sh"
   local args=()
   [[ "$DRY_RUN" == "true" ]] && args+=(--dry-run)
   bash "$USB_DIR/scripts/alias_manager.sh" "${args[@]+"${args[@]}"}" "$@"
 }
 
 _run_ssh_manager() {
-  log_section "SSH Host Manager" "HOST — ~/.ssh/hosts_usb"
+  _menu_header "SSH Host Manager"
+  _menu_subheader "HOST — ~/.ssh/hosts_usb"
   local args=()
   [[ "$DRY_RUN" == "true" ]] && args+=(--dry-run)
   bash "$USB_DIR/scripts/ssh_host_manager.sh" "${args[@]+"${args[@]}"}" "$@"
 }
 
 _run_sysman() {
-  log_section "System Manager" "HOST — health, network, disk, services"
+  _menu_header "System Manager"
+  _menu_subheader "HOST — health, network, disk, services"
   bash "$USB_DIR/sysman.sh" "$@"
 }
 
 _run_hemlock_tui() {
-  log_section "Hemlock Agent Runtime TUI" "CONTAINER — agent management"
+  _menu_header "Hemlock Agent Runtime TUI"
+  _menu_subheader "CONTAINER — agent management"
   if [[ -z "$HEMLOCK_DIR" || ! -d "$HEMLOCK_DIR/scripts" ]]; then
     log_error "HEMLOCK_DIR not set or invalid: ${HEMLOCK_DIR:-<unset>}"
     log_info "Set HEMLOCK_DIR to the absolute path of hemlock-runtime/"
@@ -525,7 +572,8 @@ _run_hemlock_tui() {
 }
 
 _run_hemlock_status() {
-  log_section "Hemlock Runtime Status" "CONTAINER — runtime check"
+  _menu_header "Hemlock Runtime Status"
+  _menu_subheader "CONTAINER — runtime check"
   if [[ -n "$HEMLOCK_DIR" && -f "$HEMLOCK_DIR/scripts/hemlock" ]]; then
     bash "$HEMLOCK_DIR/scripts/hemlock" status 2>&1 || log_warn "Hemlock status check failed"
   else
@@ -535,6 +583,12 @@ _run_hemlock_status() {
 
 _run_deploy() {
   _menu_header "Master Deployment (DEPLOY.sh)"
+  # Kit deployments (CL-047) don't carry DEPLOY.sh — they are release-driven.
+  if [[ ! -f "$SCRIPT_DIR/hemlock/DEPLOY.sh" ]]; then
+    _menu_info "DEPLOY.sh not in this deployment (USB kit is release-driven by design)."
+    _menu_info "Get the runtime via: Hemlock Manager -> Hemlock images -> pull from releases."
+    return 0
+  fi
   _uca_sudo_init
   _menu_subheader "HOST + USB + CONTAINER"
   echo ""
@@ -634,9 +688,9 @@ _run_logs() {
     tail -30 "$LOG_FILE"
     _menu_divider
     echo ""
-    _menu_item "1" "Tail log (live — 10s timeout)"
-    _menu_item "2" "Search log"
-    _menu_item "3" "Clear log"
+    _menu_item "1" "Tail log (live — 10s timeout)"  "" "follow new lines as they arrive"
+    _menu_item "2" "Search log"                      "" "grep the log for a term"
+    _menu_item "3" "Clear log"                        "" "truncate the log file"
     _menu_item "0" "Back"
     _menu_prompt "Select option"
     local choice; read -r choice
@@ -783,12 +837,12 @@ _run_startup_manager() {
   _menu_subheader "USB-FIRST — boot scripts default to USB persistence (option 4 = inject)"
   echo ""
   _menu_item "1" "List startup scripts"               "" "USB + host"
-  _menu_item "2" "Edit USB startup.sh"                "" ""
-  _menu_item "3" "View USB persistence rc.local"      "" ""
-  _menu_item "4" "Inject startup.sh into rc.local"    "" ""
+  _menu_item "2" "Seed/refresh boot orchestrator"     "" "scripts/startup.sh from canonical"
+  _menu_item "3" "View USB persistence rc.local"      "" "the boot hook on the stick"
+  _menu_item "4" "Install boot hook into rc.local"    "" "runs scripts/startup.sh at boot"
   _menu_item "5" "View host rc.local"                 "" "/etc/rc.local"
-  _menu_item "6" "View host profile.d scripts"        "" ""
-  _menu_item "7" "View host systemd services"         "" ""
+  _menu_item "6" "View host profile.d scripts"        "" "/etc/profile.d/ login drop-ins"
+  _menu_item "7" "View host systemd services"         "" "enabled units on this host"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -803,13 +857,13 @@ _run_startup_manager() {
         if [[ -n "$pfile" ]]; then
           local tmpmnt="/tmp/usb-persist-$$"
           mkdir -p "$tmpmnt"
-          if sudo mount -o loop,ro "$pfile" "$tmpmnt" 2>/dev/null; then
+          if _uca_safe_loop_mount "$pfile" "$tmpmnt" ro; then
             if [[ -f "$tmpmnt/etc/rc.local" ]]; then
               cat "$tmpmnt/etc/rc.local"
             else
               _menu_info "(no rc.local in persistence)"
             fi
-            sudo umount "$tmpmnt" 2>/dev/null || true
+            _uca_safe_umount "$tmpmnt" || true
           else
             _menu_info "(could not mount persistence for inspection)"
           fi
@@ -821,14 +875,17 @@ _run_startup_manager() {
         _menu_info "(no USB device selected)"
       fi
       echo ""
-      _menu_subheader "USB startup.sh"
+      _menu_subheader "USB boot orchestrator (scripts/startup.sh)"
       if [[ -n "${SELECTED_DEVICE:-}" ]]; then
         local vmp2=""
         vmp2=$(_resolve_ventoy_mount) || vmp2=""
-        if [[ -n "$vmp2" && -f "$vmp2/startup.sh" ]]; then
-          cat "$vmp2/startup.sh"
+        if [[ -n "$vmp2" && -f "$vmp2/scripts/startup.sh" ]]; then
+          head -8 "$vmp2/scripts/startup.sh"
+          _menu_info "($(wc -l < "$vmp2/scripts/startup.sh") lines — option 2 to view/edit in full)"
+        elif [[ -n "$vmp2" && -f "$vmp2/startup.sh" ]]; then
+          _menu_warn "LEGACY root startup.sh found — reseed via option 2 (contract: only ISOs at root)"
         else
-          _menu_info "(no startup.sh on USB)"
+          _menu_info "(no boot orchestrator on USB — seed via option 2)"
         fi
       fi
       echo ""
@@ -850,7 +907,7 @@ _run_startup_manager() {
       ;;
     2)
       if [[ -z "${SELECTED_DEVICE:-}" ]]; then
-        _menu_error "SELECTED_DEVICE not set — use option 14 (USB Device Setup)"
+        _menu_error "SELECTED_DEVICE not set — use option 11 (USB Device Setup)"
         return 1
       fi
       local vmp=""
@@ -859,25 +916,33 @@ _run_startup_manager() {
         _menu_error "Ventoy not mounted — mount USB first"
         return 1
       fi
-      local startup="$vmp/startup.sh"
+      # Contract: nothing lives at the USB root except ISOs — the orchestrator
+      # lives at scripts/startup.sh and is seeded from the canonical copy
+      # (usb/tooling/startup-orchestrator.sh), not an inline stub. Operator
+      # customizations belong in usb-hemlock/etc/uca/custom-startup.sh, which
+      # the orchestrator runs as its final step.
+      mkdir -p "$vmp/scripts"
+      local startup="$vmp/scripts/startup.sh"
+      local canon="$USB_DIR/tooling/startup-orchestrator.sh"
       if [[ ! -f "$startup" ]]; then
-        cat > "$startup" << 'STARTUP'
-#!/usr/bin/env bash
-# USB Startup Script — runs on every boot of the USB live environment
-# This script is executed by rc.local during boot.
-# Add your custom startup commands below.
-
-# Wait for network
-sleep 3
-
-# Your custom commands here:
-# echo "USB boot complete — $(date)"
-STARTUP
-        chmod +x "$startup"
-        _menu_success "Created $startup with template"
+        if [[ -f "$canon" ]]; then
+          cp "$canon" "$startup" && chmod +x "$startup"
+          _menu_success "Seeded $startup from the canonical orchestrator"
+        else
+          _menu_error "Canonical orchestrator missing: $canon"
+          return 1
+        fi
+      elif [[ -f "$canon" ]] && ! cmp -s "$canon" "$startup"; then
+        _menu_warn "startup.sh differs from the canonical orchestrator."
+        if _menu_confirm "Refresh it from canonical (custom hooks in etc/uca are unaffected)?"; then
+          cp "$canon" "$startup" && chmod +x "$startup"
+          _menu_success "Refreshed from canonical"
+        fi
       fi
-      ${EDITOR:-nano} "$startup"
-      _menu_success "Startup script saved: $startup"
+      if _menu_confirm "Open scripts/startup.sh in an editor?"; then
+        ${EDITOR:-nano} "$startup"
+      fi
+      _menu_info "Operator hooks: $vmp/usb-hemlock/etc/uca/custom-startup.sh (run by the orchestrator)"
       ;;
     3)
       if [[ -n "${SELECTED_DEVICE:-}" ]]; then
@@ -887,14 +952,14 @@ STARTUP
         if [[ -n "$pfile" ]]; then
           local tmpmnt="/tmp/usb-persist-$$"
           mkdir -p "$tmpmnt"
-          if sudo mount -o loop,ro "$pfile" "$tmpmnt" 2>/dev/null; then
+          if _uca_safe_loop_mount "$pfile" "$tmpmnt" ro; then
             if [[ -f "$tmpmnt/etc/rc.local" ]]; then
               _menu_subheader "rc.local in persistence"
               cat "$tmpmnt/etc/rc.local"
             else
               _menu_info "No rc.local found in persistence image"
             fi
-            sudo umount "$tmpmnt" 2>/dev/null || true
+            _uca_safe_umount "$tmpmnt" || true
           else
             _menu_error "Could not mount persistence"
           fi
@@ -918,34 +983,33 @@ STARTUP
         _menu_error "Persistence file not found"
         return 1
       fi
-      if [[ ! -f "$vmp/startup.sh" ]]; then
-        _menu_error "No startup.sh on USB — create one first (option 2)"
+      if [[ ! -f "$vmp/scripts/startup.sh" ]]; then
+        _menu_error "No scripts/startup.sh on USB — seed it first (option 2)"
         return 1
       fi
       local tmpmnt="/tmp/usb-persist-$$"
       mkdir -p "$tmpmnt"
-      if sudo mount -o loop "$pfile" "$tmpmnt" 2>/dev/null; then
+      if _uca_safe_loop_mount "$pfile" "$tmpmnt"; then
         local rclocal="$tmpmnt/etc/rc.local"
-        if [[ -f "$rclocal" ]]; then
-          if grep -q "startup.sh" "$rclocal"; then
-            _menu_info "startup.sh already referenced in rc.local"
-          else
-            echo "" >> "$rclocal"
-            echo "# Run USB startup script" >> "$rclocal"
-            echo "bash /media/*/Ventoy/startup.sh &" >> "$rclocal"
-            _menu_success "Injected startup.sh into rc.local"
-          fi
+        if [[ -f "$rclocal" ]] && grep -q "startup.sh" "$rclocal"; then
+          _menu_info "startup.sh already referenced in rc.local"
         else
+          # Path-agnostic hook: finds the Ventoy partition wherever the live
+          # system mounted it; prefers scripts/startup.sh, legacy root as
+          # fallback. Matches the shipped persistence/rc.local seed.
           cat > "$rclocal" << 'RCLOCAL'
 #!/bin/bash
-# USB persistence autostart
-bash /media/*/Ventoy/startup.sh &
+# USB-Hemlock boot hook — delegates to the orchestrator on the Ventoy partition.
+for m in /media/*/Ventoy /run/media/*/Ventoy /mnt/ventoy; do
+    if   [ -f "$m/scripts/startup.sh" ]; then bash "$m/scripts/startup.sh" & break
+    elif [ -f "$m/startup.sh" ];        then bash "$m/startup.sh" & break; fi
+done
 exit 0
 RCLOCAL
           chmod +x "$rclocal"
-          _menu_success "Created rc.local with startup.sh reference"
+          _menu_success "Installed boot hook in persistence /etc/rc.local"
         fi
-        sudo umount "$tmpmnt" 2>/dev/null || true
+        _uca_safe_umount "$tmpmnt" || true
       else
         _menu_error "Could not mount persistence"
       fi
@@ -984,15 +1048,17 @@ _run_persistence_manager() {
   _menu_header "Persistence Manager"
   _menu_subheader "USB — persistence partitions"
   echo ""
-  _menu_item "1" "View persistence status"              "" ""
+  _menu_item "1" "View persistence status"              "" "size, label, type of each state"
   _menu_item "2" "Create persistence"                   "" "WARNING: formats .dat file"
   _menu_item "3" "Resize persistence"                   "" "WARNING: destructive"
   _menu_item "4" "Browse persistence"                   "" "loop-mount read-only"
   _menu_item "5" "Check persistence health"             "" "fsck"
-  _menu_item "6" "View Ventoy partition layout"         "" ""
+  _menu_item "6" "View Ventoy partition layout"         "" "lsblk of the whole USB"
   _menu_item "7" "Rename a persistence volume (.dat)"   "" "filename only"
   _menu_item "8" "Relabel a persistence volume (ext4)"  "" "DATA volumes — protects casper-rw"
   _menu_item "9" "Ventoy.json doctor"                   "" "validate boot routing"
+  _menu_item "10" "Volume cleanup tasks"                "" "boot-time cleanup, per volume or shared"
+  _menu_item "11" "Retire a persistence volume (.dat)"  "" "move to stick .trash — never deleted"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -1000,7 +1066,7 @@ _run_persistence_manager() {
     1)
       echo ""
       if [[ -z "${SELECTED_DEVICE:-}" ]]; then
-        _menu_error "No USB device selected — use option 14 (USB Device Setup)"
+        _menu_error "No USB device selected — use option 11 (USB Device Setup)"
         return 0
       fi
       printf "  ${BOLD}Device:${NC} %s\n" "$SELECTED_DEVICE"
@@ -1190,13 +1256,13 @@ _run_persistence_manager() {
       fi
       local tmpmnt="/tmp/usb-persist-browse-$$"
       mkdir -p "$tmpmnt"
-      if sudo mount -o loop,ro "$pfile" "$tmpmnt" 2>/dev/null; then
+      if _uca_safe_loop_mount "$pfile" "$tmpmnt" ro; then
         _menu_subheader "Persistence contents (read-only)"
         sudo ls -la "$tmpmnt/" 2>/dev/null
         echo ""
         _menu_subheader "Files in /etc"
         sudo ls -1 "$tmpmnt/etc/" 2>/dev/null | head -20
-        sudo umount "$tmpmnt" 2>/dev/null || true
+        _uca_safe_umount "$tmpmnt" || true
       else
         _menu_error "Could not mount persistence"
       fi
@@ -1296,6 +1362,107 @@ _run_persistence_manager() {
         _menu_error "Relabel failed (volume mounted? dirty? not ext4?)"
       fi
       ;;
+    10)
+      # CL-038: per-volume cleanup tasks. Config lives on the Ventoy partition
+      # (usb-hemlock/etc/uca[/volumes/<vol>]/cleanup.conf) and is executed by
+      # the boot orchestrator inside the booted system when that volume is in
+      # play ("/" for the active casper backend, its mountpoint otherwise).
+      _uca_choose_volume_target
+      local root; root=$(_uca_install_root) || { _menu_error "No install root (mount USB first)"; return 1; }
+      local conf="$root/cleanup.conf"
+      declare -A tasks=( [APT_CACHE]=off [JOURNAL_VACUUM]=off [TMP_DIRS]=off [PIP_CACHE]=off [NPM_CACHE]=off [OLD_LOGS]=off )
+      local order=(APT_CACHE JOURNAL_VACUUM TMP_DIRS PIP_CACHE NPM_CACHE OLD_LOGS)
+      if [[ -f "$conf" ]]; then
+        local k v
+        while IFS='=' read -r k v; do [[ -n "${tasks[$k]+x}" ]] && tasks[$k]="$v"; done \
+          < <(grep -E '^[A-Z_]+=' "$conf" 2>/dev/null)
+      fi
+      while true; do
+        echo ""
+        _menu_subheader "Cleanup tasks — scope: ${UCA_TARGET_VOLUME:-shared}"
+        _menu_info "Runs at boot inside the live system; toggles persist in $conf"
+        local i=1 t
+        for t in "${order[@]}"; do
+          _menu_item "$i" "$(printf '%-16s [%s]' "$t" "${tasks[$t]}")" "" ""
+          i=$((i+1))
+        done
+        _menu_item "s" "Save & exit" "" ""
+        _menu_item "0" "Cancel (discard changes)" "" ""
+        _menu_prompt "Toggle task number, or s to save"
+        local pick; read -r pick
+        case "$pick" in
+          0) return 0 ;;
+          s|S)
+            if [[ "$DRY_RUN" == "true" ]]; then
+              _menu_info "DRY RUN: would write $conf"; return 0
+            fi
+            { echo "# uca cleanup tasks — executed by the boot orchestrator (startup.sh)"
+              echo "# scope: ${UCA_TARGET_VOLUME:-shared}   written: $(date +%F)"
+              for t in "${order[@]}"; do echo "$t=${tasks[$t]}"; done
+            } > "$conf"
+            _menu_success "Saved: $conf"
+            return 0 ;;
+          *)
+            if [[ "$pick" =~ ^[0-9]+$ ]] && (( pick >= 1 && pick <= ${#order[@]} )); then
+              t="${order[$((pick-1))]}"
+              if [[ "${tasks[$t]}" == "on" ]]; then tasks[$t]=off; else tasks[$t]=on; fi
+            else
+              _menu_error "Invalid option: $pick"
+            fi ;;
+        esac
+      done
+      ;;
+    11)
+      # CL-041: retire a volume the stick no longer needs (e.g. tooling.dat on
+      # a minimal stick). Moved to <ventoy>/.trash/persistence/, never rm'd.
+      # Refuses volumes that are loop-attached right now; warns when profiles
+      # still reference the file so the operator fixes the manifest first.
+      local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted — mount USB first"; return 1; }
+      local pdir="$vmp/persistence"
+      local -a vols=() ; local f
+      for f in "$pdir"/*.dat; do [[ -f "$f" ]] && vols+=("$f"); done
+      [[ ${#vols[@]} -eq 0 ]] && { _menu_info "(no .dat volumes in $pdir)"; return 0; }
+      echo ""
+      _menu_subheader "Volumes on $pdir"
+      local i
+      for i in "${!vols[@]}"; do
+        printf "  ${CYAN}%d${NC}) %-28s %s\n" "$((i + 1))" "$(basename "${vols[$i]}")" \
+          "$(du -h "${vols[$i]}" 2>/dev/null | cut -f1)"
+      done
+      _menu_prompt "Volume to retire (0=cancel)"
+      local sel; read -r sel
+      [[ "$sel" == "0" || -z "$sel" ]] && return 0
+      if ! [[ "$sel" =~ ^[0-9]+$ ]] || (( sel < 1 || sel > ${#vols[@]} )); then
+        _menu_error "Bad selection: '$sel'"; return 1
+      fi
+      local dat="${vols[$((sel - 1))]}" name; name=$(basename "$dat")
+      if losetup -nO BACK-FILE 2>/dev/null | grep -qF "$name"; then
+        _menu_error "$name is loop-attached right now — unmount/detach it first"
+        return 1
+      fi
+      local refs
+      refs=$(grep -l "$name" "$vmp"/usb-hemlock/profiles/*.json 2>/dev/null || true)
+      if [[ -n "$refs" ]]; then
+        _menu_warn "Profiles still reference $name:"
+        printf '%s\n' "$refs" | sed 's|.*|    &|'
+        _menu_info "Remove the data_volume entry first (Device/Boot Profiles → edit manifest)"
+        _menu_confirm "Retire anyway (boot will log a missing-volume skip)?" || return 0
+      fi
+      _menu_warn "Retiring $name ($(du -h "$dat" | cut -f1)) -> .trash/persistence/ (same filesystem, recoverable)"
+      _menu_confirm "Proceed?" || return 0
+      if [[ "$DRY_RUN" == "true" ]]; then
+        _menu_info "DRY RUN: would mv $dat -> $vmp/.trash/persistence/$name.$(date +%Y%m%d-%H%M%S)"
+        return 0
+      fi
+      mkdir -p "$vmp/.trash/persistence"
+      if mv "$dat" "$vmp/.trash/persistence/$name.$(date +%Y%m%d-%H%M%S)"; then
+        _menu_success "Retired: $name (recover from .trash/persistence/ if needed)"
+        _menu_info "Refresh device identity (Device/Boot Profiles → register) to record the change"
+      else
+        _menu_error "Move failed — volume untouched"
+        return 1
+      fi
+      ;;
     0) return 0 ;;
     *) _menu_error "Invalid option: $choice" ;;
   esac
@@ -1348,21 +1515,22 @@ _uca_auto_install_llmrl_after_profile() {
 }
 
 _run_bash_profile() {
-  # CL-030: install target follows UCA_MODE.
+  # CL-030: install target follows UCA_MODE. CL-038: optional per-volume scope.
+  _uca_choose_volume_target
   local install_root dest_label
   install_root=$(_uca_install_root) || install_root="$HOME"
   if [[ "${UCA_MODE:-host}" == "usb" ]]; then
-    dest_label="USB persistence ($install_root)"
+    dest_label="USB persistence${UCA_TARGET_VOLUME:+ · vol:$UCA_TARGET_VOLUME} ($install_root)"
   else
     dest_label="host ($install_root)"
   fi
   _menu_header "Bash Profile Manager"
   _menu_subheader "Target: ${dest_label}"
   echo ""
-  _menu_item "1" "Install enhanced bash profile"                     "" ""
-  _menu_item "2" "View current ~/.bashrc"                            "" ""
-  _menu_item "3" "View enhanced profile (bash_enhanced.sh)"          "" ""
-  _menu_item "4" "Source aliases into current shell"                 "" ""
+  _menu_item "1" "Install enhanced bash profile"                     "" "adds sourcing to the shell rc"
+  _menu_item "2" "View current ~/.bashrc"                            "" "the active shell rc"
+  _menu_item "3" "View enhanced profile (bash_enhanced.sh)"          "" "what gets sourced in"
+  _menu_item "4" "Source aliases into current shell"                 "" "apply now without re-login"
   _menu_item "5" "Show all alias sources"                            "" "$install_root/*"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
@@ -1391,7 +1559,11 @@ _run_bash_profile() {
       # location. In USB mode, the line still goes into host .bashrc (one-time
       # bridge write) so the operator's shell can find the profile on USB.
       local source_line="source \"$profile_dest\" 2>/dev/null || true"
-      if ! grep -q "bash_profile.sh" "$HOME/.bashrc" 2>/dev/null && \
+      # CL-038: per-volume profiles are sourced by the BOOTED system (startup
+      # orchestrator) when that volume is mounted — never bridge them into the
+      # host's ~/.bashrc.
+      if [[ -z "${UCA_TARGET_VOLUME:-}" ]] && \
+         ! grep -q "bash_profile.sh" "$HOME/.bashrc" 2>/dev/null && \
          ! grep -q "bash_profile_enhanced" "$HOME/.bashrc" 2>/dev/null; then
         echo "" >> "$HOME/.bashrc"
         echo "# USB-Hemlock enhanced profile (CL-030) — points at ${UCA_MODE^^} install root" >> "$HOME/.bashrc"
@@ -1483,17 +1655,19 @@ _run_device_config() {
   _menu_info "Location     : $(_uca_profile_location_label)"
   _menu_info "A profile marked 'default' is auto-loaded at startup (autoboot)."
   echo ""
-  _menu_item "1" "Show current device config"          "" ""
-  _menu_item "2" "List all saved profiles"             "" ""
-  _menu_item "3" "Save current as a profile"           "" ""
-  _menu_item "4" "Load/switch profile"                 "" ""
-  _menu_item "5" "Delete profile"                      "" ""
-  _menu_item "6" "Generate host-id for current device" "" ""
-  _menu_item "7" "Set default (autoboot) profile"      "" ""
-  _menu_item "8" "Edit profile manifest"               "" "primary + data volumes"
+  _menu_item "1" "Show current device config"          "" "resolved paths + selected device"
+  _menu_item "2" "List all saved profiles"             "" "profiles in usb-hemlock/profiles/"
+  _menu_item "3" "Save current as a profile"           "" "snapshot device + volumes to a profile"
+  _menu_item "4" "Load/switch profile"                 "" "make a saved profile the active one"
+  _menu_item "5" "Delete profile"                      "" "remove a saved profile (JSON only)"
+  _menu_item "6" "Generate host-id for current device" "" "deterministic ID from serial + model"
+  _menu_item "7" "Set default (autoboot) profile"      "" "which profile boots by default"
+  _menu_item "8" "Edit profile manifest"               "" "primary + data volumes + env"
   _menu_item "9" "Compile profile → ventoy.json"       "" "boot routing (backed up)"
   _menu_item "10" "Apply profile mounts to primary"    "" "systemd auto-mount"
-  _menu_item "11" "Preview profile (read-only)"        "" ""
+  _menu_item "11" "Preview profile (read-only)"        "" "show the manifest without changes"
+  _menu_item "12" "Register/refresh stick identity"    "" "device-identity.json from live facts"
+  _menu_item "13" "Sync system tree to USB"            "" "sterile deploy of the platform code"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -1634,6 +1808,141 @@ _run_device_config() {
     9)  _uca_profile_compile_ventoy ;;
     10) _uca_profile_apply_mounts ;;
     11) _uca_profile_preview ;;
+    12)
+      # Source-first: stick identity is menu-produced from live facts (device
+      # serial, volumes, profiles on the drive) — never hand-placed JSON.
+      local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted — mount USB first"; return 1; }
+      local idfile="$vmp/usb-hemlock/etc/uca/device-identity.json"
+      mkdir -p "$(dirname "$idfile")"
+      local cur_sid=""; cur_sid=$(jq -r '.stick_id // empty' "$idfile" 2>/dev/null) || cur_sid=""
+      printf "  Stick ID [%s]: " "${cur_sid:-usb-hemlock-$(date +%Y%m%d)}"
+      local sid; read -r sid
+      [[ -z "$sid" ]] && sid="${cur_sid:-usb-hemlock-$(date +%Y%m%d)}"
+      local cur_desc=""; cur_desc=$(jq -r '.description // empty' "$idfile" 2>/dev/null) || cur_desc=""
+      printf "  Description [keep existing]: "
+      local sdesc; read -r sdesc
+      [[ -z "$sdesc" ]] && sdesc="$cur_desc"
+      local serial=""
+      [[ -n "${SELECTED_DEVICE:-}" ]] && serial=$(lsblk -dno SERIAL "$SELECTED_DEVICE" 2>/dev/null | tr -d ' ')
+      local vols_json="{}" profs_json="[]" f
+      for f in "$vmp"/persistence/*.dat; do
+        [[ -f "$f" ]] || continue
+        local vn vsz vlbl
+        vn=$(basename "$f"); vsz=$(du -h "$f" 2>/dev/null | cut -f1)
+        vlbl=$(sudo blkid -o value -s LABEL "$f" 2>/dev/null || echo "?")
+        vols_json=$(jq --arg n "$vn" --arg v "${vsz:-?} (label: ${vlbl:-?})" '. + {($n):$v}' <<<"$vols_json")
+      done
+      for f in "$vmp"/usb-hemlock/profiles/*.json; do
+        [[ -f "$f" ]] || continue
+        profs_json=$(jq --arg p "$(basename "$f" .json)" '. + [$p]' <<<"$profs_json")
+      done
+      if [[ "$DRY_RUN" == "true" ]]; then
+        _menu_info "DRY RUN: would write $idfile (stick_id=$sid)"; return 0
+      fi
+      if jq -n --arg sid "$sid" --arg desc "$sdesc" --arg serial "$serial" \
+            --arg host "$(hostname)" --argjson vols "$vols_json" --argjson profs "$profs_json" \
+            '{stick_id:$sid, description:$desc, device_serial:$serial,
+              registered:(now|todate), registered_on_host:$host,
+              profiles:$profs, volumes:$vols, models_dir:"/models"}' > "$idfile"; then
+        _menu_success "Identity registered: $idfile"
+        jq '.' "$idfile" 2>/dev/null | sed 's/^/  /'
+      else
+        _menu_error "Failed to write identity"
+      fi
+      ;;
+    13)
+      # Deploy/refresh the platform's own code onto the stick. STRICT excludes
+      # keep live agent state, secrets and runtime data off the sterile tree —
+      # rsync protects excluded paths from --delete by default.
+      # CL-047: the DEFAULT deploy is the Hemlock USB kit — menu + USB system
+      # + the host-side hemlock management subset only. Images come from
+      # GitHub releases (Hemlock Manager → Hemlock images), never from this
+      # sync. The full source mirror remains as the dev option.
+      local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted — mount USB first"; return 1; }
+      local dest="$vmp/usb-hemlock/system"
+      local kitsh="$SCRIPT_DIR/hemlock/hemlock-runtime/scripts/build-usb-kit.sh"
+      echo ""
+      _menu_info "Source: $SCRIPT_DIR"
+      _menu_info "Dest  : $dest (sterile — agent state/secrets excluded)"
+      echo ""
+      _menu_item "1" "Hemlock USB kit" "" "menu + USB system + hemlock mgmt only (~30MB; images from releases)"
+      _menu_item "2" "Full source mirror" "" "entire repo tree minus state/secrets (dev)"
+      _menu_prompt "Deploy what? [1]"
+      local dmode; read -r dmode; dmode="${dmode:-1}"
+      if [[ "$dmode" == "1" ]]; then
+        if [[ ! -f "$kitsh" ]]; then
+          _menu_warn "kit builder missing ($kitsh) — falling back to full mirror"
+        else
+          _menu_confirm "Sync the kit now?" || return 0
+          if [[ "$DRY_RUN" == "true" ]]; then
+            _menu_info "DRY RUN: would build-usb-kit.sh --sync $dest"
+          elif bash "$kitsh" --sync "$dest"; then
+            sync
+            _menu_success "Kit synced ($(du -sh "$dest" 2>/dev/null | cut -f1))"
+          else
+            _menu_error "kit sync failed"; return 1
+          fi
+          # fall through to seed the root launcher below
+          if [[ "$DRY_RUN" != "true" ]]; then
+            cat > "$vmp/menu.sh" <<'LAUNCHEOF'
+#!/usr/bin/env bash
+# USB-Hemlock — START HERE. This is the whole platform's entry point.
+# (wrapper: the system lives in usb-hemlock/system/; exFAT can't symlink)
+here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+exec bash "$here/usb-hemlock/system/menu.sh" "$@"
+LAUNCHEOF
+            chmod +x "$vmp/menu.sh" 2>/dev/null || true
+            _menu_info "Root launcher seeded: $vmp/menu.sh (START HERE entry point)"
+          fi
+          return 0
+        fi
+      fi
+      _menu_confirm "Sync the FULL system tree now?" || return 0
+      mkdir -p "$dest"
+      local rs_args=(-a --delete
+        --exclude '.git/' --exclude '.env' --exclude '.secrets/'
+        --exclude '*.log' --exclude '*.db' --exclude 'dist/'
+        # CL-042: dev-only artifacts are bloat on the deployed tree
+        --exclude '.claude/' --exclude 'AGENTS.md' --exclude '.gitignore'
+        --exclude 'usb/volumes/' --exclude '_incoming-docs/'
+        # blueprint/ is dev planning EXCEPT the ventoy reference the menu cites
+        --include 'blueprint/ventoy-reference.md' --exclude 'blueprint/*'
+        --exclude 'hemlock/hemlock-runtime/agents/active/'
+        --exclude 'hemlock/hemlock-runtime/agents/archive/'
+        --exclude 'hemlock/hemlock-runtime/agents/registrar/'
+        --exclude 'hemlock/hemlock-runtime/crews/active/'
+        --exclude 'hemlock/hemlock-runtime/crews/archive/'
+        --exclude 'hemlock/hemlock-runtime/data/'
+        --exclude 'hemlock/hemlock-runtime/runtime/'
+        --exclude 'hemlock/hemlock-runtime/logs/'
+        --exclude 'hemlock/hemlock-runtime/knowledge/'
+        --exclude 'hemlock/hemlock-runtime/models/'
+        --exclude 'hemlock/hemlock-runtime/volumes/'
+        --exclude 'hemlock/hemlock-runtime/srv/'
+        --exclude 'hemlock/hemlock-runtime/docker/openclaw-runtime/'
+        --exclude 'node_modules/')
+      [[ "$DRY_RUN" == "true" ]] && rs_args+=(-n -v)
+      if rsync "${rs_args[@]}" "$SCRIPT_DIR/" "$dest/"; then
+        sync
+        _menu_success "System tree synced ($(du -sh "$dest" 2>/dev/null | cut -f1))"
+        # CL-042: friendly access point at the stick ROOT. exFAT has no
+        # symlinks, so seed a tiny wrapper that execs the real menu — one
+        # clear, visible entry for everyone, no digging through directories.
+        if [[ "$DRY_RUN" != "true" ]]; then
+          cat > "$vmp/menu.sh" <<'LAUNCHEOF'
+#!/usr/bin/env bash
+# USB-Hemlock — START HERE. This is the whole platform's entry point.
+# (wrapper: the system lives in usb-hemlock/system/; exFAT can't symlink)
+here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+exec bash "$here/usb-hemlock/system/menu.sh" "$@"
+LAUNCHEOF
+          chmod +x "$vmp/menu.sh" 2>/dev/null || true
+          _menu_info "Root launcher seeded: $vmp/menu.sh (START HERE entry point)"
+        fi
+      else
+        _menu_error "rsync failed"
+      fi
+      ;;
     0) return 0 ;;
     *) log_error "Invalid option: $choice" ;;
   esac
@@ -1646,9 +1955,96 @@ _run_device_config() {
 # user wants. Defaults derive from the live mount; overrides persist in a
 # sourced KEY=VALUE file the user can edit by hand or via the menu.
 
-UCA_CFG_DIR="${UCA_CONFIG_DIR:-$HOME/.config/usb-compute-automation}"
+# ── Per-device configuration isolation (CL-044) ─────────────────────────────
+# The stick is portable; every host it touches is a different physical machine
+# with different RAM/CPU/GPU. Configuration therefore MUST NOT travel — each
+# device detects, decides, and stores its own tuning (QEMU allocation, SSH
+# port, environment, boot target, profiles, sudo policy) under its own
+# namespace keyed by a stable hardware fingerprint. Plug the same stick into
+# machine A then machine B and each is recognized and configured independently;
+# neither ever inherits the other's numbers.
+#
+# Fingerprint sources, best→fallback. A plain read of the root-only DMI uuid
+# succeeds when we ARE root (e.g. native USB boot) and silently falls through
+# otherwise — we NEVER invoke sudo here, so nothing prompts at startup:
+#   1) DMI product_uuid          — true per-machine hardware UUID
+#   2) composite of readable DMI ids + primary permanent MAC
+#   3) /etc/machine-id (or dbus) — stable per OS install
+#   4) hostname                  — last resort
+_uca_device_fingerprint() {
+  local raw="" src=""
+  if [[ -r /sys/class/dmi/id/product_uuid ]]; then
+    raw=$(tr -d '[:space:]' < /sys/class/dmi/id/product_uuid 2>/dev/null)
+    [[ -n "$raw" ]] && src="dmi-uuid"
+  fi
+  if [[ -z "$raw" ]]; then
+    local parts=() f
+    for f in sys_vendor product_name product_family board_vendor board_name product_version; do
+      [[ -r "/sys/class/dmi/id/$f" ]] && parts+=("$(cat "/sys/class/dmi/id/$f" 2>/dev/null)")
+    done
+    local nic mac
+    for nic in /sys/class/net/*; do
+      [[ -r "$nic/address" ]] || continue
+      case "${nic##*/}" in lo|docker*|veth*|br-*|virbr*|tap*|tun*|zt*|tailscale*) continue;; esac
+      mac=$(cat "$nic/address" 2>/dev/null)
+      [[ -n "$mac" && "$mac" != "00:00:00:00:00:00" ]] && { parts+=("$mac"); break; }
+    done
+    if ((${#parts[@]})); then raw=$(printf '%s|' "${parts[@]}"); src="dmi-composite"; fi
+  fi
+  if [[ -z "$raw" ]]; then
+    if [[ -r /etc/machine-id ]]; then raw=$(cat /etc/machine-id 2>/dev/null); src="machine-id"
+    elif [[ -r /var/lib/dbus/machine-id ]]; then raw=$(cat /var/lib/dbus/machine-id 2>/dev/null); src="dbus-machine-id"; fi
+  fi
+  [[ -z "$raw" ]] && { raw=$(hostname 2>/dev/null || echo unknown); src="hostname"; }
+  local hash
+  hash=$(printf '%s' "$raw" | sha256sum 2>/dev/null | cut -c1-12)
+  [[ -n "$hash" ]] || hash="unknown00000"
+  printf '%s %s\n' "$hash" "$src"
+}
+
+# Human-readable machine name for display (vendor + model), hostname fallback.
+_uca_device_label() {
+  local vendor="" model=""
+  [[ -r /sys/class/dmi/id/sys_vendor ]]   && vendor=$(tr -d '\n' < /sys/class/dmi/id/sys_vendor 2>/dev/null)
+  [[ -r /sys/class/dmi/id/product_name ]] && model=$(tr -d '\n' < /sys/class/dmi/id/product_name 2>/dev/null)
+  local label; label=$(printf '%s %s' "$vendor" "$model" | sed 's/^ *//; s/ *$//; s/  */ /g')
+  # DMI often ships useless placeholders on whiteboxes/VMs.
+  case "$label" in ""|"To Be Filled By O.E.M."*|"System Product Name"*|"Default string"*) label="";; esac
+  [[ -n "$label" ]] || label=$(hostname 2>/dev/null || echo "this machine")
+  printf '%s\n' "$label"
+}
+
+UCA_BASE_CFG_DIR="${UCA_CONFIG_DIR:-$HOME/.config/usb-compute-automation}"
+if [[ -z "${UCA_DEVICE_ID:-}" ]]; then
+  UCA_DEVICE_ID=""; UCA_DEVICE_ID_SRC=""
+  read -r UCA_DEVICE_ID UCA_DEVICE_ID_SRC < <(_uca_device_fingerprint) || true
+  [[ -n "$UCA_DEVICE_ID" ]] || { UCA_DEVICE_ID="unknown00000"; UCA_DEVICE_ID_SRC="fallback"; }
+else
+  UCA_DEVICE_ID_SRC="override"
+fi
+# Every host's config lives in its OWN dir; nothing is shared between machines.
+UCA_CFG_DIR="$UCA_BASE_CFG_DIR/devices/$UCA_DEVICE_ID"
 UCA_PATHS_CONF="$UCA_CFG_DIR/usb-paths.conf"
 UCA_ENV_CONF="$UCA_CFG_DIR/usb-env.conf"
+
+# Ensure the per-device config dir exists; migrate any legacy flat config ONCE.
+# Pre-CL-044 installs kept a single flat config under the base dir. Those files
+# were written on THIS machine, so they belong to THIS device's namespace —
+# move (not copy) them in so nothing lingers to leak onto another host.
+_uca_ensure_cfg_dir() {
+  mkdir -p "$UCA_CFG_DIR" 2>/dev/null || true
+  [[ "$UCA_BASE_CFG_DIR" == "$UCA_CFG_DIR" ]] && return 0
+  local f
+  for f in usb-paths.conf usb-env.conf sudo-policy; do
+    if [[ -f "$UCA_BASE_CFG_DIR/$f" && ! -e "$UCA_CFG_DIR/$f" ]]; then
+      mv "$UCA_BASE_CFG_DIR/$f" "$UCA_CFG_DIR/$f" 2>/dev/null || true
+    fi
+  done
+  if [[ -d "$UCA_BASE_CFG_DIR/profiles" && ! -e "$UCA_CFG_DIR/profiles" ]]; then
+    mv "$UCA_BASE_CFG_DIR/profiles" "$UCA_CFG_DIR/profiles" 2>/dev/null || true
+  fi
+  return 0
+}
 
 # Configurable values (defaults; overridden by usb-paths.conf when present).
 : "${UCA_VENTOY_MOUNT:=}"             # explicit mount override; empty = auto-detect
@@ -1840,6 +2236,7 @@ _uca_normalize_permissions() {
 }
 
 _uca_load_paths_config() {
+  _uca_ensure_cfg_dir
   if [[ -f "$UCA_PATHS_CONF" ]]; then
     # shellcheck disable=SC1090
     source "$UCA_PATHS_CONF" 2>/dev/null || _menu_warn "Could not load $UCA_PATHS_CONF"
@@ -1853,7 +2250,7 @@ _uca_load_paths_config() {
 }
 
 _uca_save_paths_config() {
-  mkdir -p "$UCA_CFG_DIR" 2>/dev/null || true
+  _uca_ensure_cfg_dir
   if [[ "$DRY_RUN" == "true" ]]; then
     _menu_info "DRY RUN: would write $UCA_PATHS_CONF"
     return 0
@@ -2015,6 +2412,96 @@ _uca_resolve_environment() {
   printf '%s\n' "$env"
 }
 
+# ── Safe loop-mount lifecycle (yank-aware) ───────────────────────────────────
+# Every loop mount goes through these helpers so that:
+#   1. the menu ALWAYS unmounts what it mounted (EXIT/TERM/INT trap sweeps the
+#      registry — no leaked mounts if the script dies mid-operation);
+#   2. writes are flushed (sync) BEFORE any unmount;
+#   3. an ext4 .dat that was yanked mid-write is journal-recovered (e2fsck -p)
+#      before it is ever mounted read-write again;
+#   4. mounts whose backing device vanished (surprise removal) are detected at
+#      startup and lazily detached instead of poisoning later operations.
+UCA_TRACKED_MOUNTS=()
+
+_uca_track_mount() { UCA_TRACKED_MOUNTS+=("$1"); }
+
+_uca_untrack_mount() {
+  local m keep=()
+  for m in "${UCA_TRACKED_MOUNTS[@]:-}"; do
+    [[ "$m" == "$1" ]] || keep+=("$m")
+  done
+  UCA_TRACKED_MOUNTS=("${keep[@]:-}")
+}
+
+# _uca_safe_loop_mount <volume-file> <mountpoint> [ro]
+_uca_safe_loop_mount() {
+  local vol="$1" mnt="$2" mode="${3:-rw}"
+  [[ -f "$vol" ]] || return 1
+  mkdir -p "$mnt" 2>/dev/null || true
+  # Yank recovery: before an rw mount of an ext4 volume, replay a dirty
+  # journal. e2fsck -p is a no-op on a clean fs and safe-repairs after a
+  # surprise removal; never run on ro mounts (recovery happens then too,
+  # but we avoid touching the file when the caller asked for read-only).
+  if [[ "$mode" != "ro" ]]; then
+    local fstype
+    fstype=$(sudo -n blkid -o value -s TYPE "$vol" 2>/dev/null || echo "")
+    if [[ "$fstype" == ext* ]]; then
+      sudo e2fsck -p "$vol" >/dev/null 2>&1 || true
+    fi
+  fi
+  local opts="loop"
+  [[ "$mode" == "ro" ]] && opts="loop,ro"
+  if sudo mount -o "$opts" "$vol" "$mnt" 2>/dev/null; then
+    _uca_track_mount "$mnt"
+    return 0
+  fi
+  return 1
+}
+
+# _uca_safe_umount <mountpoint> — sync first, lazy-detach as last resort.
+_uca_safe_umount() {
+  local mnt="$1"
+  mountpoint -q "$mnt" 2>/dev/null || { _uca_untrack_mount "$mnt"; return 0; }
+  sync
+  if _uca_safe_umount "$mnt"; then
+    _uca_untrack_mount "$mnt"; return 0
+  fi
+  sleep 1
+  if _uca_safe_umount "$mnt" || sudo umount -l "$mnt" 2>/dev/null; then
+    _uca_untrack_mount "$mnt"; return 0
+  fi
+  return 1
+}
+
+# EXIT sweep — unmount anything we mounted and never released. The leading
+# sync also flushes direct writes to the (non-journaled) exFAT Ventoy
+# partition — profiles/config survive a pull right after the menu exits.
+_uca_umount_leftovers() {
+  sync
+  local m
+  for m in "${UCA_TRACKED_MOUNTS[@]:-}"; do
+    [[ -n "$m" ]] || continue
+    mountpoint -q "$m" 2>/dev/null && { sync; _uca_safe_umount "$m" || sudo umount -l "$m" 2>/dev/null || true; }
+  done
+  UCA_TRACKED_MOUNTS=()
+}
+
+# Startup sweep — detect mounts whose backing device/file is GONE (someone
+# pulled the stick). Lazy-detach them so stale mounts don't shadow the real
+# state, and tell the user which volume should be health-checked.
+_uca_sweep_stale_mounts() {
+  local src tgt
+  while IFS=' ' read -r src tgt; do
+    [[ -n "$tgt" ]] || continue
+    # loop mounts whose backing file was on a removed device show as deleted
+    if [[ "$src" == *"(deleted)"* ]] || { [[ "$src" == /dev/loop* ]] && ! losetup "$src" >/dev/null 2>&1; }; then
+      log_warn "Stale mount from removed media: $tgt — lazy-detaching"
+      log_warn "  Run 'Persistence Manager → Check persistence health' on that volume before its next rw use."
+      sudo -n umount -l "$tgt" 2>/dev/null || true
+    fi
+  done < <(findmnt -rn -o SOURCE,TARGET 2>/dev/null | grep -E "^/dev/loop|deleted" || true)
+}
+
 # ── Boot/device profiles — USB-first storage (Phase 1) ──────────────────────
 # Profiles live ON the Ventoy drive (portable, travel with the USB) under
 # /<mount>/usb-hemlock/profiles, falling back to the host config dir when the
@@ -2058,8 +2545,14 @@ _uca_autoload_profile() {
   [[ -n "$dev" && -b "$dev" ]] && export SELECTED_DEVICE="$dev"
   # Optional path overrides the profile may carry.
   local iso; iso=$(jq -r '.iso // empty' "$def" 2>/dev/null); [[ -n "$iso" ]] && UCA_ISO_PATH="$iso"
-  local prim; prim=$(jq -r '.primary // empty' "$def" 2>/dev/null)
-  [[ -n "$prim" ]] && UCA_PERSISTENCE_VOLUMES="$prim${UCA_PERSISTENCE_VOLUMES:+:$UCA_PERSISTENCE_VOLUMES}"
+  # primary is an OBJECT per the profile schema — take .file and resolve it
+  # against the USB mount (profile paths are mount-relative).
+  local prim; prim=$(jq -r '.primary.file // empty' "$def" 2>/dev/null)
+  if [[ -n "$prim" ]]; then
+    local m; m=$(_uca_mount 2>/dev/null) || m=""
+    [[ -n "$m" && -f "$m/${prim#/}" ]] && prim="$m/${prim#/}"
+    UCA_PERSISTENCE_VOLUMES="$prim${UCA_PERSISTENCE_VOLUMES:+:$UCA_PERSISTENCE_VOLUMES}"
+  fi
   # Env block. CL-026 / SPEC-T04 (MOD-007): HEMLOCK_ENABLED is BLACKLISTED
   # from profile auto-export. Hemlock is opt-in via --hemlock/-H or an
   # explicit shell export; a stored profile must NEVER silently enable it.
@@ -2199,6 +2692,15 @@ _uca_profile_validate() {
     jq -e '.primary.file' "$f" >/dev/null 2>&1 || { echo "missing .primary.file (boot_mode=ventoy)" >&2; return 1; }
     jq -e '.iso'          "$f" >/dev/null 2>&1 || { echo "missing .iso (boot_mode=ventoy)" >&2; return 1; }
   fi
+  # Foundation contract: when the stick carries a tooling.dat, every profile
+  # should ride it (data_volumes role=tooling). Warn, never fail — a profile
+  # without the bridge boots, it just lacks the shared toolchain.
+  local m; m=$(_uca_mount 2>/dev/null) || m=""
+  if [[ -n "$m" && -f "$m/persistence/tooling.dat" ]]; then
+    if ! jq -e '.data_volumes[]? | select(.role == "tooling")' "$f" >/dev/null 2>&1; then
+      echo "WARN: profile lacks the tooling.dat bridge volume (role=tooling) — add it via Device/Boot Profiles" >&2
+    fi
+  fi
   return 0
 }
 
@@ -2235,6 +2737,7 @@ _uca_profile_edit_manifest() {
   _menu_item "5" "Set boot_mode (ventoy/qemu)"      "" "qemu = different ISO"
   _menu_item "6" "Set ISO"                          "" ""
   _menu_item "7" "Open full JSON in \$EDITOR"        "" ""
+  _menu_item "8" "Edit env vars"                    "" "set KEY=value, empty value deletes"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local c; read -r c
@@ -2297,6 +2800,29 @@ _uca_profile_edit_manifest() {
       tmp=$(mktemp); jq --arg i "$iso" '.iso=$i' "$p" > "$tmp" && mv "$tmp" "$p" && _menu_success "iso=$iso"
       ;;
     7) ${EDITOR:-nano} "$p"; _uca_profile_validate "$p" >/dev/null 2>&1 || _menu_warn "manifest now fails validation" ;;
+    8)
+      # CL-041: env editing (promised by this editor since CL-026, never wired)
+      echo ""
+      _menu_subheader "Current env"
+      jq -r '(.env // {}) | to_entries[] | "    \(.key)=\(.value)"' "$p" 2>/dev/null || true
+      printf "  Key to set (empty=cancel): "; local ek; read -r ek
+      [[ -z "$ek" ]] && return 0
+      printf "  Value for %s (empty=DELETE the key): " "$ek"; local ev; read -r ev
+      if [[ "$DRY_RUN" == "true" ]]; then
+        [[ -z "$ev" ]] && _menu_info "DRY RUN: delete env.$ek" || _menu_info "DRY RUN: set env.$ek=$ev"
+        return 0
+      fi
+      tmp=$(mktemp)
+      if [[ -z "$ev" ]]; then
+        jq --arg k "$ek" 'del(.env[$k])' "$p" > "$tmp" \
+          && mv "$tmp" "$p" && _menu_success "Deleted env.$ek" \
+          || { rm -f "$tmp"; _menu_error "Update failed"; }
+      else
+        jq --arg k "$ek" --arg v "$ev" '.env = ((.env // {}) + {($k): $v})' "$p" > "$tmp" \
+          && mv "$tmp" "$p" && _menu_success "Set env.$ek=$ev" \
+          || { rm -f "$tmp"; _menu_error "Update failed"; }
+      fi
+      ;;
     0) return 0 ;;
     *) _menu_error "Invalid option: $c" ;;
   esac
@@ -2326,16 +2852,28 @@ _uca_profile_compile_ventoy() {
   mkdir -p "$m/ventoy" 2>/dev/null || true
   if [[ -f "$vj" ]]; then local b; b=$(_uca_ventoy_json_backup "$vj") && _menu_info "Backup: $b"; fi
   local tmp; tmp=$(mktemp)
+  # MERGE, never clobber (multi-state): an entry for the SAME image gains this
+  # backend as an additional persistence state (backend array -> Ventoy shows a
+  # boot-time selector; autosel dropped so the menu actually appears). Entries
+  # for OTHER images are left untouched; a new image is appended. Compiling a
+  # profile can therefore never erase another profile's boot mapping.
+  local jq_merge='
+    .persistence = ((.persistence // [])
+      | if any(.[]?; .image == $iso) then
+          map(if .image == $iso then
+                .backend = (((if (.backend|type)=="array" then .backend else [.backend] end) + [$bk]) | unique)
+                | (if (.backend|length) == 1 then .backend = .backend[0] | .autosel = 1
+                   else del(.autosel) end)
+              else . end)
+        else . + [{image:$iso, backend:$bk, autosel:1}] end)'
   if [[ -f "$vj" ]]; then
-    jq --arg iso "$iso" --arg bk "$primary" \
-       '.persistence = [{image:$iso, backend:$bk, autosel:1}]' "$vj" > "$tmp" \
+    jq --arg iso "$iso" --arg bk "$primary" "$jq_merge" "$vj" > "$tmp" \
       || { rm -f "$tmp"; _menu_error "jq merge failed"; return 1; }
   else
-    jq -n --arg iso "$iso" --arg bk "$primary" \
-       '{persistence:[{image:$iso, backend:$bk, autosel:1}]}' > "$tmp" \
+    jq -n --arg iso "$iso" --arg bk "$primary" "$jq_merge" > "$tmp" \
       || { rm -f "$tmp"; _menu_error "jq build failed"; return 1; }
   fi
-  mv "$tmp" "$vj" && _menu_success "Wrote $vj"
+  mv "$tmp" "$vj" && _menu_success "Wrote $vj (merged — existing states preserved)"
   _menu_info "Run the Ventoy.json Doctor (12→9) to verify."
 }
 
@@ -2413,7 +2951,7 @@ _uca_profile_apply_mounts() {
 
   local mnt="/tmp/uca-apply-$$"
   sudo mkdir -p "$mnt" || { _menu_error "mkdir failed"; return 1; }
-  if ! sudo mount -o loop "$primary_fs" "$mnt" 2>/dev/null; then
+  if ! _uca_safe_loop_mount "$primary_fs" "$mnt"; then
     _menu_error "Could not loop-mount primary (already mounted RW?)"; sudo rmdir "$mnt" 2>/dev/null; return 1
   fi
   if [[ ! -x "$mnt/bin/bash" && ! -L "$mnt/bin/bash" ]]; then
@@ -2477,7 +3015,7 @@ EOF
     _menu_success "Wrote $n_env env var(s) to /etc/environment"
   fi
 
-  sudo umount "$mnt" 2>/dev/null || _menu_warn "umount failed — still at $mnt"
+  _uca_safe_umount "$mnt" || _menu_warn "umount failed — still at $mnt"
   sudo rmdir "$mnt" 2>/dev/null || true
   _menu_info "Done. Next boot will auto-mount the data volumes."
 }
@@ -2755,9 +3293,9 @@ _uca_manage_env() {
     _menu_info "(no env file yet)"
   fi
   echo ""
-  _menu_item "1" "Add / update a variable" "" ""
-  _menu_item "2" "Remove a variable"       "" ""
-  _menu_item "3" "Open env file in \$EDITOR" "" ""
+  _menu_item "1" "Add / update a variable" "" "set KEY=value in the env file"
+  _menu_item "2" "Remove a variable"       "" "delete a KEY from the env file"
+  _menu_item "3" "Open env file in \$EDITOR" "" "raw edit; reloaded on save"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -2863,9 +3401,131 @@ _uca_unmount_tree() {
   local mnt="$1"
   local sub
   for sub in dev/pts dev proc sys tmp ""; do
-    sudo umount "$mnt/$sub" 2>/dev/null || true
+    _uca_safe_umount "$mnt/$sub" || true
   done
   sudo rmdir "$mnt" 2>/dev/null || true
+}
+
+# CL-043: Compute profile & feasibility advisor.
+# Detect the real hardware, explain what each RUN MODE can actually give you
+# (native boot / native headless / VM-on-top), and — for the VM case — offer
+# three resource-commitment tiers computed from detected RAM/cores. Every line
+# carries a plain-language stub for people who don't live in this stuff.
+# Applying a tier writes UCA_QEMU_RAM / UCA_QEMU_CPUS (persisted), with a guard
+# so you can't hand a VM more than the machine safely has.
+_uca_qemu_ram_to_mb() {  # "4G" / "2048M" / "3072" -> MB integer
+  local v="${1:-0}"
+  case "$v" in
+    *G|*g) echo $(( ${v%[Gg]} * 1024 )) ;;
+    *M|*m) echo $(( ${v%[Mm]} )) ;;
+    *)     echo $(( v )) ;;
+  esac
+}
+_uca_mb_to_qemu() {  # MB integer -> "NG" when clean, else "NM"
+  local mb="$1"
+  if (( mb % 1024 == 0 )); then echo "$(( mb / 1024 ))G"; else echo "${mb}M"; fi
+}
+_uca_compute_profile() {
+  _menu_header "Compute Profile & Feasibility"
+  _menu_subheader "detect the machine → what each run mode can give → pick a VM tier"
+
+  # ── Detect (lightweight, always-available; the runtime hardware-scanner adds
+  #    richer GPU/backend detail when present) ────────────────────────────────
+  local threads ram_mb ram_gb gpu virt
+  threads=$(nproc 2>/dev/null || echo 1)
+  ram_mb=$(awk '/MemTotal/{printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo 0)
+  ram_gb=$(awk -v m="$ram_mb" 'BEGIN{printf "%.1f", m/1024}')
+  gpu=$(lspci 2>/dev/null | grep -iE 'vga|3d|display' | sed 's/.*: //' | head -1)
+  [[ -z "$gpu" ]] && gpu="none detected"
+  # NB: systemd-detect-virt EXITS 1 on bare metal (prints "none"), so don't
+  # treat non-zero as failure — just take its stdout.
+  virt=$(systemd-detect-virt 2>/dev/null || true); [[ -z "$virt" ]] && virt="unknown"
+
+  local scanner="hemlock/hemlock-runtime/scripts/system/hardware-scanner.sh"
+  echo ""
+  _menu_subheader "Detected hardware"
+  printf "  ${BOLD}Device:${NC}      %s ${DIM}[%s · %s]${NC}\n" "$(_uca_device_label)" "$UCA_DEVICE_ID" "$UCA_DEVICE_ID_SRC"
+  printf "  ${DIM}Config for THIS machine is isolated at %s\n" "$UCA_CFG_DIR"
+  printf "  Another machine gets its own — no tuning ever travels on the stick.${NC}\n"
+  printf "  ${BOLD}CPU threads:${NC} %s\n" "$threads"
+  printf "  ${BOLD}RAM total:${NC}   %s GB (%s MB)\n" "$ram_gb" "$ram_mb"
+  printf "  ${BOLD}GPU:${NC}         %s\n" "$gpu"
+  printf "  ${BOLD}Running in:${NC}  %s\n" "$([[ "$virt" == none ]] && echo "bare metal (not a VM)" || echo "$virt")"
+  [[ -f "$SCRIPT_DIR/$scanner" ]] && _menu_info "Deeper GPU/LLM-backend scan available: $scanner"
+
+  # ── Run-mode feasibility (the info stubs the operator actually needs) ───────
+  echo ""
+  _menu_subheader "What each run mode can give you"
+  printf "  ${GREEN}${BOLD}Native boot${NC} ${DIM}(reboot the machine FROM the stick)${NC}\n"
+  printf "    ${DIM}The stick IS the machine: 100%% of RAM, every core, the GPU, zero\n"
+  printf "    overhead. Reach it on the console, or over Tailscale once SSH is up.${NC}\n"
+  printf "  ${GREEN}${BOLD}Native headless${NC} ${DIM}(auto-boot, no desktop — you SSH in)${NC}\n"
+  printf "    ${DIM}Same full hardware, even leaner (no GUI). Best performance. You never\n"
+  printf "    see a screen — reach it at its Tailscale IP on :22.${NC}\n"
+  printf "  ${YELLOW}${BOLD}VM on top${NC} ${DIM}(runs beside your current OS — no reboot)${NC}\n"
+  printf "    ${DIM}Convenient, but capped to the tier you pick below and NO GPU (a VM\n"
+  printf "    can't reach the card without passthrough). Reached via the host:%s->:22 forward.${NC}\n" "$UCA_QEMU_SSH_PORT"
+
+  # ── VM resource tiers (computed from detected RAM/cores) ────────────────────
+  local seam_mb rest_mb red_mb seam_cpu rest_cpu red_cpu
+  seam_mb=$(( ram_mb * 20 / 100 ))
+  rest_mb=$(( ram_mb * 70 / 100 ))
+  red_mb=$(( ram_mb - 1024 ))
+  (( seam_mb < 1024 )) && seam_mb=$(( ram_mb / 2 ))   # tiny-RAM: don't go below half
+  (( red_mb  < 1024 )) && red_mb=$ram_mb              # tiny-RAM: redline = everything (dangerous)
+  seam_cpu=$(( threads / 4 )); (( seam_cpu < 1 )) && seam_cpu=1
+  rest_cpu=$(( threads * 3 / 4 )); (( rest_cpu < 1 )) && rest_cpu=1
+  red_cpu=$(( threads - 1 )); (( red_cpu < 1 )) && red_cpu=1
+
+  echo ""
+  _menu_subheader "VM-on-top resource tiers (host keeps the rest)"
+  printf "  ${CYAN}1${NC}) ${BOLD}Seamless${NC}   %-8s %d vCPU  ${DIM}host keeps ~%d%%${NC}\n" \
+    "$(_uca_mb_to_qemu "$seam_mb")" "$seam_cpu" "$(( 100 - seam_mb*100/ram_mb ))"
+  printf "     ${DIM}Flawless — the VM never fights the host. Use it while you're also\n"
+  printf "     using the laptop normally.${NC}\n"
+  printf "  ${CYAN}2${NC}) ${BOLD}Restricted${NC} %-8s %d vCPU  ${DIM}host keeps ~%d%%${NC}\n" \
+    "$(_uca_mb_to_qemu "$rest_mb")" "$rest_cpu" "$(( 100 - rest_mb*100/ram_mb ))"
+  printf "     ${DIM}Aggressive — the VM takes the lion's share. Fine if the host is\n"
+  printf "     mostly idle; heavy host use may stutter.${NC}\n"
+  printf "  ${CYAN}3${NC}) ${BOLD}Redline${NC}    %-8s %d vCPU  ${DIM}host keeps ~1G${NC}\n" \
+    "$(_uca_mb_to_qemu "$red_mb")" "$red_cpu"
+  printf "     ${YELLOW}Risking it — the host gets bare-survival RAM. Expect instability if\n"
+  printf "     anything else runs. Only for a dedicated push.${NC}\n"
+
+  # ── Honesty check for small machines ───────────────────────────────────────
+  if (( ram_mb < 8192 )); then
+    echo ""
+    _menu_warn "This machine has ${ram_gb}G RAM — VM-on-top is genuinely tight here."
+    _menu_info  "Even Seamless leaves the guest only $(_uca_mb_to_qemu "$seam_mb"). Native headless"
+    _menu_info  "gives the guest the FULL ${ram_gb}G with no overhead — strongly better on this box."
+  fi
+
+  echo ""
+  printf "  ${DIM}Current QEMU allocation: %s RAM / %s vCPU${NC}\n" "$UCA_QEMU_RAM" "$UCA_QEMU_CPUS"
+  _menu_prompt "Apply a tier to the VM config (1/2/3), or Enter to leave as-is"
+  local pick; read -r pick
+  local new_mb new_cpu tier
+  case "$pick" in
+    1) new_mb=$seam_mb; new_cpu=$seam_cpu; tier="Seamless" ;;
+    2) new_mb=$rest_mb; new_cpu=$rest_cpu; tier="Restricted" ;;
+    3) new_mb=$red_mb;  new_cpu=$red_cpu;  tier="Redline" ;;
+    *) _menu_info "Left unchanged."; return 0 ;;
+  esac
+  # Guard: never hand a VM more than (physical − 1G) even at Redline.
+  local ceiling=$(( ram_mb - 1024 )); (( ceiling < 512 )) && ceiling=$ram_mb
+  if (( new_mb > ceiling )); then
+    _menu_warn "Capping $(_uca_mb_to_qemu "$new_mb") to $(_uca_mb_to_qemu "$ceiling") (leave the host ~1G to survive)."
+    new_mb=$ceiling
+  fi
+  if [[ "$DRY_RUN" == "true" ]]; then
+    _menu_info "DRY RUN: would set UCA_QEMU_RAM=$(_uca_mb_to_qemu "$new_mb") UCA_QEMU_CPUS=$new_cpu"
+    return 0
+  fi
+  UCA_QEMU_RAM="$(_uca_mb_to_qemu "$new_mb")"; export UCA_QEMU_RAM
+  UCA_QEMU_CPUS="$new_cpu"; export UCA_QEMU_CPUS
+  _uca_save_paths_config >/dev/null 2>&1 || true
+  _menu_success "$tier applied + saved: $UCA_QEMU_RAM RAM / $UCA_QEMU_CPUS vCPU (VM-on-top)"
+  _menu_info "Native boot ignores this — it always gets the whole machine."
 }
 
 _run_usb_access() {
@@ -2887,6 +3547,7 @@ _run_usb_access() {
   _menu_item "9" "Install dev tooling INTO USB"        "" "comprehensive (default)"
   _menu_item "10" "Validate services (ssh/docker)"     "" "offline + runtime"
   _menu_item "11" "Headless-boot autostart"            "" "OS-aware (host)"
+  _menu_item "12" "Compute profile & feasibility"      "" "detect HW; native vs VM; set VM resource tier"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -2902,6 +3563,7 @@ _run_usb_access() {
     9) _uca_install_tooling_usb ;;
     10) _uca_validate_services ;;
     11) _uca_boot_autostart ;;
+    12) _uca_compute_profile ;;
     0) return 0 ;;
     *) _menu_error "Invalid option: $choice" ;;
   esac
@@ -2925,10 +3587,10 @@ _uca_exec_into_persistence() {
     return 0
   fi
   sudo mkdir -p "$mnt" || { _menu_error "mkdir failed"; return 1; }
-  if sudo mount -o loop "$vol" "$mnt" 2>/dev/null; then
+  if _uca_safe_loop_mount "$vol" "$mnt"; then
     _menu_success "Mounted at $mnt (read-write). Type 'exit' to unmount & return."
     ( cd "$mnt" && sudo "${SHELL:-bash}" ) || _menu_warn "Shell exited (code $?)"
-    sudo umount "$mnt" 2>/dev/null || _menu_warn "Unmount failed — still mounted at $mnt"
+    _uca_safe_umount "$mnt" || _menu_warn "Unmount failed — still mounted at $mnt"
   else
     _menu_error "Could not mount $vol (already mounted? wrong filesystem?)"
   fi
@@ -2947,7 +3609,7 @@ _uca_chroot_persistence() {
     return 0
   fi
   sudo mkdir -p "$mnt" || { _menu_error "mkdir failed"; return 1; }
-  if ! sudo mount -o loop "$vol" "$mnt" 2>/dev/null; then
+  if ! _uca_safe_loop_mount "$vol" "$mnt"; then
     _menu_error "Could not mount $vol"; sudo rmdir "$mnt" 2>/dev/null || true; return 1
   fi
   if [[ ! -d "$mnt/bin" && ! -L "$mnt/bin" ]]; then
@@ -2975,7 +3637,7 @@ _uca_edit_rclocal() {
     return 0
   fi
   sudo mkdir -p "$mnt" || { _menu_error "mkdir failed"; return 1; }
-  if ! sudo mount -o loop "$vol" "$mnt" 2>/dev/null; then
+  if ! _uca_safe_loop_mount "$vol" "$mnt"; then
     _menu_error "Could not mount $vol"; sudo rmdir "$mnt" 2>/dev/null || true; return 1
   fi
   local rcpath="$mnt/$rcrel"
@@ -2994,14 +3656,14 @@ RCLOCAL
   sudo "${EDITOR:-nano}" "$rcpath"
   sudo chmod +x "$rcpath" 2>/dev/null || true
   _menu_success "Saved $rcrel in $(basename "$vol")"
-  sudo umount "$mnt" 2>/dev/null || _menu_warn "Unmount failed — still at $mnt"
+  _uca_safe_umount "$mnt" || _menu_warn "Unmount failed — still at $mnt"
   sudo rmdir "$mnt" 2>/dev/null || true
 }
 
 _uca_boot_headless() {
   _uca_qemu_check || return 1
   local dev="${SELECTED_DEVICE:-}"
-  [[ -n "$dev" ]] || { _menu_error "No USB device set (option 14)"; return 1; }
+  [[ -n "$dev" ]] || { _menu_error "No USB device set (option 11)"; return 1; }
   [[ -b "$dev" ]] || { _menu_error "$dev is not a block device"; return 1; }
   local kvm=""; [[ -e /dev/kvm ]] && kvm="-enable-kvm"
   _menu_warn "Booting the whole USB device ($dev) in a VM."
@@ -3028,7 +3690,7 @@ _uca_boot_headless() {
 _uca_boot_gui() {
   _uca_qemu_check || return 1
   local dev="${SELECTED_DEVICE:-}"
-  [[ -b "$dev" ]] || { _menu_error "No USB device set (option 14)"; return 1; }
+  [[ -b "$dev" ]] || { _menu_error "No USB device set (option 11)"; return 1; }
   [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]] || _menu_warn "No DISPLAY/WAYLAND_DISPLAY — a window may not open"
   local kvm=""; [[ -e /dev/kvm ]] && kvm="-enable-kvm"
   _menu_warn "Graphical boot of $dev. Snapshot mode (writes discarded) by default."
@@ -3086,7 +3748,7 @@ _uca_with_chroot() {
   local vol="$1"; shift
   local mnt="/tmp/uca-chroot-$$-$RANDOM"
   sudo mkdir -p "$mnt" || { _menu_error "mkdir failed"; return 1; }
-  if ! sudo mount -o loop "$vol" "$mnt" 2>/dev/null; then
+  if ! _uca_safe_loop_mount "$vol" "$mnt"; then
     _menu_error "Could not mount $vol (already mounted? wrong fs?)"; sudo rmdir "$mnt" 2>/dev/null || true; return 1
   fi
   if [[ ! -x "$mnt/bin/bash" && ! -L "$mnt/bin/bash" ]]; then
@@ -3143,7 +3805,7 @@ _uca_install_tooling_usb() {
 
   local mnt="/tmp/uca-tooling-$$"
   sudo mkdir -p "$mnt" || { _menu_error "mkdir failed"; return 1; }
-  if ! sudo mount -o loop "$vol" "$mnt" 2>/dev/null; then
+  if ! _uca_safe_loop_mount "$vol" "$mnt"; then
     _menu_error "Could not mount $vol"; sudo rmdir "$mnt" 2>/dev/null || true; return 1
   fi
   if [[ ! -x "$mnt/bin/bash" && ! -L "$mnt/bin/bash" ]]; then
@@ -3347,22 +4009,22 @@ _uca_boot_autostart() {
   _menu_subheader "HOST — auto-launch the USB VM (OS-aware)"
   local os; os=$(detect_os 2>/dev/null || echo "Unknown")
   _menu_info "Detected OS: $os"
-  local dev="${SELECTED_DEVICE:-<set via option 14>}"
+  local dev="${SELECTED_DEVICE:-<set via option 11>}"
   echo ""
   case "$os" in
     Linux|WSL)
       local unit_dir="$HOME/.config/systemd/user"
       local unit="$unit_dir/usb-headless.service"
       _menu_info "systemd user service: $unit"
-      _menu_item "1" "Enable autostart (snapshot, SSH :$UCA_QEMU_SSH_PORT)" "" ""
-      _menu_item "2" "Disable autostart" "" ""
-      _menu_item "3" "Show service status" "" ""
+      _menu_item "1" "Enable autostart (snapshot, SSH :$UCA_QEMU_SSH_PORT)" "" "systemd user unit: boot the VM at login"
+      _menu_item "2" "Disable autostart" "" "remove the systemd user unit"
+      _menu_item "3" "Show service status" "" "systemctl --user status of the unit"
       _menu_item "0" "Back"
       _menu_prompt "Select option"
       local c; read -r c
       case "$c" in
         1)
-          [[ -b "${SELECTED_DEVICE:-}" ]] || { _menu_error "Set a USB device first (option 14)"; return 1; }
+          [[ -b "${SELECTED_DEVICE:-}" ]] || { _menu_error "Set a USB device first (option 11)"; return 1; }
           _uca_require_host_dep qemu-system-x86_64 "qemu-system-x86 qemu-utils" \
             "The autostart launches QEMU on the host to run the USB headless with SSH forwarding." || return 1
           if [[ "$DRY_RUN" == "true" ]]; then _menu_info "DRY RUN: would write $unit and enable it"; return 0; fi
@@ -3421,6 +4083,257 @@ EOF
 # a single submenu. Future work (H1–H5) will fill in: dynamic volume CRUD,
 # Hemlock Doctor wired to doctor_bridge, mode switcher, gateway-token
 # bootstrap, per-process log viewer, agent/crew CRUD via volumes.
+# ── Hemlock images on USB (CL-047) — RELEASE-FIRST ──────────────────────────
+# The stick should never depend on an operator hand-staging docker saves;
+# that's the dev/offline fallback. Primary path: pick which Hemlock you want
+# (the variant list comes from what the latest GitHub release actually ships)
+# and pull it straight into usb-hemlock/images/ with a verified sha256, so
+# every machine the stick meets can docker-load it offline afterwards.
+
+# JSON field helper: jq when the host has it, python3 otherwise.
+_hemlock_release_json() {  # $1=repo → prints "name|url|size" per asset + "TAG|<tag>" first
+  local api="https://api.github.com/repos/$1/releases/latest" js
+  js=$(curl -fsSL "$api" 2>/dev/null) || return 1
+  if command -v jq >/dev/null 2>&1; then
+    printf 'TAG|%s\n' "$(jq -r '.tag_name // empty' <<<"$js")"
+    jq -r '.assets[]? | "\(.name)|\(.browser_download_url)|\(.size)"' <<<"$js"
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -c '
+import sys, json
+r = json.load(sys.stdin)
+print("TAG|" + r.get("tag_name", ""))
+for a in r.get("assets", []):
+    print("{}|{}|{}".format(a["name"], a["browser_download_url"], a["size"]))' <<<"$js"
+  else
+    return 2
+  fi
+}
+
+_run_hemlock_get_release() {
+  _menu_header "Get Hemlock from GitHub Releases"
+  local repo="${HEMLOCK_RELEASE_REPO:-drdeeks/hemlock-usb}"
+  _menu_subheader "release-first: pick the variant, pull to the stick, docker-load anywhere"
+  command -v curl >/dev/null 2>&1 || { _menu_error "curl not available on this host"; return 1; }
+  _menu_info "Querying latest release of $repo ..."
+  local lines rc=0
+  lines=$(_hemlock_release_json "$repo") || rc=$?
+  if [[ $rc -eq 2 ]]; then _menu_error "need jq or python3 to read the release listing"; return 1; fi
+  if [[ $rc -ne 0 || -z "$lines" ]]; then
+    _menu_error "No release found for $repo"
+    _menu_info  "Publish one first, or set HEMLOCK_RELEASE_REPO. Dev fallback: stage a local image (option 3)."
+    return 1
+  fi
+  local tag; tag=$(sed -n 's/^TAG|//p' <<<"$lines")
+  local -a names=() urls=() sizes=()
+  local l name url size
+  while IFS='|' read -r name url size; do
+    [[ "$name" == "TAG" || -z "$name" ]] && continue
+    # sha256 companions are fetched automatically with their asset, and the
+    # USB kit tarball is not an image — neither belongs in this picker.
+    [[ "$name" == *.sha256 || "$name" == hemlock-usb-kit-* ]] && continue
+    names+=("$name"); urls+=("$url"); sizes+=("$size")
+  done <<<"$lines"
+  [[ ${#names[@]} -eq 0 ]] && { _menu_error "Release $tag ships no image assets"; return 1; }
+  echo ""
+  _menu_subheader "Which Hemlock? (release $tag)"
+  local i variant
+  for i in "${!names[@]}"; do
+    variant=$(sed -nE 's/^hemlock[-_]?(minimal|lean|core|full|latest).*/\1/p' <<<"${names[$i]}")
+    printf "  ${CYAN}%d${NC}) %-14s %-38s %s MB\n" "$((i + 1))" "${variant:-image}" \
+      "${names[$i]}" "$(( ${sizes[$i]} / 1048576 ))"
+  done
+  _menu_prompt "Variant to pull [1]"
+  local sel; read -r sel; sel="${sel:-1}"
+  if ! [[ "$sel" =~ ^[0-9]+$ ]] || (( sel < 1 || sel > ${#names[@]} )); then
+    _menu_error "Bad selection: '$sel'"; return 1
+  fi
+  name="${names[$((sel - 1))]}"; url="${urls[$((sel - 1))]}"; size="${sizes[$((sel - 1))]}"
+  # Destination: the stick when mounted (the point of the exercise), else /tmp.
+  local vmp imgdir
+  if vmp=$(_resolve_ventoy_mount 2>/dev/null); then
+    imgdir="$vmp/usb-hemlock/images"
+  else
+    imgdir="/tmp/hemlock-images"
+    _menu_warn "Ventoy not mounted — downloading to $imgdir (re-run with the stick in to land it there)"
+  fi
+  local dest="$imgdir/$name"
+  if [[ -f "$dest" && -f "$dest.sha256" ]] && (cd "$imgdir" && sha256sum -c "$name.sha256" >/dev/null 2>&1); then
+    _menu_success "Already pulled and verified: $name"
+  else
+    local free_kb need_kb=$(( (size / 1024) * 2 ))
+    free_kb=$(df -k --output=avail "$imgdir" 2>/dev/null | tail -1 | tr -d ' ')
+    [[ -z "$free_kb" ]] && free_kb=$(df -k --output=avail "$(dirname "$imgdir")" 2>/dev/null | tail -1 | tr -d ' ')
+    if [[ -n "$free_kb" && "$free_kb" -lt "$need_kb" ]]; then
+      _menu_error "Not enough free space at $imgdir ($(( size / 1048576 )) MB asset)"; return 1
+    fi
+    if [[ "$DRY_RUN" == "true" ]]; then
+      _menu_info "DRY RUN: would download $name ($(( size / 1048576 )) MB) -> $dest"; return 0
+    fi
+    _menu_confirm "Download $name ($(( size / 1048576 )) MB) now?" || return 0
+    mkdir -p "$imgdir"
+    _menu_info "Downloading (streams straight to destination)..."
+    if ! curl -fL -o "$dest" "$url"; then _menu_error "download failed"; return 1; fi
+    # Verify against the release's own .sha256 companion when it ships one;
+    # otherwise record a local checksum so later loads can still be verified.
+    if grep -q "^${name}.sha256|" <<<"$lines"; then
+      curl -fsL -o "$dest.sha256" "$(sed -n "s/^${name}\.sha256|\([^|]*\)|.*/\1/p" <<<"$lines")" || true
+    fi
+    [[ -s "$dest.sha256" ]] || (cd "$imgdir" && sha256sum "$name" > "$name.sha256")
+    sync
+    if (cd "$imgdir" && sha256sum -c "$name.sha256" >/dev/null 2>&1); then
+      _menu_success "Pulled + verified: $name ($(du -h "$dest" | cut -f1))"
+    else
+      _menu_error "Checksum FAILED — do not trust this download"; return 1
+    fi
+  fi
+  if command -v docker >/dev/null 2>&1; then
+    _menu_confirm "docker load it on this host now?" || return 0
+    case "$name" in
+      *.tar.gz|*.tgz) gunzip -c "$dest" | docker load ;;
+      *)              docker load -i "$dest" ;;
+    esac && _menu_success "Loaded into docker" || _menu_error "docker load failed"
+  else
+    _menu_info "No docker here — load later with: docker load -i $dest"
+  fi
+}
+
+_run_hemlock_list_staged() {
+  _menu_header "Images on the Stick"
+  local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted"; return 1; }
+  local imgdir="$vmp/usb-hemlock/images" f ok
+  ls "$imgdir"/*.tar* >/dev/null 2>&1 || { _menu_info "(none — pull one from releases, option 1)"; return 0; }
+  for f in "$imgdir"/*.tar "$imgdir"/*.tar.gz; do
+    [[ -f "$f" && "$f" != *.sha256 ]] || continue
+    ok="no checksum"
+    [[ -f "$f.sha256" ]] && { (cd "$imgdir" && sha256sum -c "$(basename "$f").sha256" >/dev/null 2>&1) && ok="${GREEN}verified${NC}" || ok="${RED}CHECKSUM FAILED${NC}"; }
+    printf "  %-46s %-8s %b\n" "$(basename "$f")" "$(du -h "$f" | cut -f1)" "$ok"
+  done
+}
+
+_run_hemlock_load_staged() {
+  _menu_header "Load Staged Image"
+  local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted"; return 1; }
+  command -v docker >/dev/null 2>&1 || { _menu_error "docker not available on this host"; return 1; }
+  local imgdir="$vmp/usb-hemlock/images"
+  local -a files=(); local f
+  for f in "$imgdir"/*.tar "$imgdir"/*.tar.gz; do [[ -f "$f" ]] && files+=("$f"); done
+  [[ ${#files[@]} -eq 0 ]] && { _menu_info "(nothing staged — pull from releases first)"; return 0; }
+  local i; for i in "${!files[@]}"; do
+    printf "  ${CYAN}%d${NC}) %s (%s)\n" "$((i + 1))" "$(basename "${files[$i]}")" "$(du -h "${files[$i]}" | cut -f1)"
+  done
+  _menu_prompt "Image to load [1]"
+  local sel; read -r sel; sel="${sel:-1}"
+  if ! [[ "$sel" =~ ^[0-9]+$ ]] || (( sel < 1 || sel > ${#files[@]} )); then _menu_error "Bad selection"; return 1; fi
+  f="${files[$((sel - 1))]}"
+  if [[ -f "$f.sha256" ]] && ! (cd "$imgdir" && sha256sum -c "$(basename "$f").sha256" >/dev/null 2>&1); then
+    _menu_error "Checksum FAILED for $(basename "$f") — refusing to load"; return 1
+  fi
+  [[ "$DRY_RUN" == "true" ]] && { _menu_info "DRY RUN: would docker load $(basename "$f")"; return 0; }
+  case "$f" in
+    *.tar.gz|*.tgz) gunzip -c "$f" | docker load ;;
+    *)              docker load -i "$f" ;;
+  esac && _menu_success "Loaded: $(basename "$f")" || _menu_error "docker load failed"
+}
+
+_run_hemlock_images() {
+  _menu_header "Hemlock Images (USB)"
+  _menu_subheader "release-first — the stick carries the image; every host just loads it"
+  echo ""
+  _menu_item "1" "Pull from GitHub releases"    "" "pick variant -> usb-hemlock/images/ + sha256 (primary)"
+  _menu_item "2" "Load staged image into docker" "" "verify checksum, then docker load"
+  _menu_item "3" "List + verify staged images"   "" "what the stick carries"
+  _menu_item "4" "Stage local docker image"      "" "docker save (dev/offline fallback)"
+  _menu_item "0" "Back"
+  _menu_prompt "Select option"
+  local choice; read -r choice
+  case "$choice" in
+    1) _run_hemlock_get_release ;;
+    2) _run_hemlock_load_staged ;;
+    3) _run_hemlock_list_staged ;;
+    4) _run_hemlock_stage_image ;;
+    0) return 0 ;;
+    *) _menu_error "Invalid option: $choice" ;;
+  esac
+}
+
+# Stage the hemlock image on the stick so any host (or the booted live system)
+# can `docker load` it without a registry. Writes usb-hemlock/images/
+# hemlock-<12-char-id>.tar plus a .sha256 alongside; verifies after copy and
+# prunes older staged hemlock images (moved to the stick's .trash, never rm'd
+# blind). CL-047: demoted to the dev/offline fallback — pulling a release
+# image (_run_hemlock_get_release) is the primary path.
+_run_hemlock_stage_image() {
+  _menu_header "Stage Hemlock Image on USB"
+  local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted — mount USB first"; return 1; }
+  command -v docker >/dev/null 2>&1 || { _menu_error "docker not available on this host"; return 1; }
+  # CL-041: the stick carries ONE image — the operator picks which variant.
+  # full = everything baked (~4.2GB); lean = no toolchain, tools from data;
+  # minimal = hemlock gateway + brain over MCP only, no dev tooling.
+  local -a tags=() ; local t
+  while IFS= read -r t; do tags+=("$t"); done < <(
+    docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null \
+      | grep -E '^hemlock:(latest|lean|minimal|core)$' | sort)
+  [[ ${#tags[@]} -eq 0 ]] && { _menu_error "No hemlock image variant on this host — build one first (option 12)"; return 1; }
+  echo ""
+  _menu_subheader "Built variants on this host (latest = full)"
+  local i
+  for i in "${!tags[@]}"; do
+    printf "  ${CYAN}%d${NC}) %-18s %-8s (built %s)\n" "$((i + 1))" "${tags[$i]}" \
+      "$(docker images "${tags[$i]}" --format '{{.Size}}' | head -1)" \
+      "$(docker images "${tags[$i]}" --format '{{.CreatedSince}}' | head -1)"
+  done
+  _menu_prompt "Variant to stage [1]"
+  local sel; read -r sel; sel="${sel:-1}"
+  if ! [[ "$sel" =~ ^[0-9]+$ ]] || (( sel < 1 || sel > ${#tags[@]} )); then
+    _menu_error "Bad selection: '$sel'"; return 1
+  fi
+  local tag="${tags[$((sel - 1))]}"
+  local iid size
+  iid=$(docker images "$tag" --format '{{.ID}}' 2>/dev/null | head -1)
+  size=$(docker images "$tag" --format '{{.Size}}' 2>/dev/null | head -1)
+  local imgdir="$vmp/usb-hemlock/images"
+  local dest="$imgdir/hemlock-${iid}.tar"
+  _menu_subheader "$tag ${iid} (${size}) -> $dest"
+  if [[ -f "$dest" && -f "$dest.sha256" ]] && (cd "$imgdir" && sha256sum -c "$(basename "$dest").sha256" >/dev/null 2>&1); then
+    _menu_success "Already staged and verified: $(basename "$dest")"
+    return 0
+  fi
+  local free_kb need_kb
+  free_kb=$(df -k --output=avail "$vmp" 2>/dev/null | tail -1 | tr -d ' ')
+  need_kb=$(( 5 * 1024 * 1024 ))
+  if [[ -n "$free_kb" && "$free_kb" -lt "$need_kb" ]]; then
+    _menu_error "Less than 5G free on the stick — clear space first"
+    return 1
+  fi
+  if [[ "$DRY_RUN" == "true" ]]; then
+    _menu_info "DRY RUN: would docker save $tag to $dest"; return 0
+  fi
+  _menu_confirm "Stage now (${size} write to the stick — several minutes)?" || return 0
+  mkdir -p "$imgdir"
+  _menu_info "Saving (this streams straight to the stick)..."
+  if docker save "$tag" -o "$dest"; then
+    (cd "$imgdir" && sha256sum "$(basename "$dest")" > "$(basename "$dest").sha256")
+    sync
+    if (cd "$imgdir" && sha256sum -c "$(basename "$dest").sha256" >/dev/null 2>&1); then
+      _menu_success "Staged + verified: $(basename "$dest") ($(du -h "$dest" | cut -f1))"
+    else
+      _menu_error "Post-copy checksum FAILED — do not trust this tarball"
+      return 1
+    fi
+    local old
+    for old in "$imgdir"/hemlock-*.tar; do
+      [[ -f "$old" && "$old" != "$dest" ]] || continue
+      mkdir -p "$vmp/.trash/images"
+      mv "$old" "$old.sha256" "$vmp/.trash/images/" 2>/dev/null || true
+      _menu_info "Older staged image moved to .trash/images: $(basename "$old")"
+    done
+    _menu_info "Load anywhere with: docker load -i $dest"
+  else
+    _menu_error "docker save failed"
+    return 1
+  fi
+}
+
 _run_hemlock_manager() {
   _menu_header "Hemlock Manager"
   _menu_subheader "CONTAINER — gateway, agents, crews, deploy, doctor"
@@ -3435,13 +4348,15 @@ _run_hemlock_manager() {
   _menu_item "2" "Runtime status"                  "" "docker ps + healthcheck"
   _menu_item "3" "Master Deploy (DEPLOY.sh)"      "" "full stack — needs root"
   _menu_item "4" "Hemlock Doctor"                  "" "health check (8 categories)"
-  _menu_item "5" "Launch Hemlock Control (GUI)"    "" "OpenClaw Control web UI, app-mode (CL-012)"
+  _menu_item "5" "Launch Hemlock Control (GUI)"    "" "web UI on :1437 — app-mode here, or URL for phone/Tailscale (headless)"
   _menu_item "6" "Volume management"               "" "list/inspect/backup/destroy hemlock_* volumes (CL-014)"
   _menu_item "7" "Check for updates"                "" "self-update with rollback (.auto-update.sh)"
-  _menu_item "8" "Skills repo sync"                 "" "pull drdeeks/skills + manage daily timer (CL-016)"
+  _menu_item "8" "Skills manager"                   "" "baked curated set (self-contained) + add remote skill repos"
   _menu_item "9" "Crew PM blueprint workflow"       "" "PM interrogation → triple-confirm → crew (CL-019)"
   _menu_item "10" "Register agent on-chain (stub)"   "" "registrar: create+register agent (CL-020)"
   _menu_item "11" "Registry audit"                   "" "list registrar entries + verify attestations"
+  _menu_item "12" "Install / deploy runtime"          "" "install.sh — build variant, load release, USB, native"
+  _menu_item "13" "Hemlock images (USB)"               "" "pick variant + pull from GitHub releases; load/verify/stage"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -3457,9 +4372,25 @@ _run_hemlock_manager() {
     9) _run_hemlock_pm_blueprint ;;
     10) _run_hemlock_register_agent ;;
     11) _run_hemlock_registry_audit ;;
+    12) _run_hemlock_install ;;
+    13) _run_hemlock_images ;;
     0) return 0 ;;
     *) _menu_error "Invalid option: $choice" ;;
   esac
+}
+
+# Installer — one script, every variation (build/load/USB/native/release).
+_run_hemlock_install() {
+  _menu_header "Install / Deploy Runtime"
+  local inst=""
+  [[ -n "$HEMLOCK_DIR" && -f "$HEMLOCK_DIR/install.sh" ]] && inst="$HEMLOCK_DIR/install.sh"
+  [[ -z "$inst" && -f "$SCRIPT_DIR/hemlock/hemlock-runtime/install.sh" ]] && inst="$SCRIPT_DIR/hemlock/hemlock-runtime/install.sh"
+  if [[ -z "$inst" ]]; then
+    _menu_error "install.sh not found (HEMLOCK_DIR unset and no local runtime tree)"
+    _menu_info  "Fetch the latest release instead:  install.sh --release"
+    return 0
+  fi
+  bash "$inst" || _menu_warn "installer exited non-zero"
 }
 
 # Registrar — create + register an agent on-chain (CL-020 stub mode).
@@ -3542,15 +4473,16 @@ _run_hemlock_pm_blueprint() {
   esac
 }
 
-# Skills repo orchestrator (CL-016). Skills live INSIDE the container at /skills,
-# a named docker volume. Image bakes a clone of github.com/drdeeks/skills at
-# /opt/skills_seed; entrypoint rsyncs it into /skills on first start; an
-# in-container cron pulls updates daily (03:17). This menu lets the operator
-# trigger a pull on-demand, inspect status, or browse skills, all via docker
-# exec — no host filesystem coupling.
+# Skills manager. Self-contained by design: the image bakes the CURATED skill
+# set (from hemlock-runtime/shared/skills) into /opt/skills_seed; the entrypoint
+# rsyncs REAL FILES (no symlinks) into the /skills NAMED VOLUME on first start.
+# No github clone, no cron, no host filesystem coupling — the container borrows
+# only host compute. Agents COPY skills from /skills (read-only to them) into
+# their own workspace. This menu additionally lets the operator OPT-IN to remote
+# skill repos (cloned as extra entries into /skills), all via docker exec.
 _run_hemlock_skills_sync() {
-  _menu_header "Hemlock Skills Sync"
-  _menu_subheader "CONTAINER — /skills named volume, seeded from github.com/drdeeks/skills"
+  _menu_header "Hemlock Skills Manager"
+  _menu_subheader "Self-contained: /skills seeded from baked curated set (shared/skills). Host untouched."
   if ! command -v docker >/dev/null 2>&1; then
     _menu_error "docker not installed on this host"; return 1
   fi
@@ -3560,47 +4492,55 @@ _run_hemlock_skills_sync() {
     return 0
   fi
 
-  # Status: ask container for count + last cron run
-  local skill_count head_commit cron_state
+  # Status: self-contained baked set + any opt-in remote repos
+  local skill_count remote_count
   skill_count=$(docker exec "$container" sh -c 'ls /skills 2>/dev/null | grep -v "^\." | wc -l' 2>/dev/null || echo "?")
-  head_commit=$(docker exec "$container" sh -c 'cd /skills && git rev-parse --short HEAD 2>/dev/null' 2>/dev/null || echo "<not-git>")
-  cron_state=$(docker exec "$container" sh -c 'pgrep -x cron >/dev/null && echo running || echo not-running' 2>/dev/null || echo "?")
+  remote_count=$(docker exec "$container" sh -c 'grep -vc "^#" /skills/.remote-repos 2>/dev/null' 2>/dev/null || echo 0)
   printf "  ${BOLD}Container    :${NC} %s\n" "$container"
   printf "  ${BOLD}Skills count :${NC} %s entries\n" "$skill_count"
-  printf "  ${BOLD}HEAD commit  :${NC} %s\n" "$head_commit"
-  printf "  ${BOLD}Cron daemon  :${NC} %s (scheduled 03:17 daily)\n" "$cron_state"
+  printf "  ${BOLD}Source       :${NC} baked curated set (self-contained, no network)\n"
+  printf "  ${BOLD}Remote repos :${NC} %s opt-in\n" "$remote_count"
   echo ""
-  _menu_item "1" "Pull now (git pull --ff-only inside container)"
-  _menu_item "2" "Pull now — FORCE (git reset --hard origin/main)"
-  _menu_item "3" "Show last sync log"
+  _menu_item "1" "Add remote skill repo (git clone URL → /skills, opt-in)"
+  _menu_item "2" "List / remove configured remote repos"
+  _menu_item "3" "Update all remote repos (git pull)"
   _menu_item "4" "List skill entries"
-  _menu_item "5" "Re-seed /skills from /opt/skills_seed (destructive)"
+  _menu_item "5" "Re-seed baked curated set (rsync /opt/skills_seed → /skills)"
   _menu_item "0" "Back"
   _menu_prompt "Select"
   local c; read -r c
   case "$c" in
     1)
-      [[ "$DRY_RUN" == "true" ]] && { _menu_info "DRY RUN: docker exec $container sh -c 'cd /skills && git pull --ff-only'"; return 0; }
-      docker exec "$container" sh -c 'cd /skills && git pull --ff-only' 2>&1
+      _menu_prompt "Remote skill repo URL (git)"; local url; read -r url
+      [[ -z "$url" ]] && { _menu_warn "no URL entered"; return 0; }
+      _menu_prompt "Branch [main]"; local br; read -r br; br="${br:-main}"
+      local name; name=$(basename "$url" .git)
+      [[ "$DRY_RUN" == "true" ]] && { _menu_info "DRY RUN: clone $url ($br) → /skills/$name"; return 0; }
+      docker exec "$container" sh -c "git clone --depth 1 --branch '$br' '$url' '/skills/$name' && { grep -qxF '$url' /skills/.remote-repos 2>/dev/null || echo '$url' >> /skills/.remote-repos; }" 2>&1 \
+        && _menu_success "Added remote repo: $name (agents copy from /skills; baked set untouched)" || _menu_error "clone failed"
       ;;
     2)
-      _menu_warn "FORCE discards local edits in the /skills volume"
-      _menu_confirm "Proceed?" || return 0
-      [[ "$DRY_RUN" == "true" ]] && { _menu_info "DRY RUN: docker exec $container sh -c 'cd /skills && git fetch && git reset --hard origin/main'"; return 0; }
-      docker exec "$container" sh -c 'cd /skills && git fetch origin && git reset --hard origin/main' 2>&1
+      echo "  Configured opt-in remote repos:"
+      docker exec "$container" sh -c 'grep -v "^#" /skills/.remote-repos 2>/dev/null || echo "  (none configured)"' 2>&1
+      _menu_prompt "Repo URL to REMOVE (blank = cancel)"; local rmurl; read -r rmurl
+      [[ -z "$rmurl" ]] && return 0
+      local rn; rn=$(basename "$rmurl" .git)
+      [[ "$DRY_RUN" == "true" ]] && { _menu_info "DRY RUN: rm /skills/$rn + drop from manifest"; return 0; }
+      docker exec "$container" sh -c "rm -rf '/skills/$rn'; grep -vxF '$rmurl' /skills/.remote-repos > /skills/.remote-repos.tmp 2>/dev/null && mv /skills/.remote-repos.tmp /skills/.remote-repos" 2>&1
+      _menu_success "Removed remote repo: $rn"
       ;;
     3)
-      docker exec "$container" sh -c 'tail -30 /var/log/hemlock-skills-sync.log 2>/dev/null || echo "(no log yet)"' 2>&1
+      docker exec "$container" sh -c 'while IFS= read -r u; do [ -z "$u" ] && continue; case "$u" in \#*) continue ;; esac; n=$(basename "$u" .git); [ -d "/skills/$n/.git" ] && (cd "/skills/$n" && echo "== $n ==" && git pull --ff-only); done < /skills/.remote-repos 2>/dev/null || echo "(no remote repos configured)"' 2>&1
       ;;
     4)
       docker exec "$container" sh -c 'ls /skills | grep -v "^\." | head -40' 2>&1
       ;;
     5)
-      _menu_warn "Re-seed: rsync /opt/skills_seed/ → /skills/ (destructive)"
+      _menu_warn "Re-seed merges the baked curated set into /skills (opt-in remotes preserved)"
       _menu_confirm "Proceed?" || return 0
-      [[ "$DRY_RUN" == "true" ]] && { _menu_info "DRY RUN: re-seed from /opt/skills_seed"; return 0; }
-      docker exec "$container" sh -c 'rm -f /skills/.hemlock_skills_seeded && rsync -a --delete /opt/skills_seed/ /skills/ && date -Iseconds > /skills/.hemlock_skills_seeded' 2>&1
-      _menu_success "Re-seeded"
+      [[ "$DRY_RUN" == "true" ]] && { _menu_info "DRY RUN: rsync /opt/skills_seed → /skills (no --delete)"; return 0; }
+      docker exec "$container" sh -c 'rsync -a /opt/skills_seed/ /skills/ && date -Iseconds > /skills/.hemlock_skills_seeded' 2>&1
+      _menu_success "Re-seeded baked curated set"
       ;;
     0) return 0 ;;
     *) _menu_error "Invalid option: $c" ;;
@@ -3791,28 +4731,32 @@ _run_hemlock_volumes() {
 }
 
 # ── H7 — Gateway token resolver + GUI launcher (CL-012/CL-013) ──────────────
-# Resolves the OpenClaw gateway token without forcing the user to paste it.
-# Priority: container env var → `openclaw dashboard` parse. Returns 1 if the
+# Resolves the Hemlock Gateway auth token without forcing the user to paste it.
+# Priority: container env (HEMLOCK_GATEWAY_TOKEN, then the engine's own
+# OPENCLAW_GATEWAY_TOKEN) → `hemlock-gateway dashboard` parse (falls back to
+# the engine's `openclaw` name on pre-alias images). Returns 1 if the
 # container is down or no token can be obtained. NOT cached on disk —
 # regenerating is fast (~1s) and avoids leaving a secret in a sourced config.
 _uca_hemlock_token() {
   docker ps -q -f name=hemlock_runtime 2>/dev/null | grep -q . || return 1
   local tok
-  tok=$(docker exec hemlock_runtime sh -c 'printenv OPENCLAW_GATEWAY_TOKEN 2>/dev/null' 2>/dev/null | tr -d '[:space:]')
+  tok=$(docker exec hemlock_runtime sh -c \
+        'printenv HEMLOCK_GATEWAY_TOKEN || printenv OPENCLAW_GATEWAY_TOKEN' 2>/dev/null | tr -d '[:space:]')
   if [[ -z "$tok" ]]; then
-    tok=$(docker exec hemlock_runtime openclaw dashboard 2>/dev/null \
+    tok=$(docker exec hemlock_runtime sh -c \
+          'command -v hemlock-gateway >/dev/null && hemlock-gateway dashboard || openclaw dashboard' 2>/dev/null \
           | grep -oE '#token=[a-f0-9]+' | head -1 | sed 's/^#token=//')
   fi
   [[ -z "$tok" ]] && return 1
   printf '%s\n' "$tok"
 }
 
-# Launch the Hemlock GUI: OpenClaw Control web UI in chromium app-mode.
+# Launch the Hemlock GUI: Hemlock Control web UI in chromium app-mode.
 # Auto-starts the container if stopped (with confirmation). Auto-fills the
 # auth token. Falls back to xdg-open if no chromium-family browser exists.
 _run_hemlock_control() {
   _menu_header "Hemlock Control (GUI)"
-  _menu_subheader "CONTAINER — OpenClaw Control SPA, chromium app-mode"
+  _menu_subheader "CONTAINER — Hemlock Control web UI, served by the Hemlock Gateway on :1437"
 
   # Container up?
   if ! docker ps -q -f name=hemlock_runtime 2>/dev/null | grep -q .; then
@@ -3841,6 +4785,20 @@ _run_hemlock_control() {
   fi
   _menu_info "URL : $url"
 
+  # Remote access (headless operation): the same UI is reachable from any
+  # device that can see this host — phone/laptop over LAN or Tailscale. It's
+  # a PWA: on a phone, "Add to Home Screen" installs it like an app.
+  local frag=""; [[ -n "$tok" ]] && frag="#token=${tok}"
+  local lan_ip ts_ip
+  lan_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+  ts_ip=$(command -v tailscale >/dev/null 2>&1 && tailscale ip -4 2>/dev/null | head -1)
+  echo ""
+  _menu_subheader "Reach it from another device (headless)"
+  [[ -n "$lan_ip" ]] && printf "  ${BOLD}LAN      :${NC} http://%s:1437/%s\n" "$lan_ip" "$frag"
+  [[ -n "$ts_ip"  ]] && printf "  ${BOLD}Tailscale:${NC} http://%s:1437/%s\n" "$ts_ip" "$frag"
+  [[ -z "$lan_ip$ts_ip" ]] && _menu_info "no LAN/Tailscale address detected on this host"
+  echo ""
+
   # Browser. Prefer chromium-family for true app-mode; fall back to xdg-open.
   local browser=""
   for cand in chromium chromium-browser google-chrome google-chrome-stable; do
@@ -3868,8 +4826,8 @@ _run_hemlock_control() {
     xdg-open "$url" >/dev/null 2>&1 &
     _menu_success "Opened in default browser (PID $!)."
   else
-    _menu_error "No browser found. Install chromium or xdg-utils."
-    return 1
+    # Headless host: no local browser is fine — the UI is served either way.
+    _menu_success "Gateway is serving the UI. Open one of the URLs above from another device."
   fi
 }
 
@@ -3887,7 +4845,7 @@ _run_hemlock_doctor() {
   _menu_item "1" "Quick check"          "" "paths + env + imports"
   _menu_item "2" "Full check"           "" "all 8 validator categories"
   _menu_item "3" "Full check + auto-fix" "" "--fix where safe"
-  _menu_item "4" "JSON output (machine-readable)" "" ""
+  _menu_item "4" "JSON output (machine-readable)" "" "structured result for scripts/CI"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local c; read -r c
@@ -3914,6 +4872,125 @@ _run_hemlock_doctor() {
 # (Hemlock Manager) only appears when HEMLOCK_ENABLED=true. The OLD options
 # 8/9/10 (Hemlock TUI / Status / Master Deploy) collapse into that single
 # manager submenu — they're no longer pre-listed.
+# ── Tooling Volume Manager — the foundation/bridge volume ────────────────────
+# host compute → tooling.dat → hemlock. Every profile carries tooling.dat as a
+# data volume; every boot mounts it at /opt/tooling (startup.sh). This submenu
+# manages its full lifecycle from the host side.
+_run_tooling_manager() {
+  local m; m=$(_uca_mount 2>/dev/null) || { _menu_error "USB not mounted"; return 1; }
+  local dat="$m/persistence/tooling.dat"
+  _menu_header "Tooling Volume (foundation bridge)"
+  _menu_subheader "host compute → tooling.dat → hemlock; always mounted, always current"
+  echo ""
+  if [[ -f "$dat" ]]; then
+    local sz; sz=$(du -h "$dat" | cut -f1)
+    _menu_info "tooling.dat: $sz  ($dat)"
+  else
+    _menu_warn "tooling.dat MISSING — option 2 creates the foundation"
+  fi
+  echo ""
+  _menu_item "1" "Status + health"              "" "fsck -n, label, contents"
+  _menu_item "2" "Create/refresh foundation"    "" "hf-cli + updater + manifest (mkfs -d)"
+  _menu_item "3" "Verify models against manifest" "" "sizes; --hash in a shell"
+  _menu_item "4" "Run tooling update now"       "" "host-side, logs to USB"
+  _menu_item "5" "View device identity"         "" "usb-hemlock/etc/uca/"
+  _menu_item "6" "View boot logs"               "" "usb-hemlock/logs/"
+  _menu_item "0" "Back"
+  _menu_prompt "Select option"
+  local choice; read -r choice
+  case "$choice" in
+    1)
+      [[ -f "$dat" ]] || { _menu_error "no tooling.dat"; return 1; }
+      _menu_info "label: $(sudo -n blkid -o value -s LABEL "$dat" 2>/dev/null || e2label "$dat" 2>/dev/null || echo '?')"
+      e2fsck -n "$dat" 2>&1 | tail -2
+      local tmpmnt="/tmp/uca-tooling-$$"; mkdir -p "$tmpmnt"
+      if _uca_safe_loop_mount "$dat" "$tmpmnt" ro; then
+        echo ""; _menu_subheader "Contents"
+        ls -la "$tmpmnt" 2>/dev/null | sed 's/^/  /'
+        [[ -f "$tmpmnt/models/manifest.json" ]] && _menu_info "manifest: $(jq '.models | length' "$tmpmnt/models/manifest.json" 2>/dev/null || echo '?') models registered"
+        _uca_safe_umount "$tmpmnt" || true
+      else
+        _menu_warn "mount needs sudo — health shown from fsck only"
+      fi
+      rmdir "$tmpmnt" 2>/dev/null || true
+      ;;
+    2)
+      local stage; stage=$(mktemp -d)
+      _menu_info "Staging foundation (pip --target huggingface_hub — needs network)..."
+      mkdir -p "$stage"/{bin,pylib,models,logs}
+      if ! pip install --quiet --target "$stage/pylib" huggingface_hub >/dev/null 2>&1 \
+         && ! pip3 install --quiet --target "$stage/pylib" huggingface_hub >/dev/null 2>&1; then
+        _menu_warn "pip install failed — foundation will lack hf; continuing"
+      fi
+      cat > "$stage/bin/hf" <<'HFEOF'
+#!/usr/bin/env bash
+TOOLING_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PYTHONPATH="$TOOLING_ROOT/pylib${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m huggingface_hub.cli.hf "$@"
+HFEOF
+      chmod +x "$stage/bin/hf"
+      # carry the canonical updater + verifier from the system tree when present
+      local sysroot; sysroot="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+      for f in tooling-update.sh models/verify-models.sh README.md; do
+        [[ -f "$sysroot/usb/tooling/$f" ]] && { mkdir -p "$stage/$(dirname "$f")"; cp "$sysroot/usb/tooling/$f" "$stage/$f"; }
+      done
+      local size_gb=8
+      printf "  Size in GB [8]: "; local s_in; read -r s_in; size_gb="${s_in:-8}"
+      if [[ -f "$dat" ]]; then
+        _menu_warn "tooling.dat exists — refresh REPLACES it (old copy moved to .trash)"
+        _menu_confirm "Replace tooling.dat?" || { rm -rf "$stage"; return 0; }
+        mkdir -p "$m/.trash"
+        mv "$dat" "$m/.trash/tooling.dat.$(date +%Y%m%d-%H%M%S)"
+      fi
+      [[ "$DRY_RUN" == "true" ]] && { _menu_info "DRY RUN: would create ${size_gb}G $dat"; rm -rf "$stage"; return 0; }
+      _menu_info "Creating ${size_gb}G tooling.dat (dd + mkfs -d)..."
+      dd if=/dev/zero of="$dat" bs=1M count=$((size_gb * 1024)) status=progress \
+        && mkfs.ext4 -q -F -L tooling -d "$stage" "$dat" \
+        && _menu_success "tooling.dat created + populated" \
+        || _menu_error "creation failed"
+      rm -rf "$stage"
+      ;;
+    3)
+      [[ -f "$dat" ]] || { _menu_error "no tooling.dat"; return 1; }
+      local tmpmnt="/tmp/uca-tooling-$$"; mkdir -p "$tmpmnt"
+      if _uca_safe_loop_mount "$dat" "$tmpmnt" ro; then
+        if [[ -x "$tmpmnt/models/verify-models.sh" ]]; then
+          bash "$tmpmnt/models/verify-models.sh" --models-dir "$m/models" || true
+          _menu_info "full hash pass: bash $tmpmnt/models/verify-models.sh --hash (slow — run rw in a shell)"
+        else
+          _menu_error "verify-models.sh not on the volume — refresh the foundation (option 2)"
+        fi
+        _uca_safe_umount "$tmpmnt" || true
+      else
+        _menu_error "mount failed (needs sudo)"
+      fi
+      rmdir "$tmpmnt" 2>/dev/null || true
+      ;;
+    4)
+      [[ -f "$dat" ]] || { _menu_error "no tooling.dat"; return 1; }
+      local tmpmnt="/tmp/uca-tooling-$$"; mkdir -p "$tmpmnt"
+      if _uca_safe_loop_mount "$dat" "$tmpmnt"; then
+        mkdir -p "$m/usb-hemlock/logs"
+        TOOLING_LOG="$m/usb-hemlock/logs/tooling-update.log" bash "$tmpmnt/tooling-update.sh" || _menu_warn "update reported issues"
+        _uca_safe_umount "$tmpmnt" || true
+      else
+        _menu_error "rw mount failed (needs sudo)"
+      fi
+      rmdir "$tmpmnt" 2>/dev/null || true
+      ;;
+    5)
+      local idf="$m/usb-hemlock/etc/uca/device-identity.json"
+      if [[ -f "$idf" ]]; then jq . "$idf"; else _menu_warn "no device identity registered ($idf)"; fi
+      ;;
+    6)
+      ls -lt "$m/usb-hemlock/logs/" 2>/dev/null | head -10 || _menu_info "(no logs yet)"
+      local latest; latest=$(ls -t "$m/usb-hemlock/logs/"*.log 2>/dev/null | head -1)
+      [[ -n "$latest" ]] && { echo ""; _menu_subheader "$(basename "$latest") (tail)"; tail -20 "$latest"; }
+      ;;
+    0|*) return 0 ;;
+  esac
+}
+
 # CL-030: Is this menu option allowed in the current UCA_MODE?
 # usb  → all options allowed
 # host → only the local-enhancement subset (alias / ssh / sysman / essentials /
@@ -3927,6 +5004,166 @@ _uca_option_visible() {
     3|4|5|7|10|13|14|15|16|18) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+# CL-043: masthead for the unified TUI. Lean + static (no animation on a
+# boot-critical script). Degrades gracefully on a narrow terminal.
+_main_menu_banner() {
+  local cols; cols=$(tput cols 2>/dev/null || echo 80)
+  if (( cols >= 64 )); then
+    printf "${CYAN}${BOLD}"
+    cat <<'BANNER'
+  ╦ ╦╔═╗╔╦╗╦  ╔═╗╔═╗╦╔═   Unified Compute Platform
+  ╠═╣║╣ ║║║║  ║ ║║  ╠╩╗   portable · diagnostic · isolated
+  ╩ ╩╚═╝╩ ╩╩═╝╚═╝╚═╝╩ ╩
+BANNER
+    printf "${NC}"
+  else
+    printf "\n  ${CYAN}${BOLD}HEMLOCK${NC} ${DIM}· Unified Compute Platform${NC}\n"
+  fi
+}
+
+# ════════════════════════════════════════════════════════════════════════════
+# Skill Sources (CL-045) — operator-added git repos populated into /skills
+# ════════════════════════════════════════════════════════════════════════════
+# The runtime bakes only the 7-skill kernel and pulls everything else from the
+# canonical repo. This manager lets the operator register ADDITIONAL git skill
+# repos; each is labelled by github owner ("<owner>-skills") and its skills sync
+# into /skills alongside the rest (skills-auto-update.sh reads the same list).
+# The list is portable — stored on the stick when mounted so it travels.
+
+# Owner slug from a git URL (mirrors source_owner in skills-auto-update.sh).
+_skill_source_owner() {
+  local u="$1"; u="${u%.git}"; u="${u#*://}"; u="${u#*@}"
+  u="$(printf '%s' "$u" | tr ':' '/')"; u="${u%/}"; u="${u%/*}"
+  local o="${u##*/}"; [[ -n "$o" ]] && printf '%s' "$o" || printf 'source'
+}
+
+# Portable, platform-wide (NOT per-device) list file. Prefer the stick so the
+# operator's chosen sources travel with it; fall back to host base config.
+_uca_skill_sources_file() {
+  local m
+  if m=$(_uca_mount 2>/dev/null) && [[ -n "$m" && -d "$m" ]]; then
+    printf '%s/hemlock/config/skill-sources.list\n' "$m"
+  else
+    printf '%s/skill-sources.list\n' "$UCA_BASE_CFG_DIR"
+  fi
+}
+
+# Print the bare git URLs currently listed (comments/blanks/branch stripped).
+_skill_sources_urls() {
+  local f="$1" line
+  [[ -f "$f" ]] || return 0
+  while IFS= read -r line; do
+    line="${line%%#*}"; line="$(printf '%s' "$line" | xargs)"
+    [[ -n "$line" ]] || continue
+    printf '%s\n' "${line%% *}"
+  done < "$f"
+}
+
+_skill_sources_add() {
+  local f="$1" input
+  printf "  git URL or owner/repo (blank to cancel): "
+  local input; read -r input || true; input="$(printf '%s' "$input" | xargs)"
+  [[ -n "$input" ]] || { _menu_info "cancelled"; return 0; }
+  local url="$input"
+  # owner/repo shorthand → github https URL
+  if [[ "$input" != *://* && "$input" != *@*:* && "$input" == */* ]]; then
+    url="https://github.com/${input%.git}.git"
+  fi
+  case "$url" in
+    *://*|git@*:*) : ;;
+    *) log_error "Not a git URL or owner/repo: $input"; return 0 ;;
+  esac
+  local existing
+  while IFS= read -r existing; do
+    [[ "$existing" == "$url" ]] && { _menu_warn "Already present: $url"; return 0; }
+  done < <(_skill_sources_urls "$f")
+  mkdir -p "$(dirname "$f")" 2>/dev/null || true
+  printf '%s\n' "$url" >> "$f"
+  _menu_success "Added $(_skill_source_owner "$url")-skills → $url"
+  _menu_info "Applies on the next updater cycle, or use 'Apply now'."
+}
+
+_skill_sources_remove() {
+  local f="$1"
+  local -a urls=(); local u
+  while IFS= read -r u; do urls+=("$u"); done < <(_skill_sources_urls "$f")
+  ((${#urls[@]})) || { _menu_info "no sources to remove"; return 0; }
+  local i
+  for i in "${!urls[@]}"; do printf "   %2d) %s\n" $((i+1)) "${urls[$i]}"; done
+  printf "  Remove which number (blank to cancel): "
+  local n; read -r n || true
+  [[ "$n" =~ ^[0-9]+$ ]] && (( n>=1 && n<=${#urls[@]} )) || { _menu_info "cancelled"; return 0; }
+  local target="${urls[$((n-1))]}" line bare tmp="$f.tmp"
+  : > "$tmp"
+  while IFS= read -r line; do
+    bare="${line%%#*}"; bare="$(printf '%s' "$bare" | xargs)"; bare="${bare%% *}"
+    [[ "$bare" == "$target" ]] && continue
+    printf '%s\n' "$line" >> "$tmp"
+  done < "$f"
+  mv "$tmp" "$f"
+  _menu_success "Removed $target"
+}
+
+_skill_sources_apply() {
+  local f="$1" mirrored=0 t d
+  for t in /skills/.skill-sources /config/skill-sources.list; do
+    d="$(dirname "$t")"
+    if [[ -d "$d" && -w "$d" ]]; then
+      cp "$f" "$t" 2>/dev/null && { _menu_success "mirrored → $t"; mirrored=1; }
+    fi
+  done
+  local upd="/opt/hermes/docker/skills-auto-update.sh"
+  if [[ -x "$upd" ]]; then
+    _menu_info "triggering a one-shot skills pull..."
+    if SKILLS_SOURCES_FILE="$f" "$upd" --once >/dev/null 2>&1; then
+      _menu_success "pull complete"
+    else
+      _menu_warn "pull failed (offline, or run Apply inside the runtime)"
+    fi
+  elif [[ "$mirrored" -eq 0 ]]; then
+    _menu_info "Saved. The runtime reads /config/skill-sources.list or /skills/.skill-sources —"
+    _menu_info "map one to this file (or run Apply inside the runtime) and it auto-applies."
+  fi
+}
+
+_run_skill_sources() {
+  local f; f="$(_uca_skill_sources_file)"
+  while true; do
+    _menu_header "Skill Sources — extra git repos populated into /skills"
+    _menu_subheader "each source labelled by github owner (\"<owner>-skills\")"
+    echo ""
+    printf "  ${BOLD}List file:${NC} %s\n" "$f"
+    printf "  ${DIM}The runtime pulls the canonical repo + every source below into /skills on\n"
+    printf "  its cycle. Adding never removes anything; owner-namespaced, fail-soft offline.${NC}\n\n"
+    local -a urls=(); local u
+    while IFS= read -r u; do urls+=("$u"); done < <(_skill_sources_urls "$f")
+    if ((${#urls[@]})); then
+      _menu_subheader "Current extra sources"
+      local i
+      for i in "${!urls[@]}"; do
+        printf "   %2d) ${GREEN}%-20s${NC} %s\n" $((i+1)) "$(_skill_source_owner "${urls[$i]}")-skills" "${urls[$i]}"
+      done
+    else
+      printf "   ${DIM}(none yet — the canonical drdeeks/skills repo is always included)${NC}\n"
+    fi
+    echo ""
+    _menu_item "a" "Add a git skill repo" "" "https URL or owner/repo shorthand"
+    _menu_item "r" "Remove a source"      "" "by number"
+    _menu_item "p" "Apply now"            "" "mirror list to runtime + trigger a pull if reachable"
+    _menu_item "0" "Back"
+    printf "\n  Choose: "
+    local ans; read -r ans || true
+    case "$ans" in
+      a|A) _skill_sources_add "$f" ;;
+      r|R) _skill_sources_remove "$f" ;;
+      p|P) _skill_sources_apply "$f" ;;
+      0|"") return 0 ;;
+      *) log_error "Invalid option: $ans" ;;
+    esac
+    echo ""; printf "${YELLOW}Press Enter to continue...${NC}"; read -r _ || true
+  done
 }
 
 _main_menu_render() {
@@ -3968,13 +5205,19 @@ _main_menu_render() {
     printf "  ${CYAN}17${NC}) USB Access & Boot          ${GREEN}[USB+HOST]${NC} Terminal/chroot/QEMU/SSH\n"
   fi
   printf "  ${CYAN}18${NC}) Toggle Dry-Run             Current: ${YELLOW}%s${NC}\n" "$DRY_RUN"
-  if [[ "$HEMLOCK_ENABLED" == "true" && "${UCA_MODE:-host}" == "usb" ]]; then
-    printf "\n${BOLD}Hemlock:${NC}\n"
-    printf "  ${CYAN}19${NC}) Hemlock Manager            ${GREEN}[CONTAINER]${NC} Runtime/agents/crews/deploy\n"
-  elif [[ "${UCA_MODE:-host}" != "usb" ]]; then
-    printf "\n${DIM}  (USB + Hemlock options hidden — re-launch with --mode usb to reveal)${NC}\n"
+  if [[ "${UCA_MODE:-host}" == "usb" ]]; then
+    if [[ "$HEMLOCK_ENABLED" == "true" ]]; then
+      printf "\n${BOLD}Hemlock:${NC}\n"
+      printf "  ${CYAN}19${NC}) Hemlock Manager            ${GREEN}[CONTAINER]${NC} Runtime/agents/crews/deploy\n"
+    fi
+    printf "\n${BOLD}Foundation:${NC}\n"
+    printf "  ${CYAN}20${NC}) Tooling Volume             ${GREEN}[USB]${NC}      Bridge: hf-cli/updater/models\n"
+    printf "  ${CYAN}21${NC}) Skill Sources             ${GREEN}[USB+CONTAINER]${NC} Add git skill repos → /skills\n"
+    if [[ "$HEMLOCK_ENABLED" != "true" ]]; then
+      printf "\n${DIM}  (Hemlock options hidden — re-launch with --hemlock or -H to reveal)${NC}\n"
+    fi
   else
-    printf "\n${DIM}  (Hemlock options hidden — re-launch with --hemlock or -H to reveal)${NC}\n"
+    printf "\n${DIM}  (USB + Hemlock options hidden — re-launch with --mode usb to reveal)${NC}\n"
   fi
   printf "\n"
 }
@@ -4031,8 +5274,10 @@ _main_menu_handler() {
         log_info "Dry-run ENABLED"
       fi
       ;;
+    20) _dispatch_action "Tooling Volume"       _run_tooling_manager ;;
+    21) _dispatch_action "Skill Sources"        _run_skill_sources ;;
     19)
-      # CL-026 / SPEC-T04: gate is checked in _main_menu_whiptail too, but
+      # CL-026 / SPEC-T04: text-mode users can type 19 — re-check the gate here.
       # text-mode users can still type 19 — re-check here.
       if [[ "$HEMLOCK_ENABLED" == "true" ]]; then
         _dispatch_action "Hemlock Manager"      _run_hemlock_manager
@@ -4048,71 +5293,6 @@ _main_menu_handler() {
     printf "${YELLOW}Press Enter to continue...${NC}"
     read -r _ || true
   fi
-}
-
-# ── Whiptail Menu ───────────────────────────────────────────────────────────
-_main_menu_whiptail() {
-  local dry_label="Enable Dry-Run"
-  [[ "$DRY_RUN" == "true" ]] && dry_label="Disable Dry-Run"
-  local dev_label="USB Device: ${SELECTED_DEVICE:-none}"
-  local choice
-  # The 3>&1 1>&2 2>&3 dance routes whiptail's selection (normally on stderr)
-  # to stdout so command substitution captures it, while the TUI itself draws
-  # on the real terminal. A Cancel/ESC makes whiptail exit non-zero — we treat
-  # that as "quit the program" by returning non-zero so the caller breaks.
-  # Build the menu items dynamically so we can append the Hemlock entry only
-  # when --hemlock / -H was passed.
-  # CL-030: items vary by UCA_MODE.
-  local mode_tag="${UCA_MODE^^}"
-  local items=()
-  if [[ "${UCA_MODE:-host}" == "usb" ]]; then
-    items=(
-      "1"  "USB Setup Assistant          [USB]"
-      "2"  "Unified CLI (usbctl)         [USB]"
-      "3"  "Alias Manager                [USB]"
-      "4"  "SSH Host Manager             [USB]"
-      "5"  "System Manager (sysman)      [HOST]"
-      "6"  "USB Auto-Mount               [HOST]"
-      "7"  "Build Essentials             [USB]"
-      "8"  "Startup Manager              [USB+HOST]"
-      "9"  "Persistence Manager          [USB]"
-      "10" "Bash Profile Manager         [USB]"
-      "11" "USB Device Setup             [USB]"
-      "12" "Device Config                [HOST]"
-      "13" "Run Validation               [ALL]"
-      "14" "Diagnostics                  [HOST]"
-      "15" "View Logs                    [HOST]"
-      "16" "USB Paths & Environment      [HOST]"
-      "17" "USB Access & Boot            [USB+HOST]"
-      "18" "$dry_label"
-    )
-  else
-    items=(
-      "3"  "Alias Manager                [HOST]"
-      "4"  "SSH Host Manager             [HOST]"
-      "5"  "System Manager (sysman)      [HOST]"
-      "7"  "Build Essentials             [HOST]"
-      "10" "Bash Profile Manager         [HOST]"
-      "13" "Run Validation               [ALL]"
-      "14" "Diagnostics                  [HOST]"
-      "15" "View Logs                    [HOST]"
-      "16" "Paths & Environment          [HOST]"
-      "18" "$dry_label"
-    )
-  fi
-  if [[ "$HEMLOCK_ENABLED" == "true" && "${UCA_MODE:-host}" == "usb" ]]; then
-    items+=( "19" "Hemlock Manager              [CONTAINER]" )
-  fi
-  if ! choice=$(whiptail --title "USB-Hemlock — Mode: ${mode_tag}" \
-    --cancel-button "Quit" --menu \
-    "$dev_label\nMode: ${mode_tag} (re-launch with --mode to change)\nSelect a component to manage (Quit/ESC to exit):" 38 78 24 \
-    "${items[@]}" \
-    3>&1 1>&2 2>&3); then
-    return 1
-  fi
-  # Run the handler in a guarded context so a non-zero return from any
-  # component runner cannot trip set -e or break the outer menu loop.
-  _main_menu_handler "$choice" || true
 }
 
 # CL-030: Boot-time mode selector. Silent USB detect FIRST. If no USB present,
@@ -4213,7 +5393,7 @@ _menu_intr_handler() {
 # ── Main ────────────────────────────────────────────────────────────────────
 main() {
   set_standard_traps
-  trap '_uca_sudo_cleanup' EXIT TERM
+  trap '_uca_umount_leftovers; _uca_sudo_cleanup' EXIT TERM
   trap '_menu_intr_handler' INT
   clear 2>/dev/null || true
 
@@ -4223,6 +5403,8 @@ main() {
 
   # Load user-configured paths & environment overrides (if any).
   _uca_load_paths_config
+  # Detect + lazy-detach mounts orphaned by surprise media removal (yank-aware).
+  _uca_sweep_stale_mounts
   # Normalize file ownership/perms so later runs DO NOT need sudo for menu actions.
   _uca_normalize_permissions
   # Apply a default (autoboot) USB profile if one is marked — must run before
@@ -4248,9 +5430,9 @@ main() {
       log_info "Auto-detected USB device: $SELECTED_DEVICE"
       detect_ventoy_mount 2>/dev/null && log_info "Ventoy mounted at $VENTOY_MOUNT"
     elif [[ ${#dev_array[@]} -gt 1 ]]; then
-      log_info "Multiple USB devices detected — select via menu option 14"
+      log_info "Multiple USB devices detected — select via menu option 11"
     else
-      log_info "No USB device detected — set via menu option 14"
+      log_info "No USB device detected — set via menu option 11"
     fi
   fi
 
@@ -4261,34 +5443,27 @@ main() {
     detect_ventoy_mount 2>/dev/null && log_info "Ventoy mounted at $VENTOY_MOUNT" || true
   fi
 
-  if [[ "$FORCE_TEXT" == "true" || "$HAS_WHIPTAIL" != "true" ]]; then
-    # Text-mode loop. We deliberately do NOT use lib/menu_loop here: that
-    # helper captures the handler's stdout via command substitution to read a
-    # stay/back/exit verdict, which would hide every component's output. The
-    # main handler instead prints directly and pauses itself, so we drive it
-    # in-line and guard it with `|| true` so no component can trip set -e.
-    local choice
-    while true; do
-      clear 2>/dev/null || true
-      print_header "USB-Hemlock Unified Compute Platform"
-      _main_menu_render
-      printf "${YELLOW}Select option (q=quit): ${NC}"
-      if ! read -r choice; then
-        printf "\n"
-        break
-      fi
-      case "$choice" in
-        q|Q|quit|exit) break ;;
-        "") continue ;;
-        *) _main_menu_handler "$choice" || true ;;
-      esac
-    done
-  else
-    while true; do
-      clear 2>/dev/null || true
-      _main_menu_whiptail || break
-    done
-  fi
+  # CL-043: single styled-TUI loop (no whiptail). We deliberately do NOT use
+  # lib/menu_loop here: that helper captures the handler's stdout via command
+  # substitution to read a stay/back/exit verdict, which would hide every
+  # component's output. The main handler prints directly and pauses itself, so
+  # we drive it in-line and guard it with `|| true` so no component trips set -e.
+  local choice
+  while true; do
+    clear 2>/dev/null || true
+    _main_menu_banner
+    _main_menu_render
+    printf "\n  ${YELLOW}▸ Select option ${DIM}(number, or q to quit)${NC}${YELLOW}: ${NC}"
+    if ! read -r choice; then
+      printf "\n"
+      break
+    fi
+    case "$choice" in
+      q|Q|quit|exit) break ;;
+      "") continue ;;
+      *) _main_menu_handler "$choice" || true ;;
+    esac
+  done
   log_info "Master menu exited"
 }
 

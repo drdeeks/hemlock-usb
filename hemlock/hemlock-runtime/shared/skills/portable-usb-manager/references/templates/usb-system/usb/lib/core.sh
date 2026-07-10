@@ -88,6 +88,13 @@ set_standard_traps() {
 #          (so configs ride with the USB and never touch host $HOME)
 #   host → under XDG_CONFIG_HOME (default $HOME/.config/usb-compute-automation/)
 #
+# Per-volume scope (CL-038): when UCA_TARGET_VOLUME is set to a persistence
+# volume name (e.g. "hemlock-dev" for hemlock-dev.dat), configs land under
+# usb-hemlock/etc/uca/volumes/<name>/ instead of the shared root. The boot
+# orchestrator sources shared config first, then each mounted volume's own
+# config — so aliases/profile/cleanup can differ per data volume, including
+# when SSH'd into a booted profile (the Ventoy partition is mounted there too).
+#
 # Callers should use this rather than hardcoding $HOME — see CL-030 audit.
 # Echoes the resolved absolute root on stdout. Returns 1 only when UCA_MODE=usb
 # but no USB persistence is mountable (caller should fall back or fail).
@@ -113,6 +120,10 @@ _uca_install_root() {
       local pmnt root
       pmnt=$(dirname "$(dirname "$pfile")")  # strip /persistence/<name>.dat
       root="${pmnt}/usb-hemlock/etc/uca"
+      # CL-038: per-volume scope — configs for ONE data volume only.
+      if [[ -n "${UCA_TARGET_VOLUME:-}" ]]; then
+        root="${root}/volumes/${UCA_TARGET_VOLUME%.dat}"
+      fi
       mkdir -p "$root" 2>/dev/null || true
       printf '%s\n' "$root"
       ;;

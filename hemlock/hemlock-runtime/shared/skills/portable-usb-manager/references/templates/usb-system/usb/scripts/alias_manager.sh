@@ -149,314 +149,6 @@ backup_aliases() {
 }
 
 # ============================================================================
-# DEFAULT ALIAS SEEDING (one-command launchers for the skill's functions)
-# ============================================================================
-#
-# Catalog of default aliases the assistant offers to install into USB
-# persistence so a user can type e.g. `hemlock` after boot on ANY host.
-# Every command below maps to a VERIFIED entrypoint/flag in this skill:
-#   menu.sh --hemlock          → reveal+launch Hemlock Manager (opt-in gate)
-#   menu.sh                    → USB-Hemlock main menu
-#   usb/usb-setup-assistant.sh → persistence / VM / bridge setup (interactive)
-#   usb/cli/usbctl <verified subcommands: usb {detect|persistence}>
-#   usb/scripts/alias_manager.sh → this manager
-# Commands reference $UCA_ROOT, resolved AT ALIAS-INVOCATION time by the
-# managed resolver block (below) — never hardcodes a host-specific mount path,
-# so the aliases survive a reboot on a different machine.
-# Format per entry: "name|command|description"
-DEFAULT_ALIAS_SPECS=(
-  'hemlock|bash "$UCA_ROOT/menu.sh" --hemlock|Reveal & launch the Hemlock Manager (opt-in)'
-  'usb-menu|bash "$UCA_ROOT/menu.sh"|Open the USB-Hemlock main menu'
-  'usb-setup|bash "$UCA_ROOT/usb/usb-setup-assistant.sh"|Persistence / VM / compute-bridge setup assistant'
-  'usbctl|bash "$UCA_ROOT/usb/cli/usbctl"|Non-interactive USB control CLI'
-  'usb-detect|bash "$UCA_ROOT/usb/cli/usbctl" usb detect|Detect attached USB devices'
-  'usb-persist|bash "$UCA_ROOT/usb/cli/usbctl" usb persistence|Show / create USB persistence'
-  'usb-aliases|bash "$UCA_ROOT/usb/scripts/alias_manager.sh"|Manage these USB aliases'
-  'usb-vm-ssh|ssh -p 2222 localhost|SSH into the running headless USB VM'
-)
-
-# Marker lines delimiting the managed portable-root resolver block so we can
-# detect/refresh it idempotently without clobbering the user's own content.
-_UCA_ROOT_BEGIN='# >>> uca-portable-root (managed by alias_manager.sh) >>>'
-_UCA_ROOT_END='# <<< uca-portable-root <<<'
-
-# Inject the portable $UCA_ROOT resolver at the top of the alias file (once).
-# The resolver walks UP from the alias file's own location to the directory
-# holding menu.sh + usb/, so it works regardless of where the USB is mounted.
-_ensure_root_resolver() {
-    [[ -f "$ALIAS_FILE" ]] && grep -qF "$_UCA_ROOT_BEGIN" "$ALIAS_FILE" 2>/dev/null && return 0
-    if [[ "$DRY_RUN" == "true" ]]; then
-        print_info "[DRY RUN] Would inject portable \$UCA_ROOT resolver into $ALIAS_FILE"
-        return 0
-    fi
-    local tmp; tmp="$(mktemp)"
-    {
-        printf '%s\n' "$_UCA_ROOT_BEGIN"
-        cat <<'RESOLVER'
-# Resolves the USB-Hemlock install root at shell-startup time so the aliases
-# below keep working no matter which host / mount point the USB lands on.
-__uca_resolve_root() {
-    local d
-    d="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || return 1
-    while [[ -n "$d" && "$d" != "/" ]]; do
-        [[ -f "$d/menu.sh" && -d "$d/usb" ]] && { printf '%s\n' "$d"; return 0; }
-        d="$(dirname "$d")"
-    done
-    return 1
-}
-UCA_ROOT="${UCA_ROOT:-$(__uca_resolve_root 2>/dev/null)}"
-[[ -z "${UCA_ROOT:-}" && -n "${UCA_PERSISTENCE_PATH:-}" ]] && UCA_ROOT="$UCA_PERSISTENCE_PATH"
-export UCA_ROOT
-RESOLVER
-        printf '%s\n\n' "$_UCA_ROOT_END"
-        cat "$ALIAS_FILE" 2>/dev/null
-    } > "$tmp" && mv "$tmp" "$ALIAS_FILE"
-    print_info "Installed portable \$UCA_ROOT resolver (aliases stay valid across hosts)"
-}
-
-# Append one default alias literally (preserving $UCA_ROOT for runtime
-# expansion — must NOT route through add_alias's eval, which would expand it).
-_seed_write_alias() {
-    local name="$1" cmd="$2" desc="$3"
-    if [[ "$DRY_RUN" == "true" ]]; then
-        print_info "[DRY RUN] Would add: alias $name='$cmd'"
-        return 0
-    fi
-    printf "alias %s='%s'%s\n" "$name" "$cmd" "${desc:+ # $desc}" >> "$ALIAS_FILE"
-}
-
-# Prompt-by-default seeding of the DEFAULT_ALIAS_SPECS into USB persistence.
-# `--yes`/non-interactive installs all defaults; interactive offers accept-all,
-# per-alias custom names, or skip. Existing same-named aliases are left alone
-# unless the user opts to overwrite.
-seed_default_aliases() {
-    local auto="${1:-ask}"   # ask | all
-    init_alias_file
-    _ensure_root_resolver
-
-    echo ""
-    print_info "Default one-command launchers available for this USB:"
-    local spec name cmd desc
-    for spec in "${DEFAULT_ALIAS_SPECS[@]}"; do
-        IFS='|' read -r name cmd desc <<< "$spec"
-        printf "  ${CYAN}%-12s${NC} %s\n" "$name" "$desc"
-    done
-    echo ""
-    print_info "Target (rides with the USB): ${BOLD}${ALIAS_FILE}${NC}"
-    echo ""
-
-    local mode="$auto"
-    if [[ "$mode" == "ask" ]]; then
-        if [[ ! -t 0 ]]; then
-            mode="all"   # no TTY (piped/automated) → install defaults as-is
-        else
-            echo -e "  ${CYAN}A)${NC} Accept all defaults (recommended)"
-            echo -e "  ${CYAN}C)${NC} Customize each alias name"
-            echo -e "  ${CYAN}S)${NC} Skip"
-            local ans=""
-            read -p "$(echo -e "${YELLOW}Install default aliases? [A/c/s]: ${NC}")" ans || true
-            case "${ans,,}" in
-                c) mode="custom" ;;
-                s) print_info "Skipped default alias setup."; return 0 ;;
-                *) mode="all" ;;
-            esac
-        fi
-    fi
-
-    local added=0
-    for spec in "${DEFAULT_ALIAS_SPECS[@]}"; do
-        IFS='|' read -r name cmd desc <<< "$spec"
-        if [[ "$mode" == "custom" ]]; then
-            local rename=""
-            read -e -p "$(echo -e "${YELLOW}Alias for [${desc}] (blank=${name}, '-'=skip): ${NC}")" rename || true
-            [[ "$rename" == "-" ]] && { print_info "  skipped $name"; continue; }
-            [[ -n "$rename" ]] && name="$rename"
-        fi
-        if [[ -f "$ALIAS_FILE" ]] && grep -q "^alias ${name}=" "$ALIAS_FILE" 2>/dev/null; then
-            print_warning "  '$name' already defined — left unchanged"
-            continue
-        fi
-        _seed_write_alias "$name" "$cmd" "$desc" && added=$((added + 1))
-    done
-
-    say_done "Seeded $added default alias(es) into USB persistence"
-    if [[ "$DRY_RUN" != "true" ]]; then
-        print_info "Active now:   source \"$ALIAS_FILE\""
-        print_info "Auto-load:    add  [[ -f \"$ALIAS_FILE\" ]] && source \"$ALIAS_FILE\"  to your shell rc"
-        print_info "Then just type:  hemlock   usb-menu   usb-setup"
-    fi
-}
-
-# ============================================================================
-# ALIAS-FROM-SCRIPT (point at a script, get a validated, portable alias)
-# ============================================================================
-
-# Echo the skill's install base (dir holding menu.sh + usb/), used to rewrite
-# in-tree script paths as portable "$UCA_ROOT/..." references. Never hardcoded.
-_uca_install_base() {
-    local b
-    b="$(cd "$SCRIPT_DIR/../.." 2>/dev/null && pwd)" || return 1
-    [[ -f "$b/menu.sh" && -d "$b/usb" ]] && { printf '%s\n' "$b"; return 0; }
-    return 1
-}
-
-# If a path lives under the install base, rewrite the prefix to the literal
-# string $UCA_ROOT so the stored alias stays valid on any host / mount point.
-_portable_path() {
-    local p="$1" base
-    if base="$(_uca_install_base 2>/dev/null)" && [[ "$p" == "$base"/* ]]; then
-        printf '$UCA_ROOT/%s\n' "${p#"$base"/}"
-    else
-        printf '%s\n' "$p"
-    fi
-}
-
-# Interactive: user names a script/command, we validate it, warn about a
-# shadowing/confusing alias name, then store a portable alias.
-add_alias_from_script() {
-    init_alias_file
-    echo ""
-    print_info "Create an alias that points at a script or command."
-    local target=""
-    read -e -p "$(echo -e "${YELLOW}Script path or command name: ${NC}")" target || true
-    [[ -z "$target" ]] && { print_warning "Nothing entered — cancelled."; return 0; }
-
-    # Path-agnostic resolution: expand ~, resolve relative → absolute if a file.
-    target="${target/#\~/$HOME}"
-    local run_cmd="" kind=""
-    if [[ -e "$target" ]]; then
-        local abs; abs="$(cd "$(dirname "$target")" 2>/dev/null && pwd)/$(basename "$target")"
-        [[ -f "$abs" ]] || { print_error "Path exists but is not a regular file: $abs"; return 1; }
-        [[ -r "$abs" ]] || print_warning "File is not readable — the alias may fail: $abs"
-        local portable; portable="$(_portable_path "$abs")"
-        if [[ -x "$abs" ]]; then
-            run_cmd="\"$portable\""
-        elif [[ "$abs" == *.sh ]]; then
-            print_warning "Not executable; will invoke via 'bash' (or 'chmod +x' it first)."
-            run_cmd="bash \"$portable\""
-        elif [[ "$abs" == *.py ]]; then
-            run_cmd="python3 \"$portable\""
-        else
-            print_warning "Not executable and no known interpreter for this file type."
-            run_cmd="\"$portable\""
-        fi
-        kind="file"
-        [[ "$portable" == '$UCA_ROOT/'* ]] && print_info "Stored portably as \$UCA_ROOT-relative (survives host changes)."
-    elif command -v "$target" >/dev/null 2>&1; then
-        # A command already on PATH — warn if it resolves to several places.
-        local hits; hits="$(command -v -a "$target" 2>/dev/null | sort -u | wc -l)"
-        [[ "$hits" -gt 1 ]] && print_warning "'$target' resolves to $hits locations on PATH — which one runs may vary by host."
-        run_cmd="$target"
-        kind="command"
-    else
-        print_warning "'$target' is neither an existing file nor a command on PATH."
-        local go=""; read -p "$(echo -e "${YELLOW}Create the alias anyway? [y/N]: ${NC}")" go || true
-        [[ "${go,,}" == y ]] || { print_info "Cancelled."; return 0; }
-        run_cmd="$target"
-        kind="unknown"
-    fi
-
-    # Alias name + confusion checks.
-    local suggested; suggested="$(basename "${target%.*}")"
-    local name=""
-    read -e -p "$(echo -e "${YELLOW}Alias name [${suggested}]: ${NC}")" name || true
-    name="${name:-$suggested}"
-    if [[ ! "$name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-        print_error "Invalid alias name '$name' (letters, numbers, _ and - only)."
-        return 1
-    fi
-    local ttype; ttype="$(type -t "$name" 2>/dev/null || true)"
-    case "$ttype" in
-        builtin|keyword) print_warning "'$name' is a shell $ttype — aliasing it can break basic shell behavior. Consider another name." ;;
-        file)            print_warning "'$name' already exists as a command ($(command -v "$name")). Your alias will shadow it — this can be confusing." ;;
-    esac
-
-    # Route through _seed_write path when portable (contains $UCA_ROOT) so the
-    # variable is preserved literally; otherwise use add_alias's normal path.
-    if [[ "$run_cmd" == *'$UCA_ROOT'* ]]; then
-        _ensure_root_resolver
-        if grep -q "^alias ${name}=" "$ALIAS_FILE" 2>/dev/null; then
-            local ow=""; read -p "$(echo -e "${YELLOW}'$name' exists — overwrite? [y/N]: ${NC}")" ow || true
-            [[ "${ow,,}" == y ]] || { print_info "Kept existing alias."; return 0; }
-            backup_aliases; run_or_dry sed -i "/^alias ${name}=/d" "$ALIAS_FILE"
-        else
-            backup_aliases
-        fi
-        _seed_write_alias "$name" "$run_cmd" "from ${kind}: ${target}"
-        say_done "Added portable alias: $name → $run_cmd"
-    else
-        add_alias "$name" "$run_cmd" "from ${kind}: ${target}"
-    fi
-}
-
-# ============================================================================
-# SSH ALIASES (connect + push/pull, portable across any system)
-# ============================================================================
-
-# Interactive: define a named SSH connection plus push/pull helpers that work
-# on any system (rsync when present, scp fallback — decided at runtime).
-configure_ssh_aliases() {
-    init_alias_file
-    echo ""
-    print_info "Configure SSH aliases for a remote server (connect + push/pull)."
-    local nick user host port rdir
-    read -e -p "$(echo -e "${YELLOW}Nickname (e.g. web, box): ${NC}")" nick || true
-    read -e -p "$(echo -e "${YELLOW}User: ${NC}")" user || true
-    read -e -p "$(echo -e "${YELLOW}Host (name or IP): ${NC}")" host || true
-    read -e -p "$(echo -e "${YELLOW}SSH port [22]: ${NC}")" port || true
-    read -e -p "$(echo -e "${YELLOW}Default remote dir [~/]: ${NC}")" rdir || true
-    port="${port:-22}"; rdir="${rdir:-~/}"
-
-    if [[ ! "$nick" =~ ^[a-zA-Z0-9_-]+$ ]] || [[ -z "$user" || -z "$host" ]]; then
-        print_error "Need a valid nickname plus user and host."
-        return 1
-    fi
-    if [[ ! "$port" =~ ^[0-9]+$ ]]; then
-        print_error "Port must be numeric (got '$port')."
-        return 1
-    fi
-
-    _ensure_root_resolver
-    backup_aliases
-    local begin="# >>> uca-ssh:${nick} >>>" end="# <<< uca-ssh:${nick} <<<"
-    # Idempotent: drop any prior block for this nick.
-    if [[ -f "$ALIAS_FILE" ]] && grep -qF "$begin" "$ALIAS_FILE" 2>/dev/null; then
-        run_or_dry sed -i "/^$(printf '%s' "$begin" | sed 's/[.[\*^$]/\\&/g')\$/,/^$(printf '%s' "$end" | sed 's/[.[\*^$]/\\&/g')\$/d" "$ALIAS_FILE"
-    fi
-    if [[ "$DRY_RUN" == "true" ]]; then
-        print_info "[DRY RUN] Would add SSH aliases/functions for '$nick' → ${user}@${host}:${port}"
-        return 0
-    fi
-    # Functions (not bare aliases) so push/pull accept file arguments. rsync is
-    # preferred but the body falls back to scp so it runs on any system.
-    cat >> "$ALIAS_FILE" <<EOF
-$begin
-alias ssh-${nick}='ssh -p ${port} ${user}@${host}'
-# push local paths → server (default remote dir: ${rdir})
-push-${nick}() {
-    local remote="${user}@${host}:${rdir}"
-    if command -v rsync >/dev/null 2>&1; then
-        rsync -azhP -e "ssh -p ${port}" "\$@" "\$remote"
-    else
-        scp -P ${port} -r "\$@" "\$remote"
-    fi
-}
-# pull a remote path → local (usage: pull-${nick} <remote-path> [local-dest])
-pull-${nick}() {
-    local src="${user}@${host}:\${1:?remote path required}"; local to="\${2:-.}"
-    if command -v rsync >/dev/null 2>&1; then
-        rsync -azhP -e "ssh -p ${port}" "\$src" "\$to"
-    else
-        scp -P ${port} -r "\$src" "\$to"
-    fi
-}
-$end
-EOF
-    say_done "Added SSH aliases for '${nick}': ssh-${nick}, push-${nick}, pull-${nick}"
-    print_info "Reload with: source \"$ALIAS_FILE\""
-}
-
-# ============================================================================
 # ALIAS OPERATIONS
 # ============================================================================
 
@@ -757,10 +449,6 @@ alias_menu_render() {
     echo -e "${BOLD}Total aliases:${NC} $count"
     echo ""
     
-    echo -e "${GREEN}D)${NC} Set up default launchers (hemlock, usb-menu, …) → USB persistence"
-    echo -e "${GREEN}P)${NC} Alias a script (point at a path, validated & made portable)"
-    echo -e "${GREEN}H)${NC} Configure SSH aliases for a server (connect + push/pull)"
-    echo ""
     echo -e "${CYAN}1)${NC} List all aliases"
     echo -e "${CYAN}2)${NC} Add new alias"
     echo -e "${CYAN}3)${NC} Remove alias"
@@ -777,20 +465,8 @@ alias_menu_render() {
 # Handler function for alias manager menu
 alias_menu_handler() {
     local choice="$1"
-
+    
     case "$choice" in
-        [Dd])
-            seed_default_aliases ask
-            echo "stay"
-            ;;
-        [Pp])
-            add_alias_from_script
-            echo "stay"
-            ;;
-        [Hh])
-            configure_ssh_aliases
-            echo "stay"
-            ;;
         1)
             list_aliases
             echo "stay"
@@ -886,14 +562,6 @@ alias_menu_handler() {
 
 interactive_menu() {
     init_alias_file
-    # Prompt-by-default: on first entry (defaults not yet installed) offer to
-    # seed the one-command launchers so a user can immediately type `hemlock`.
-    if [[ -t 0 ]] && ! grep -qF "$_UCA_ROOT_BEGIN" "$ALIAS_FILE" 2>/dev/null; then
-        print_info "No default launchers installed yet."
-        local want=""
-        read -p "$(echo -e "${YELLOW}Set up default aliases (hemlock, usb-menu, …) now? [Y/n]: ${NC}")" want || true
-        [[ ! "${want,,}" =~ ^n ]] && seed_default_aliases all
-    fi
     menu_loop "Alias Manager" alias_menu_render alias_menu_handler
 }
 
@@ -945,21 +613,6 @@ while [[ $# -gt 0 ]]; do
             import_aliases "${2:-$HOME/.bashrc}"
             exit 0
             ;;
-        --seed-defaults|--setup-defaults)
-            # Non-interactive: install all default launchers as-is.
-            seed_default_aliases all
-            exit 0
-            ;;
-        --add-script)
-            # Interactive: alias a script path with validation + portability.
-            add_alias_from_script
-            exit 0
-            ;;
-        --ssh-alias)
-            # Interactive: configure SSH connect + push/pull aliases.
-            configure_ssh_aliases
-            exit 0
-            ;;
         --export|-e)
             init_alias_file
             export_aliases "${2:-table}"
@@ -977,9 +630,6 @@ while [[ $# -gt 0 ]]; do
             echo "  $0 --search QUERY         Search aliases"
             echo "  $0 --import [FILE]        Import from file (default: ~/.bashrc)"
             echo "  $0 --export [format]      Export aliases"
-            echo "  $0 --seed-defaults        Install default launchers (hemlock, usb-menu, …)"
-            echo "  $0 --add-script           Alias a script path (validated & made portable)"
-            echo "  $0 --ssh-alias            Configure SSH aliases for a server (connect + push/pull)"
             echo ""
             echo "Examples:"
             echo "  $0 --dry-run --add ll 'ls -la' 'List files in long format'"

@@ -59,7 +59,7 @@ usb-hemlock-split/
 │   ├── hemlock-tui            # Wrapper to launch Hemlock TUI
 │   ├── usb-automount/         # systemd + udev auto-mount installer
 │   ├── config/initialize.sh   # Ubuntu one-time bootstrap
-│   ├── volumes/ventoy/        # Ventoy tarball (fetched on demand, NOT bundled)
+│   ├── volumes/ventoy/        # Bundled Ventoy tarball
 │   ├── tests/                 # Testing suite
 │   ├── blueprints/PART1-7.md  # Architecture docs
 │   ├── docs/                  # Implementation checklist, helpers

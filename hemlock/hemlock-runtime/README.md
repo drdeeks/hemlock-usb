@@ -91,15 +91,16 @@ secrets — see [`.dockerignore`](.dockerignore).
 | **Global knowledge base** | `knowledge/`, `scripts/knowledge*` | Append-only store + classified link DB + self-healing watcher + a gateway capture hook (any link an agent receives is captured). |
 | **Backup & restore** | `scripts/backup.sh` (menu 8) | Owner-driven. FULL (entire state, incl. Ventoy `.dat` images) **or** CUSTOM (pick a volume + categories). Encrypted; opt-in scheduling; you are never forced to dump everything. |
 | **Memory discipline** | `agents/workspace-template/` | Mandatory memory-search-first, crash-safe context dumps, unlimited daily memory, `USER.md` owner-model corpus. |
-| **Skills (LAZY)** | `shared/skills/` | 7-skill kernel baked into every image; everything else auto-populates at runtime from the canonical skills repo plus any operator-added sources (below). Loaded on demand via a compact in-prompt index. |
+| **Skills (LAZY)** | `shared/skills/` | 8-skill kernel baked into every image; everything else auto-populates at runtime from the canonical skills repo plus any operator-added sources (below). Loaded on demand via a compact in-prompt index. |
 | **Agent identity layer** | `agents/workspace-template/.agent/` | Constitution loaded at t=0 (values, standards, hard constraints), 3 internalized habits, enforcer config. `agent-create.sh` fills placeholders and stamps a sha256 identity hash into `<agent-id>.json`; `inject-context.sh` injects the constitution right after SOUL.md. |
 | **Guardrail / gate** | `shared/skills/guardrail-enforcement/` | HMAC-signed, hash-chained audit log (`.loop-log.jsonl`) + a monitor that auto-commits version bumps + git-hook enforcement. |
 
 ### Bundled skills
-Every image bakes the **7-skill kernel** as the offline bootstrap:
+Every image bakes the **8-skill kernel** as the offline bootstrap:
 
 `skill-creator` · `skill-installer` · `autonomous-crew` · `enterprise-blueprint` ·
-`loop-enforcer` · `agent-identity-architecture` · `guardrail-enforcement`
+`loop-enforcer` · `agent-identity-architecture` · `guardrail-enforcement` ·
+`portable-usb-manager`
 
 Everything else auto-populates at runtime: a supervised updater syncs `/skills` from the
 canonical skills repo plus any operator-added GitHub sources (each extra source lands
@@ -131,7 +132,7 @@ docker/        entrypoint, config generator, Hemlock-loop agent brain, self-heal
 health/        health checks
 scripts/       runtime.sh (owner menu), backup.sh, knowledge*, docs-indexer…
 agents/        workspace-template (baked) + real agents (volumes, not baked)
-shared/skills/ the LAZY skills; the 7-skill kernel is baked into the image
+shared/skills/ the LAZY skills; the 8-skill kernel is baked into the image
 knowledge/     append-only global knowledge store (runtime root)
 Dockerfile.runtime   the image build
 AGENTS.md      the authoritative project overview (read this next)

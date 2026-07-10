@@ -144,6 +144,8 @@ log_info()    { _log "INFO"    "$LOG_LEVEL_INFO"    "$_LOG_CLR_INFO"    "$@"; }
 log_warn()    { _log "WARN"    "$LOG_LEVEL_WARN"    "$_LOG_CLR_WARN"    "$@"; }
 log_error()   { _log "ERROR"   "$LOG_LEVEL_ERROR"   "$_LOG_CLR_ERROR"   "$@"; }
 log_critical(){ _log "CRITICAL""$LOG_LEVEL_CRITICAL" "$_LOG_CLR_CRITICAL" "$@"; }
+# Success = INFO severity, green. Used across menu.sh for completed actions.
+log_success() { _log "SUCCESS" "$LOG_LEVEL_INFO"    "${_LOG_CLR_SUCCESS:-\033[0;32m}" "$@"; }
 
 # ── Structured Logging ──────────────────────────────────────────────────────
 log_section() {

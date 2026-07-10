@@ -1,3 +1,23 @@
+# Skill Updates Summary
+
+## v2.0.13 — usb-system template refreshed to CL-047
+
+- `references/templates/usb-system/menu.sh` refreshed from the live master menu
+  (4295 → 5470 lines). Now carries the release-first Hemlock image manager:
+  `_run_hemlock_images` (pull from GitHub releases / load staged / list+verify /
+  stage local), `_run_hemlock_get_release`, `_run_hemlock_list_staged`,
+  `_run_hemlock_load_staged`, `_hemlock_release_json`. USB deploy gained the
+  kit-mode default (`build-usb-kit.sh --sync`).
+- `references/templates/usb-system/usb/` refreshed; adds the persistent
+  `tooling/` subtree (startup-orchestrator, tooling-update, models verifier,
+  env) that loop-mounts `tooling.dat` on the host, isolated from container
+  volumes. `usb/volumes/` kept as the on-demand Ventoy placeholder (not the
+  binary tarball).
+- Hemlock stays opt-in: the Hemlock Manager only appears under `--hemlock`/`-H`
+  or `HEMLOCK_ENABLED=true`. `usb/hemlock-tui` wrapper unchanged.
+
+---
+
 # Skill Updates Summary - Session 2024-06-14
 
 ## Overview

@@ -103,9 +103,9 @@ If no drag-drop file viewer needed, skip Phase 14 entirely and use CLI tools:
 
 ```bash
 # USB file operations via CLI
-ls /media/ventoy/
-cp file.txt /media/ventoy/
-rsync -av /src/ /media/ventoy/backup/
+ls ${USB_MOUNT}/
+cp file.txt ${USB_MOUNT}/
+rsync -av /src/ ${USB_MOUNT}/backup/
 ```
 
 ## Accessing GUI
