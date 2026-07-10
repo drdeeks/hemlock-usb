@@ -58,6 +58,45 @@ SKILLS_PRUNE="${SKILLS_PRUNE:-0}"
 LOG="${SKILLS_UPDATE_LOG:-/var/log/hemlock-skills-sync.log}"
 STOP_FLAG="${SKILLS_UPDATE_STOP_FLAG:-/run/hemlock-skills-update.stop}"
 
+# ── Operator-added skill sources (multi-repo) ────────────────────────────────
+# Beyond the canonical repo, operators register extra git skill repos via the
+# menu ("Skill Sources"). Each is labelled by github owner ("<owner>-skills")
+# and its skills sync into $SKILLS_DIR alongside the rest. Resolve order for the
+# list file: env, then the volume-local file, then the mounted config file.
+SKILLS_SOURCES_FILE="${SKILLS_SOURCES_FILE:-}"
+resolve_sources_file() {
+    local c
+    for c in "$SKILLS_SOURCES_FILE" "$SKILLS_DIR/.skill-sources" "/config/skill-sources.list"; do
+        [ -n "$c" ] && [ -f "$c" ] && { printf '%s' "$c"; return 0; }
+    done
+    return 0
+}
+# Owner slug from a git URL. github.com/OWNER/REPO(.git) or git@host:OWNER/REPO.
+source_owner() {
+    local u="$1"
+    u="${u%.git}"; u="${u#*://}"; u="${u#*@}"
+    u="$(printf '%s' "$u" | tr ':' '/')"; u="${u%/}"; u="${u%/*}"
+    local owner="${u##*/}"
+    [ -n "$owner" ] && printf '%s' "$owner" || printf 'source'
+}
+# Emit "url<TAB>branch" for the canonical repo first, then each list-file line
+# ("<url> [branch]", '#' comments and blanks ignored).
+collect_sources() {
+    printf '%s\t%s\n' "$SKILLS_REPO_URL" "$SKILLS_BRANCH"
+    local f; f="$(resolve_sources_file)"
+    [ -n "$f" ] || return 0
+    local line url br
+    while IFS= read -r line; do
+        line="${line%%#*}"
+        # shellcheck disable=SC2086
+        set -- $line
+        url="${1:-}"; br="${2:-$SKILLS_BRANCH}"
+        [ -n "$url" ] || continue
+        [ "$url" = "$SKILLS_REPO_URL" ] && continue   # de-dup the canonical repo
+        printf '%s\t%s\n' "$url" "$br"
+    done < "$f"
+}
+
 # Control artifacts that must never be clobbered by an upstream pull and must be
 # permission-hardened to root-only. Kept in one place so the rsync excludes and
 # the hardening pass can never drift apart.
@@ -119,15 +158,48 @@ harden_artifacts() {
     chmod 755       "$0" 2>/dev/null || true
 }
 
-ensure_upstream() {
-    if [ -d "$SKILLS_UPSTREAM/.git" ]; then
-        git -C "$SKILLS_UPSTREAM" fetch --depth 1 origin "$SKILLS_BRANCH" >>"$LOG" 2>&1 || return 1
-        git -C "$SKILLS_UPSTREAM" reset --hard "origin/$SKILLS_BRANCH" >>"$LOG" 2>&1 || return 1
+ensure_upstream_at() {
+    local url="$1" branch="$2" dir="$3"
+    if [ -d "$dir/.git" ]; then
+        git -C "$dir" fetch --depth 1 origin "$branch" >>"$LOG" 2>&1 || return 1
+        git -C "$dir" reset --hard "origin/$branch" >>"$LOG" 2>&1 || return 1
     else
-        rm -rf "$SKILLS_UPSTREAM"
-        git clone --depth 1 --branch "$SKILLS_BRANCH" "$SKILLS_REPO_URL" "$SKILLS_UPSTREAM" >>"$LOG" 2>&1 || return 1
+        rm -rf "$dir"
+        git clone --depth 1 --branch "$branch" "$url" "$dir" >>"$LOG" 2>&1 || return 1
     fi
     return 0
+}
+
+# Sync every real skill under one upstream root into $SKILLS_DIR, version-gated.
+# Accumulates into the SYNC_* globals (reset by the caller); $label tags logs.
+sync_tree() {
+    local up_root="$1" check_only="$2" label="$3"
+    local -a EXCL; mapfile -t EXCL < <(rsync_excludes)
+    shopt -s nullglob
+    local up_dir name up_md up_ver cur_md cur_ver
+    for up_dir in "$up_root"/*/; do
+        name="$(basename "$up_dir")"
+        up_md="$up_dir/SKILL.md"
+        [ -f "$up_md" ] || continue                      # only real skills
+        up_ver="$(skill_version "$up_md")"
+        cur_md="$SKILLS_DIR/$name/SKILL.md"
+        cur_ver="$(skill_version "$cur_md")"
+        if [ -z "$cur_ver" ]; then
+            [ "$check_only" = "1" ] && { log "NEW    $name ($label v${up_ver:-?})"; SYNC_ADDED=$((SYNC_ADDED+1)); continue; }
+            # --checksum: decide by content, never size+mtime, so a same-length
+            # version bump in the same mtime-second is never skipped.
+            rsync -a --checksum --delete "${EXCL[@]}" \
+                "$up_dir" "$SKILLS_DIR/$name/" >>"$LOG" 2>&1 \
+                && { log "added   $name v${up_ver:-?} [$label]"; SYNC_ADDED=$((SYNC_ADDED+1)); }
+        elif [ "$up_ver" != "$cur_ver" ]; then
+            [ "$check_only" = "1" ] && { log "UPDATE $name ($cur_ver -> ${up_ver:-?}) [$label]"; SYNC_UPDATED=$((SYNC_UPDATED+1)); continue; }
+            rsync -a --checksum --delete "${EXCL[@]}" \
+                "$up_dir" "$SKILLS_DIR/$name/" >>"$LOG" 2>&1 \
+                && { log "updated $name $cur_ver -> ${up_ver:-?} [$label]"; SYNC_UPDATED=$((SYNC_UPDATED+1)); }
+        else
+            SYNC_UNCHANGED=$((SYNC_UNCHANGED+1))
+        fi
+    done
 }
 
 update_once() {
@@ -136,63 +208,59 @@ update_once() {
 
     if ! command -v git >/dev/null 2>&1; then log "git not available — skipping"; return 0; fi
     if ! command -v rsync >/dev/null 2>&1; then log "rsync not available — skipping"; return 0; fi
-    if ! ensure_upstream; then
-        log "upstream fetch failed (offline?) — keeping current /skills"
+
+    SYNC_ADDED=0 SYNC_UPDATED=0 SYNC_UNCHANGED=0
+    local -a SRC_URLS=() SRC_BRS=() SRC_NSS=()
+    local url br n_sources=0
+    while IFS=$'\t' read -r url br; do
+        [ -n "$url" ] || continue
+        SRC_URLS+=("$url"); SRC_BRS+=("$br"); SRC_NSS+=("$(source_owner "$url")")
+        n_sources=$((n_sources+1))
+    done < <(collect_sources)
+
+    local i any_ok=0 updir ns
+    for ((i=0; i<n_sources; i++)); do
+        url="${SRC_URLS[$i]}"; br="${SRC_BRS[$i]}"; ns="${SRC_NSS[$i]}"
+        updir="$SKILLS_UPSTREAM/$ns"
+        if ! ensure_upstream_at "$url" "$br" "$updir"; then
+            log "fetch failed: ${ns}-skills <$url> (offline?) — skipping"
+            continue
+        fi
+        any_ok=1
+        sync_tree "$updir" "$check_only" "${ns}-skills"
+    done
+
+    if [ "$any_ok" = "0" ]; then
+        log "no sources reachable (offline?) — keeping current /skills"
         harden_artifacts
         return 0
     fi
 
-    local -a EXCL
-    mapfile -t EXCL < <(rsync_excludes)
-
-    local updated=0 added=0 unchanged=0 pruned=0
-    shopt -s nullglob
-    for up_dir in "$SKILLS_UPSTREAM"/*/; do
-        local name up_md up_ver cur_md cur_ver
-        name="$(basename "$up_dir")"
-        up_md="$up_dir/SKILL.md"
-        [ -f "$up_md" ] || continue                      # only real skills
-        up_ver="$(skill_version "$up_md")"
-        cur_md="$SKILLS_DIR/$name/SKILL.md"
-        cur_ver="$(skill_version "$cur_md")"
-
-        if [ -z "$cur_ver" ]; then
-            [ "$check_only" = "1" ] && { log "NEW    $name (upstream v${up_ver:-?})"; added=$((added+1)); continue; }
-            # --checksum: decide by content, never by size+mtime. A same-length
-            # version bump (0.1.0 -> 0.2.0) in the same mtime-second must NOT be
-            # skipped by rsync's default quick-check.
-            rsync -a --checksum --delete "${EXCL[@]}" \
-                "$up_dir" "$SKILLS_DIR/$name/" >>"$LOG" 2>&1 \
-                && { log "added   $name v${up_ver:-?}"; added=$((added+1)); }
-        elif [ "$up_ver" != "$cur_ver" ]; then
-            [ "$check_only" = "1" ] && { log "UPDATE $name ($cur_ver -> ${up_ver:-?})"; updated=$((updated+1)); continue; }
-            rsync -a --checksum --delete "${EXCL[@]}" \
-                "$up_dir" "$SKILLS_DIR/$name/" >>"$LOG" 2>&1 \
-                && { log "updated $name $cur_ver -> ${up_ver:-?}"; updated=$((updated+1)); }
+    # Prune only makes sense against a single authoritative source; with several
+    # sources a skill from one looks "absent" in the others, so we skip it.
+    if [ "$SKILLS_PRUNE" = "1" ] && [ "$check_only" != "1" ]; then
+        if [ "$n_sources" = "1" ]; then
+            local cur_dir name
+            for cur_dir in "$SKILLS_DIR"/*/; do
+                name="$(basename "$cur_dir")"
+                [ -f "$cur_dir/SKILL.md" ] || continue
+                if [ ! -d "$SKILLS_UPSTREAM/${SRC_NSS[0]}/$name" ]; then
+                    rm -rf "$cur_dir" && log "pruned  $name"
+                fi
+            done
         else
-            unchanged=$((unchanged+1))
+            log "prune skipped: multiple sources active (would misclassify cross-source skills)"
         fi
-    done
-
-    if [ "$SKILLS_PRUNE" = "1" ]; then
-        for cur_dir in "$SKILLS_DIR"/*/; do
-            local name="$(basename "$cur_dir")"
-            [ -f "$cur_dir/SKILL.md" ] || continue
-            if [ ! -d "$SKILLS_UPSTREAM/$name" ]; then
-                [ "$check_only" = "1" ] && { log "PRUNE  $name (absent upstream)"; pruned=$((pruned+1)); continue; }
-                rm -rf "$cur_dir" && { log "pruned  $name"; pruned=$((pruned+1)); }
-            fi
-        done
     fi
 
     if [ "$check_only" != "1" ]; then
-        printf '{"updated_at":"%s","added":%d,"updated":%d,"unchanged":%d,"pruned":%d,"source":"%s@%s"}\n' \
-            "$(date -Iseconds)" "$added" "$updated" "$unchanged" "$pruned" "$SKILLS_REPO_URL" "$SKILLS_BRANCH" \
+        printf '{"updated_at":"%s","added":%d,"updated":%d,"unchanged":%d,"sources":%d}\n' \
+            "$(date -Iseconds)" "$SYNC_ADDED" "$SYNC_UPDATED" "$SYNC_UNCHANGED" "$n_sources" \
             > "$SKILLS_DIR/.hemlock_skills_updated" 2>/dev/null || true
         # Re-assert root-only ownership on control artifacts after every mutation.
         harden_artifacts
     fi
-    log "cycle done: added=$added updated=$updated unchanged=$unchanged pruned=$pruned"
+    log "cycle done: sources=$n_sources added=$SYNC_ADDED updated=$SYNC_UPDATED unchanged=$SYNC_UNCHANGED"
     return 0
 }
 

@@ -4787,6 +4787,149 @@ BANNER
   fi
 }
 
+# ════════════════════════════════════════════════════════════════════════════
+# Skill Sources (CL-045) — operator-added git repos populated into /skills
+# ════════════════════════════════════════════════════════════════════════════
+# The runtime bakes only the 7-skill kernel and pulls everything else from the
+# canonical repo. This manager lets the operator register ADDITIONAL git skill
+# repos; each is labelled by github owner ("<owner>-skills") and its skills sync
+# into /skills alongside the rest (skills-auto-update.sh reads the same list).
+# The list is portable — stored on the stick when mounted so it travels.
+
+# Owner slug from a git URL (mirrors source_owner in skills-auto-update.sh).
+_skill_source_owner() {
+  local u="$1"; u="${u%.git}"; u="${u#*://}"; u="${u#*@}"
+  u="$(printf '%s' "$u" | tr ':' '/')"; u="${u%/}"; u="${u%/*}"
+  local o="${u##*/}"; [[ -n "$o" ]] && printf '%s' "$o" || printf 'source'
+}
+
+# Portable, platform-wide (NOT per-device) list file. Prefer the stick so the
+# operator's chosen sources travel with it; fall back to host base config.
+_uca_skill_sources_file() {
+  local m
+  if m=$(_uca_mount 2>/dev/null) && [[ -n "$m" && -d "$m" ]]; then
+    printf '%s/hemlock/config/skill-sources.list\n' "$m"
+  else
+    printf '%s/skill-sources.list\n' "$UCA_BASE_CFG_DIR"
+  fi
+}
+
+# Print the bare git URLs currently listed (comments/blanks/branch stripped).
+_skill_sources_urls() {
+  local f="$1" line
+  [[ -f "$f" ]] || return 0
+  while IFS= read -r line; do
+    line="${line%%#*}"; line="$(printf '%s' "$line" | xargs)"
+    [[ -n "$line" ]] || continue
+    printf '%s\n' "${line%% *}"
+  done < "$f"
+}
+
+_skill_sources_add() {
+  local f="$1" input
+  printf "  git URL or owner/repo (blank to cancel): "
+  local input; read -r input || true; input="$(printf '%s' "$input" | xargs)"
+  [[ -n "$input" ]] || { _menu_info "cancelled"; return 0; }
+  local url="$input"
+  # owner/repo shorthand → github https URL
+  if [[ "$input" != *://* && "$input" != *@*:* && "$input" == */* ]]; then
+    url="https://github.com/${input%.git}.git"
+  fi
+  case "$url" in
+    *://*|git@*:*) : ;;
+    *) log_error "Not a git URL or owner/repo: $input"; return 0 ;;
+  esac
+  local existing
+  while IFS= read -r existing; do
+    [[ "$existing" == "$url" ]] && { _menu_warn "Already present: $url"; return 0; }
+  done < <(_skill_sources_urls "$f")
+  mkdir -p "$(dirname "$f")" 2>/dev/null || true
+  printf '%s\n' "$url" >> "$f"
+  _menu_success "Added $(_skill_source_owner "$url")-skills → $url"
+  _menu_info "Applies on the next updater cycle, or use 'Apply now'."
+}
+
+_skill_sources_remove() {
+  local f="$1"
+  local -a urls=(); local u
+  while IFS= read -r u; do urls+=("$u"); done < <(_skill_sources_urls "$f")
+  ((${#urls[@]})) || { _menu_info "no sources to remove"; return 0; }
+  local i
+  for i in "${!urls[@]}"; do printf "   %2d) %s\n" $((i+1)) "${urls[$i]}"; done
+  printf "  Remove which number (blank to cancel): "
+  local n; read -r n || true
+  [[ "$n" =~ ^[0-9]+$ ]] && (( n>=1 && n<=${#urls[@]} )) || { _menu_info "cancelled"; return 0; }
+  local target="${urls[$((n-1))]}" line bare tmp="$f.tmp"
+  : > "$tmp"
+  while IFS= read -r line; do
+    bare="${line%%#*}"; bare="$(printf '%s' "$bare" | xargs)"; bare="${bare%% *}"
+    [[ "$bare" == "$target" ]] && continue
+    printf '%s\n' "$line" >> "$tmp"
+  done < "$f"
+  mv "$tmp" "$f"
+  _menu_success "Removed $target"
+}
+
+_skill_sources_apply() {
+  local f="$1" mirrored=0 t d
+  for t in /skills/.skill-sources /config/skill-sources.list; do
+    d="$(dirname "$t")"
+    if [[ -d "$d" && -w "$d" ]]; then
+      cp "$f" "$t" 2>/dev/null && { _menu_success "mirrored → $t"; mirrored=1; }
+    fi
+  done
+  local upd="/opt/hermes/docker/skills-auto-update.sh"
+  if [[ -x "$upd" ]]; then
+    _menu_info "triggering a one-shot skills pull..."
+    if SKILLS_SOURCES_FILE="$f" "$upd" --once >/dev/null 2>&1; then
+      _menu_success "pull complete"
+    else
+      _menu_warn "pull failed (offline, or run Apply inside the runtime)"
+    fi
+  elif [[ "$mirrored" -eq 0 ]]; then
+    _menu_info "Saved. The runtime reads /config/skill-sources.list or /skills/.skill-sources —"
+    _menu_info "map one to this file (or run Apply inside the runtime) and it auto-applies."
+  fi
+}
+
+_run_skill_sources() {
+  local f; f="$(_uca_skill_sources_file)"
+  while true; do
+    _menu_header "Skill Sources — extra git repos populated into /skills"
+    _menu_subheader "each source labelled by github owner (\"<owner>-skills\")"
+    echo ""
+    printf "  ${BOLD}List file:${NC} %s\n" "$f"
+    printf "  ${DIM}The runtime pulls the canonical repo + every source below into /skills on\n"
+    printf "  its cycle. Adding never removes anything; owner-namespaced, fail-soft offline.${NC}\n\n"
+    local -a urls=(); local u
+    while IFS= read -r u; do urls+=("$u"); done < <(_skill_sources_urls "$f")
+    if ((${#urls[@]})); then
+      _menu_subheader "Current extra sources"
+      local i
+      for i in "${!urls[@]}"; do
+        printf "   %2d) ${GREEN}%-20s${NC} %s\n" $((i+1)) "$(_skill_source_owner "${urls[$i]}")-skills" "${urls[$i]}"
+      done
+    else
+      printf "   ${DIM}(none yet — the canonical drdeeks/skills repo is always included)${NC}\n"
+    fi
+    echo ""
+    _menu_item "a" "Add a git skill repo" "" "https URL or owner/repo shorthand"
+    _menu_item "r" "Remove a source"      "" "by number"
+    _menu_item "p" "Apply now"            "" "mirror list to runtime + trigger a pull if reachable"
+    _menu_item "0" "Back"
+    printf "\n  Choose: "
+    local ans; read -r ans || true
+    case "$ans" in
+      a|A) _skill_sources_add "$f" ;;
+      r|R) _skill_sources_remove "$f" ;;
+      p|P) _skill_sources_apply "$f" ;;
+      0|"") return 0 ;;
+      *) log_error "Invalid option: $ans" ;;
+    esac
+    echo ""; printf "${YELLOW}Press Enter to continue...${NC}"; read -r _ || true
+  done
+}
+
 _main_menu_render() {
   _show_device_status
   printf "\n"
@@ -4833,6 +4976,7 @@ _main_menu_render() {
     fi
     printf "\n${BOLD}Foundation:${NC}\n"
     printf "  ${CYAN}20${NC}) Tooling Volume             ${GREEN}[USB]${NC}      Bridge: hf-cli/updater/models\n"
+    printf "  ${CYAN}21${NC}) Skill Sources             ${GREEN}[USB+CONTAINER]${NC} Add git skill repos → /skills\n"
     if [[ "$HEMLOCK_ENABLED" != "true" ]]; then
       printf "\n${DIM}  (Hemlock options hidden — re-launch with --hemlock or -H to reveal)${NC}\n"
     fi
@@ -4895,6 +5039,7 @@ _main_menu_handler() {
       fi
       ;;
     20) _dispatch_action "Tooling Volume"       _run_tooling_manager ;;
+    21) _dispatch_action "Skill Sources"        _run_skill_sources ;;
     19)
       # CL-026 / SPEC-T04: text-mode users can type 19 — re-check the gate here.
       # text-mode users can still type 19 — re-check here.
