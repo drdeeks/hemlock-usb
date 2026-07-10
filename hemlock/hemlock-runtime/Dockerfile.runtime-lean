@@ -64,7 +64,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 # /opt/openclaw is the mount point for owner-provided OpenClaw (or stays empty).
 COPY docker/openclaw-runtime/bin/ /opt/openclaw/bin/
 RUN chmod +x /opt/openclaw/bin/openclaw-container && \
-    ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/openclaw
+    ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/openclaw && \
+    ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/hemlock-gateway
 
 # ── Hermes (cognition layer) ─────────────────────────────────────────────────
 COPY docker/hermes-agent/ /opt/hermes/

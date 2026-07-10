@@ -1,3 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
-exec "/home/drdeek/.openclaw/tools/node/bin/node" "/home/drdeek/.openclaw/lib/node_modules/openclaw/dist/entry.js" "$@"
+# Portable Hemlock gateway launcher (host or container). Resolves the engine
+# relative to this script's own location — honoring OPENCLAW_ROOT when set —
+# so it works wherever the tree is placed (no hardcoded paths). Node: bundled
+# if present, else system node (lean/minimal ship system node).
+here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+OPENCLAW_ROOT="${OPENCLAW_ROOT:-$(dirname "$here")}"   # bin/ -> engine root
+NODE="${OPENCLAW_ROOT}/tools/node/bin/node"
+if [ ! -x "$NODE" ]; then
+    NODE="$(command -v node || true)"
+    [ -n "$NODE" ] || { echo "hemlock-gateway: no node runtime (bundled or system)" >&2; exit 127; }
+fi
+ENTRY="${OPENCLAW_ROOT}/lib/node_modules/openclaw/openclaw.mjs"
+[ -f "$ENTRY" ] || ENTRY="${OPENCLAW_ROOT}/lib/node_modules/openclaw/dist/entry.js"
+exec "$NODE" "$ENTRY" "$@"

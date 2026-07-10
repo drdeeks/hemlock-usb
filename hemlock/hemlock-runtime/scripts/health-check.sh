@@ -41,13 +41,13 @@ fi
 
 # Gateway health
 echo ""
-echo "=== OpenClaw Gateway ==="
+echo "=== Hemlock Gateway ==="
 GATEWAY_RUNNING=$(docker ps --filter "name=gateway" --filter "status=running" -q 2>/dev/null)
 if [[ -n "$GATEWAY_RUNNING" ]]; then
     pass "Gateway container is running"
     
     # Check gateway health
-    if docker exec openclaw-gateway openclaw gateway status &> /dev/null; then
+    if docker exec openclaw-gateway hemlock-gateway gateway status &> /dev/null; then
         pass "Gateway is healthy"
     else
         warn "Gateway may not be fully healthy"

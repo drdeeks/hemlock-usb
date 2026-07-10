@@ -62,7 +62,8 @@ RUN cd /opt/openclaw/lib/node_modules/openclaw && \
 
 COPY docker/openclaw-runtime/bin/ /opt/openclaw/bin/
 RUN chmod +x /opt/openclaw/bin/openclaw-container && \
-    ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/openclaw
+    ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/openclaw && \
+    ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/hemlock-gateway
 
 # ── Brain over MCP ────────────────────────────────────────────────────────────
 # Cognition source (the brain's dependency closure lives here); heavy runtime

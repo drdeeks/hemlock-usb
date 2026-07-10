@@ -35,5 +35,5 @@ if [ "${SKILLS_UPDATE_ENABLED:-1}" = "1" ] && [ -x "$UPDATER" ]; then
     "$UPDATER" --supervise >>/logs/skills-sync.log 2>&1 &
 fi
 
-echo "[minimal] starting gateway daemon..."
-exec openclaw gateway run --allow-unconfigured
+echo "[minimal] starting Hemlock Gateway daemon..."
+exec hemlock-gateway gateway run --allow-unconfigured

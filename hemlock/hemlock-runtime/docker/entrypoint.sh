@@ -447,8 +447,8 @@ if [ "$MODE" = "full" ]; then
     fi
 
     # OpenClaw drives: platforms + routing + spawns each agent's brain MCP on demand.
-    log "Starting OpenClaw gateway..."
-    openclaw gateway run --allow-unconfigured &
+    log "Starting Hemlock Gateway..."
+    hemlock-gateway gateway run --allow-unconfigured &
     OPENCLAW_PID=$!
     log "OpenClaw gateway started (PID: ${OPENCLAW_PID})"
 
@@ -496,8 +496,8 @@ elif [ "$MODE" = "openclaw-only" ]; then
     fi
 
     # Start OpenClaw gateway
-    log "Starting OpenClaw gateway..."
-    openclaw gateway run --allow-unconfigured &
+    log "Starting Hemlock Gateway..."
+    hemlock-gateway gateway run --allow-unconfigured &
     OPENCLAW_PID=$!
     log "OpenClaw gateway started (PID: ${OPENCLAW_PID})"
 

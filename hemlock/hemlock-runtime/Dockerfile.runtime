@@ -78,7 +78,8 @@ COPY docker/openclaw-runtime/bin/ /opt/openclaw/bin/
 COPY docker/openclaw-runtime/tools/node/ /opt/openclaw/tools/node/
 
 RUN chmod +x /opt/openclaw/bin/openclaw-container && \
-    ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/openclaw
+    ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/openclaw && \
+    ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/hemlock-gateway
 
 # ── Hermes (cognition layer) ─────────────────────────────────────────────────
 COPY docker/hermes-agent/ /opt/hermes/
