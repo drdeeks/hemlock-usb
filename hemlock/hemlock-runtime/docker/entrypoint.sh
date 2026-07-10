@@ -294,7 +294,7 @@ if [ "$MODE" != "openclaw-only" ]; then
 fi
 
 if [ "$MODE" != "hermes-only" ]; then
-    command -v openclaw >/dev/null || warn "openclaw binary not found — OpenClaw features unavailable"
+    command -v openclaw >/dev/null || warn "gateway engine binary not found — Hemlock Gateway features unavailable"
 fi
 
 log "All prerequisites validated"
@@ -435,7 +435,7 @@ log " Telegram: ${TELEGRAM_BOT_TOKEN:+configured}${TELEGRAM_BOT_TOKEN:-not set}"
 
 if [ "$MODE" = "full" ]; then
     # ── FULL MODE: OpenClaw fronts → per-agent MCP brains → Hermes cognition ───
-    log "=== FULL MODE: OpenClaw → per-agent MCP brains → Hermes ==="
+    log "=== FULL MODE: Hemlock Gateway → per-agent Hemlock-loop brains ==="
 
     # Generate the OpenClaw config: ONE brain-<name> MCP per agent volume under
     # /data/agents, each with its OWN AGENT_ID + HERMES_HOME (its own volume).
@@ -446,14 +446,14 @@ if [ "$MODE" = "full" ]; then
         OPENCLAW_CONFIG="$OPENCLAW_CFG" AGENTS_DIR="/data/agents" \
             python3 /opt/hermes/docker/gen-openclaw-config.py 2>&1 | while IFS= read -r l; do log "  $l"; done
     else
-        warn "gen-openclaw-config.py not found — OpenClaw will start unconfigured"
+        warn "gen-openclaw-config.py not found — Hemlock Gateway will start unconfigured"
     fi
 
     # OpenClaw drives: platforms + routing + spawns each agent's brain MCP on demand.
     log "Starting Hemlock Gateway..."
     hemlock-gateway gateway run --allow-unconfigured &
     OPENCLAW_PID=$!
-    log "OpenClaw gateway started (PID: ${OPENCLAW_PID})"
+    log "Hemlock Gateway started (PID: ${OPENCLAW_PID})"
 
     # Hermes gateway is OPTIONAL in full mode (OpenClaw fronts the platforms). Off
     # by default so two gateways never fight over one platform; opt in explicitly.
@@ -463,7 +463,7 @@ if [ "$MODE" = "full" ]; then
         HERMES_PID=$!
         log "Hermes gateway started (PID: ${HERMES_PID})"
     else
-        log "Hermes gateway not started (ENABLE_HERMES_GATEWAY=false; OpenClaw fronts)"
+        log "Hermes gateway not started (ENABLE_HERMES_GATEWAY=false; Hemlock Gateway fronts)"
     fi
 
     # Wait for any process to exit
@@ -472,7 +472,7 @@ if [ "$MODE" = "full" ]; then
 
 elif [ "$MODE" = "hermes-only" ]; then
     # ── HERMES-ONLY MODE: Standalone Hermes (no OpenClaw) ─────────────────────
-    log "=== HERMES-ONLY MODE: Standalone Hermes (no OpenClaw) ==="
+    log "=== HERMES-ONLY MODE: standalone hermes brain (no Hemlock Gateway) ==="
 
     # NOTE: the brain MCP is launched ON DEMAND (stdio) by the Hermes gateway from
     # this agent's config.yaml `mcp_servers` — with stdin attached, so it stays up.
@@ -489,7 +489,7 @@ elif [ "$MODE" = "hermes-only" ]; then
 
 elif [ "$MODE" = "openclaw-only" ]; then
     # ── OPENCLAW-ONLY MODE: OpenClaw runs its own agents; Hermes brains IGNORED ─
-    log "=== OPENCLAW-ONLY MODE: OpenClaw only (no Hermes brains) ==="
+    log "=== GATEWAY-ONLY MODE (openclaw-only): Hemlock Gateway, no Hemlock-loop brains ==="
 
     # Generate the agent config WITHOUT brain MCP servers (INCLUDE_BRAINS=0).
     OPENCLAW_CFG="${OPENCLAW_CONFIG:-/root/.openclaw/openclaw.json}"
@@ -502,7 +502,7 @@ elif [ "$MODE" = "openclaw-only" ]; then
     log "Starting Hemlock Gateway..."
     hemlock-gateway gateway run --allow-unconfigured &
     OPENCLAW_PID=$!
-    log "OpenClaw gateway started (PID: ${OPENCLAW_PID})"
+    log "Hemlock Gateway started (PID: ${OPENCLAW_PID})"
 
     wait "$OPENCLAW_PID" 2>/dev/null || true
 fi

@@ -4513,23 +4513,27 @@ _run_hemlock_volumes() {
 }
 
 # ── H7 — Gateway token resolver + GUI launcher (CL-012/CL-013) ──────────────
-# Resolves the OpenClaw gateway token without forcing the user to paste it.
-# Priority: container env var → `openclaw dashboard` parse. Returns 1 if the
+# Resolves the Hemlock Gateway auth token without forcing the user to paste it.
+# Priority: container env (HEMLOCK_GATEWAY_TOKEN, then the engine's own
+# OPENCLAW_GATEWAY_TOKEN) → `hemlock-gateway dashboard` parse (falls back to
+# the engine's `openclaw` name on pre-alias images). Returns 1 if the
 # container is down or no token can be obtained. NOT cached on disk —
 # regenerating is fast (~1s) and avoids leaving a secret in a sourced config.
 _uca_hemlock_token() {
   docker ps -q -f name=hemlock_runtime 2>/dev/null | grep -q . || return 1
   local tok
-  tok=$(docker exec hemlock_runtime sh -c 'printenv OPENCLAW_GATEWAY_TOKEN 2>/dev/null' 2>/dev/null | tr -d '[:space:]')
+  tok=$(docker exec hemlock_runtime sh -c \
+        'printenv HEMLOCK_GATEWAY_TOKEN || printenv OPENCLAW_GATEWAY_TOKEN' 2>/dev/null | tr -d '[:space:]')
   if [[ -z "$tok" ]]; then
-    tok=$(docker exec hemlock_runtime openclaw dashboard 2>/dev/null \
+    tok=$(docker exec hemlock_runtime sh -c \
+          'command -v hemlock-gateway >/dev/null && hemlock-gateway dashboard || openclaw dashboard' 2>/dev/null \
           | grep -oE '#token=[a-f0-9]+' | head -1 | sed 's/^#token=//')
   fi
   [[ -z "$tok" ]] && return 1
   printf '%s\n' "$tok"
 }
 
-# Launch the Hemlock GUI: OpenClaw Control web UI in chromium app-mode.
+# Launch the Hemlock GUI: Hemlock Control web UI in chromium app-mode.
 # Auto-starts the container if stopped (with confirmation). Auto-fills the
 # auth token. Falls back to xdg-open if no chromium-family browser exists.
 _run_hemlock_control() {

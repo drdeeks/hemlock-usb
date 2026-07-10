@@ -255,6 +255,22 @@ migration), not yet wired to anything.
    (separate from the bake): the curated skills' own text that says
    `hermes kanban …` / `${HERMES_HOME}` needs the CLI-name sweep to
    `hemlock-agent` / the Hemlock env names (depends on #1, done).
-6. **Partial tree.** The drop contains only menu.sh + runtime + dashboard —
-   integration is a merge into the repo, never a replace (usb/, blueprint/,
-   README, CHANGELOG, dist/ live only here).
+6. **Partial tree. — SATISFIED 2026-07-09 (CL-046).** Integration completed
+   as a HARVEST, never a replace. File-by-file audit verdict:
+   - **Taken:** `hemlock-dashboard/` (gateway overlay, #4); token-resolver
+     tolerance (`HEMLOCK_GATEWAY_TOKEN` first, engine var fallback;
+     `hemlock-gateway dashboard` first, engine CLI fallback); boot-log
+     prose sweep completed in OUR entrypoint with the decided vocabulary.
+   - **Superseded (not taken):** the drop's Dockerfiles and renamed dirs
+     (`docker/hemlock-runtime`, `docker/hemlock-agent`, `gen-hemlock-config.py`,
+     `bin/hemlock*`) — our alias-based #1–#3 implementation replaces the
+     drop's fork-rename approach, and its `lib/`+`tools/` ship EMPTY anyway.
+   - **Regressive (rejected):** the drop's `menu.sh` predates CL-042 (no
+     root launcher, no sterile sync excludes) and is 300+ lines behind the
+     CL-043/044/045 TUI; its `OPENCLAW_GATEWAY_TOKEN` → `HEMLOCK_…` rename
+     would break token resolution against the real engine.
+   - **Deliberately NOT imported:** `agents/registrar/` — the tarball
+     contains LIVE agent state (state.db, auth.lock, gateway_state.json,
+     config.yaml). Never test with the real registrar; flag: the tarball
+     itself may hold credentials and should be treated as sensitive.
+   The tarball stays in `_incoming-docs/` as the audit reference.

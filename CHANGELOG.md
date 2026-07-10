@@ -7,6 +7,70 @@ This file is append-only. New entries are added at the top under the appropriate
 
 ## [Unreleased]
 
+### 2026-07-09 — Rebrand gates closed: naming, skills kernel, dashboard, drop harvested (CL-043..CL-046)
+
+**CL-043 — One TUI, no whiptail; slugs everywhere; compute-tier advisor.**
+- `menu.sh` main menu is now the same styled text TUI as every submenu
+  (whiptail path removed); lean static HEMLOCK masthead with narrow-terminal
+  fallback. Every option in every menu carries an informative slug.
+- USB Access & Boot gains the Compute Profile & Feasibility advisor:
+  detect-first (threads/RAM/GPU/virt — `systemd-detect-virt` exit-1-on-metal
+  handled), run-mode stubs (native / headless / VM-on-top), and three
+  RESOURCE tiers — Seamless (~20% RAM, ¼ cores), Restricted (~70%, ¾),
+  Redline (all but 1G/1 core) — applied to `UCA_QEMU_RAM/CPUS` with an
+  honest small-RAM warning.
+- `usb-setup-assistant.sh`: persistence-volume picker (label/size/rootfs
+  probe) wired into all six flows that hardcoded `ubuntu-persistence.dat`;
+  Hemlock option gated behind `--hemlock`/`-H` to match the master menu.
+
+**CL-044 — Per-device configuration isolation.**
+- All host-side config now lives under `devices/<fingerprint>/` keyed by a
+  stable hardware id (DMI product_uuid → DMI-composite+MAC → machine-id →
+  hostname; no sudo at startup). Each machine detects, decides, and stores
+  its own QEMU allocation, SSH port, environment, boot target, profiles,
+  and sudo policy — nothing travels on the stick. One-time migration moves
+  legacy flat config into the current device's namespace; the advisor shows
+  the device label, id, source, and isolated config path.
+
+**CL-045 — Skills: 7-kernel bake + operator-added sources.**
+- Every image variant (minimal included — crew runs the same runtime and the
+  brain MCP exposes `agent_skills_list`) bakes ONLY the bootstrap kernel:
+  skill-creator, skill-installer, autonomous-crew, enterprise-blueprint,
+  loop-enforcer, agent-identity-architecture, guardrail-enforcement —
+  refreshed from the canonical skills repo. Everything else auto-populates
+  at runtime (`skills-auto-update.sh`), which now iterates MULTIPLE sources:
+  canonical repo first, then operator-added git repos (menu option 21,
+  "Skill Sources"), each namespaced `<github-owner>-skills`; prune is
+  skipped when several sources are active. Amends CL-041's "no baked skills".
+
+**CL-046 — Rebrand docket #1–#5 closed; drop harvested (merge-not-replace).**
+- CLI family (docket #1): bare `hemlock` = front-door wrapper (repo file,
+  copied — never package-installed); agent/brain pip CLI renamed
+  `hemlock-agent`; `hemlock-runtime` unchanged. The pip-vs-wrapper collision
+  on `/usr/local/bin/hemlock` is gone.
+- Gateway alias (#2): vendored engine stays internally `openclaw`; exposed
+  as `hemlock-gateway` in every variant; entrypoints/health-check call it;
+  stray `bin/openclaw` dev-path rewritten self-relative.
+- Naming (#3): Hemlock Gateway (control plane) / Hemlock-loop (per-agent
+  brain MCP) / hermes (internal). Generated-config prose, boot-log lines,
+  and mode banners swept; `HEMLOCK_HOME` canonical everywhere (mirrored to
+  `HERMES_HOME`; entrypoint divergence after per-agent re-point fixed);
+  fabricated `docs.hemlock.ai` replaced; env glossary in the blueprint.
+  Skills repo swept (`hermes <cmd>` → `hemlock-agent`; docs to
+  `HEMLOCK_HOME`; 7 skills patch-bumped, all validate PASS 0/0).
+- Dashboard (#4): the drop's `hemlock-dashboard` (a rebranded build of the
+  engine's own control UI) is vendored at `hemlock-runtime/hemlock-dashboard/`
+  and overlaid onto `dist/control-ui/` in the engine-baking variants —
+  gateway-served on :1437, verified live (HTTP 200: index "Hemlock Control",
+  bundle, PWA manifest, sw.js). Lean exempt (owner-mounted engine). Menu
+  option 5 prints LAN/Tailscale token-URLs for headless/phone use.
+- Drop integration (#13/#6): audited file-by-file — beyond the dashboard the
+  drop contains only renames superseded by the alias approach, a menu.sh
+  that predates CL-042 (regressive), and live `agents/registrar/` state that
+  is deliberately NOT imported. Token resolver made tolerant
+  (`HEMLOCK_GATEWAY_TOKEN` → engine var; `hemlock-gateway dashboard` →
+  engine CLI). The drop tarball remains in `_incoming-docs/` as reference.
+
 ### 2026-07-09 — One clear access point + sterile deploy tree (CL-042)
 
 **CL-042 — START HERE launcher; dev artifacts off the stick.**
