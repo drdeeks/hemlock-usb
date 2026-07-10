@@ -61,6 +61,11 @@ RUN cd /opt/openclaw/lib/node_modules/openclaw && \
     npm install --omit=dev --omit=optional --legacy-peer-deps --ignore-scripts && \
     npm cache clean --force
 
+# Rebranded web UI ("Hemlock Control", docket #4): overlay onto the fixed path
+# the engine serves its control UI from (<pkg>/dist/control-ui, gateway port).
+# Static files only (~3.6M) — no new process/port; drop this COPY for stock UI.
+COPY hemlock-dashboard/ /opt/openclaw/lib/node_modules/openclaw/dist/control-ui/
+
 COPY docker/openclaw-runtime/bin/ /opt/openclaw/bin/
 RUN chmod +x /opt/openclaw/bin/openclaw-container && \
     ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/openclaw && \

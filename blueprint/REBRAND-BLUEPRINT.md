@@ -226,9 +226,23 @@ migration), not yet wired to anything.
    all validate PASS 0/0). REMAINING (drop-side only): the same pass over the
    REBRANDED drop's `gen-hemlock-config.py` self-contradictions when #13
    integration happens.
-4. **Dashboard wiring.** Nothing serves `hemlock-dashboard/`; decide where
-   it mounts (gateway static assets vs menu-launched app-mode) — depends
-   on item 2's decision.
+4. **Dashboard wiring. — RESOLVED + IMPL DONE 2026-07-09.**
+   Finding: `hemlock-dashboard/` is a rebranded rebuild of the engine's own
+   built-in control UI ("Hemlock Control" PWA — same Lit/Vite app), and the
+   engine serves `<pkg>/dist/control-ui/` on the gateway port natively.
+   **Decision: gateway-served, build-time overlay.** The dashboard now lives
+   at `hemlock-runtime/hemlock-dashboard/` (3.6M static, 50 files, zero
+   openclaw strings) and each engine-baking variant (runtime/minimal/core)
+   overlays it via one COPY onto `dist/control-ui/` — image-layer only, the
+   vendored repo files are never modified; drop the COPY for stock UI. Lean
+   is exempt (engine arrives via owner mount, which would shadow the overlay;
+   we never mutate owner volumes — noted in its Dockerfile).
+   VERIFIED LIVE against hemlock:minimal with the overlay bind-mounted:
+   gateway :1437 serves `<title>Hemlock Control</title>`, main bundle,
+   manifest, sw.js, favicon — all HTTP 200, inside and via published port.
+   Menu: option 5 (Hemlock Control) now also prints LAN + Tailscale URLs
+   with the auto-resolved token for headless/phone access (PWA installable),
+   and a missing local browser is a graceful success, not an error.
 5. **Skills-repo coordination. — RESOLVED 2026-07-09 (CL-045).**
    Bake policy settled: every image variant (minimal included — crew/agents
    share the runtime, brain MCP exposes `agent_skills_list`) bakes ONLY the

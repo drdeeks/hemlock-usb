@@ -4130,7 +4130,7 @@ _run_hemlock_manager() {
   _menu_item "2" "Runtime status"                  "" "docker ps + healthcheck"
   _menu_item "3" "Master Deploy (DEPLOY.sh)"      "" "full stack — needs root"
   _menu_item "4" "Hemlock Doctor"                  "" "health check (8 categories)"
-  _menu_item "5" "Launch Hemlock Control (GUI)"    "" "OpenClaw Control web UI, app-mode (CL-012)"
+  _menu_item "5" "Launch Hemlock Control (GUI)"    "" "web UI on :1437 — app-mode here, or URL for phone/Tailscale (headless)"
   _menu_item "6" "Volume management"               "" "list/inspect/backup/destroy hemlock_* volumes (CL-014)"
   _menu_item "7" "Check for updates"                "" "self-update with rollback (.auto-update.sh)"
   _menu_item "8" "Skills manager"                   "" "baked curated set (self-contained) + add remote skill repos"
@@ -4534,7 +4534,7 @@ _uca_hemlock_token() {
 # auth token. Falls back to xdg-open if no chromium-family browser exists.
 _run_hemlock_control() {
   _menu_header "Hemlock Control (GUI)"
-  _menu_subheader "CONTAINER — OpenClaw Control SPA, chromium app-mode"
+  _menu_subheader "CONTAINER — Hemlock Control web UI, served by the Hemlock Gateway on :1437"
 
   # Container up?
   if ! docker ps -q -f name=hemlock_runtime 2>/dev/null | grep -q .; then
@@ -4563,6 +4563,20 @@ _run_hemlock_control() {
   fi
   _menu_info "URL : $url"
 
+  # Remote access (headless operation): the same UI is reachable from any
+  # device that can see this host — phone/laptop over LAN or Tailscale. It's
+  # a PWA: on a phone, "Add to Home Screen" installs it like an app.
+  local frag=""; [[ -n "$tok" ]] && frag="#token=${tok}"
+  local lan_ip ts_ip
+  lan_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+  ts_ip=$(command -v tailscale >/dev/null 2>&1 && tailscale ip -4 2>/dev/null | head -1)
+  echo ""
+  _menu_subheader "Reach it from another device (headless)"
+  [[ -n "$lan_ip" ]] && printf "  ${BOLD}LAN      :${NC} http://%s:1437/%s\n" "$lan_ip" "$frag"
+  [[ -n "$ts_ip"  ]] && printf "  ${BOLD}Tailscale:${NC} http://%s:1437/%s\n" "$ts_ip" "$frag"
+  [[ -z "$lan_ip$ts_ip" ]] && _menu_info "no LAN/Tailscale address detected on this host"
+  echo ""
+
   # Browser. Prefer chromium-family for true app-mode; fall back to xdg-open.
   local browser=""
   for cand in chromium chromium-browser google-chrome google-chrome-stable; do
@@ -4590,8 +4604,8 @@ _run_hemlock_control() {
     xdg-open "$url" >/dev/null 2>&1 &
     _menu_success "Opened in default browser (PID $!)."
   else
-    _menu_error "No browser found. Install chromium or xdg-utils."
-    return 1
+    # Headless host: no local browser is fine — the UI is served either way.
+    _menu_success "Gateway is serving the UI. Open one of the URLs above from another device."
   fi
 }
 

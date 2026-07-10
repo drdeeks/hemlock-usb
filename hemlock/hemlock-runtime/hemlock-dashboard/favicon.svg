@@ -1,0 +1,42 @@
+<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hemlock-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <linearGradient id="hemlock-light" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <!-- Central stem -->
+  <path d="M60 105 L60 30" stroke="url(#hemlock-gradient)" stroke-width="4" stroke-linecap="round"/>
+  <!-- Left leaf cluster (upper) -->
+  <path d="M60 55 Q40 40 25 35 Q35 45 45 55 Q50 50 60 55Z" fill="url(#hemlock-light)"/>
+  <!-- Right leaf cluster (upper) -->
+  <path d="M60 55 Q80 40 95 35 Q85 45 75 55 Q70 50 60 55Z" fill="url(#hemlock-light)"/>
+  <!-- Left leaf cluster (middle) -->
+  <path d="M60 70 Q38 58 22 50 Q34 62 46 70 Q52 65 60 70Z" fill="url(#hemlock-gradient)"/>
+  <!-- Right leaf cluster (middle) -->
+  <path d="M60 70 Q82 58 98 50 Q86 62 74 70 Q68 65 60 70Z" fill="url(#hemlock-gradient)"/>
+  <!-- Left leaf cluster (lower) -->
+  <path d="M60 85 Q40 75 28 68 Q38 80 48 85 Q53 80 60 85Z" fill="url(#hemlock-light)"/>
+  <!-- Right leaf cluster (lower) -->
+  <path d="M60 85 Q80 75 92 68 Q82 80 72 85 Q67 80 60 85Z" fill="url(#hemlock-light)"/>
+  <!-- Umbel flower cluster at top -->
+  <circle cx="60" cy="22" r="5" fill="#60a5fa"/>
+  <circle cx="50" cy="18" r="4" fill="#93c5fd"/>
+  <circle cx="70" cy="18" r="4" fill="#93c5fd"/>
+  <circle cx="44" cy="24" r="3.5" fill="#93c5fd"/>
+  <circle cx="76" cy="24" r="3.5" fill="#93c5fd"/>
+  <circle cx="55" cy="13" r="3" fill="#bfdbfe"/>
+  <circle cx="65" cy="13" r="3" fill="#bfdbfe"/>
+  <!-- Flower stems -->
+  <path d="M60 28 L50 18" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M60 28 L70 18" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M60 28 L44 24" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M60 28 L76 24" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M60 28 L55 13" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M60 28 L65 13" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M60 30 L60 22" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

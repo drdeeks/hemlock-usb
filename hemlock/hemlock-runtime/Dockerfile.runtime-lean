@@ -63,6 +63,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 
 # Control plane launcher only — lib/node_modules/tools intentionally NOT baked.
 # /opt/openclaw is the mount point for owner-provided OpenClaw (or stays empty).
+# NOTE (docket #4): no hemlock-dashboard overlay here — the engine arrives via
+# the owner's mount, which would shadow an image-layer overlay, and we never
+# mutate owner volumes. The mounted engine serves its own control UI.
 COPY docker/openclaw-runtime/bin/ /opt/openclaw/bin/
 RUN chmod +x /opt/openclaw/bin/openclaw-container && \
     ln -s /opt/openclaw/bin/openclaw-container /usr/local/bin/openclaw && \

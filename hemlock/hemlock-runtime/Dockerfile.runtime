@@ -74,6 +74,12 @@ COPY docker/openclaw-runtime/lib/ /opt/openclaw/lib/
 COPY docker/openclaw-runtime/package.json /opt/openclaw/lib/node_modules/openclaw/
 RUN cd /opt/openclaw/lib/node_modules/openclaw && npm install --omit=dev --legacy-peer-deps --ignore-scripts
 
+# Rebranded web UI ("Hemlock Control", docket #4): overlay onto the fixed path
+# the engine serves its control UI from (<pkg>/dist/control-ui, gateway port).
+# Image-layer only — the vendored files in the repo are never modified; drop
+# this COPY to fall back to the stock UI.
+COPY hemlock-dashboard/ /opt/openclaw/lib/node_modules/openclaw/dist/control-ui/
+
 # Copy control plane binary and tools
 COPY docker/openclaw-runtime/bin/ /opt/openclaw/bin/
 COPY docker/openclaw-runtime/tools/node/ /opt/openclaw/tools/node/
