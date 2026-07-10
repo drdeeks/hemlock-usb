@@ -84,6 +84,12 @@ for a in r.get('assets', []):
         log "downloading asset: $name"
         curl -fL -o "$DL/$name" "$url" || die "download failed"
         case "$name" in
+            hemlock-usb-kit-*)                              # management kit, not an image
+                tar -xzf "$DL/$name" -C "$DL" || die "kit extract failed"
+                log "USB kit extracted: $DL/hemlock-usb-kit"
+                log "start it with:     bash $DL/hemlock-usb-kit/menu.sh"
+                log "or deploy to a stick from that menu (USB Access & Boot → deploy)"
+                exit 0 ;;
             *.tar.gz|*.tgz|*.tar) LOAD_TAR="$DL/$name" ;;   # image asset → docker load path
             *) die "asset $name downloaded to $DL — no automatic handler for this type (yet)" ;;
         esac

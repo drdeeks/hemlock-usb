@@ -583,6 +583,12 @@ _run_hemlock_status() {
 
 _run_deploy() {
   _menu_header "Master Deployment (DEPLOY.sh)"
+  # Kit deployments (CL-047) don't carry DEPLOY.sh — they are release-driven.
+  if [[ ! -f "$SCRIPT_DIR/hemlock/DEPLOY.sh" ]]; then
+    _menu_info "DEPLOY.sh not in this deployment (USB kit is release-driven by design)."
+    _menu_info "Get the runtime via: Hemlock Manager -> Hemlock images -> pull from releases."
+    return 0
+  fi
   _uca_sudo_init
   _menu_subheader "HOST + USB + CONTAINER"
   echo ""
@@ -1848,12 +1854,50 @@ _run_device_config() {
       # Deploy/refresh the platform's own code onto the stick. STRICT excludes
       # keep live agent state, secrets and runtime data off the sterile tree —
       # rsync protects excluded paths from --delete by default.
+      # CL-047: the DEFAULT deploy is the Hemlock USB kit — menu + USB system
+      # + the host-side hemlock management subset only. Images come from
+      # GitHub releases (Hemlock Manager → Hemlock images), never from this
+      # sync. The full source mirror remains as the dev option.
       local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted — mount USB first"; return 1; }
       local dest="$vmp/usb-hemlock/system"
+      local kitsh="$SCRIPT_DIR/hemlock/hemlock-runtime/scripts/build-usb-kit.sh"
       echo ""
       _menu_info "Source: $SCRIPT_DIR"
-      _menu_info "Dest  : $dest (sterile mirror — agent state/secrets excluded)"
-      _menu_confirm "Sync the system tree now?" || return 0
+      _menu_info "Dest  : $dest (sterile — agent state/secrets excluded)"
+      echo ""
+      _menu_item "1" "Hemlock USB kit" "" "menu + USB system + hemlock mgmt only (~30MB; images from releases)"
+      _menu_item "2" "Full source mirror" "" "entire repo tree minus state/secrets (dev)"
+      _menu_prompt "Deploy what? [1]"
+      local dmode; read -r dmode; dmode="${dmode:-1}"
+      if [[ "$dmode" == "1" ]]; then
+        if [[ ! -f "$kitsh" ]]; then
+          _menu_warn "kit builder missing ($kitsh) — falling back to full mirror"
+        else
+          _menu_confirm "Sync the kit now?" || return 0
+          if [[ "$DRY_RUN" == "true" ]]; then
+            _menu_info "DRY RUN: would build-usb-kit.sh --sync $dest"
+          elif bash "$kitsh" --sync "$dest"; then
+            sync
+            _menu_success "Kit synced ($(du -sh "$dest" 2>/dev/null | cut -f1))"
+          else
+            _menu_error "kit sync failed"; return 1
+          fi
+          # fall through to seed the root launcher below
+          if [[ "$DRY_RUN" != "true" ]]; then
+            cat > "$vmp/menu.sh" <<'LAUNCHEOF'
+#!/usr/bin/env bash
+# USB-Hemlock — START HERE. This is the whole platform's entry point.
+# (wrapper: the system lives in usb-hemlock/system/; exFAT can't symlink)
+here="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+exec bash "$here/usb-hemlock/system/menu.sh" "$@"
+LAUNCHEOF
+            chmod +x "$vmp/menu.sh" 2>/dev/null || true
+            _menu_info "Root launcher seeded: $vmp/menu.sh (START HERE entry point)"
+          fi
+          return 0
+        fi
+      fi
+      _menu_confirm "Sync the FULL system tree now?" || return 0
       mkdir -p "$dest"
       local rs_args=(-a --delete
         --exclude '.git/' --exclude '.env' --exclude '.secrets/'
@@ -4039,11 +4083,185 @@ EOF
 # a single submenu. Future work (H1–H5) will fill in: dynamic volume CRUD,
 # Hemlock Doctor wired to doctor_bridge, mode switcher, gateway-token
 # bootstrap, per-process log viewer, agent/crew CRUD via volumes.
+# ── Hemlock images on USB (CL-047) — RELEASE-FIRST ──────────────────────────
+# The stick should never depend on an operator hand-staging docker saves;
+# that's the dev/offline fallback. Primary path: pick which Hemlock you want
+# (the variant list comes from what the latest GitHub release actually ships)
+# and pull it straight into usb-hemlock/images/ with a verified sha256, so
+# every machine the stick meets can docker-load it offline afterwards.
+
+# JSON field helper: jq when the host has it, python3 otherwise.
+_hemlock_release_json() {  # $1=repo → prints "name|url|size" per asset + "TAG|<tag>" first
+  local api="https://api.github.com/repos/$1/releases/latest" js
+  js=$(curl -fsSL "$api" 2>/dev/null) || return 1
+  if command -v jq >/dev/null 2>&1; then
+    printf 'TAG|%s\n' "$(jq -r '.tag_name // empty' <<<"$js")"
+    jq -r '.assets[]? | "\(.name)|\(.browser_download_url)|\(.size)"' <<<"$js"
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -c '
+import sys, json
+r = json.load(sys.stdin)
+print("TAG|" + r.get("tag_name", ""))
+for a in r.get("assets", []):
+    print("{}|{}|{}".format(a["name"], a["browser_download_url"], a["size"]))' <<<"$js"
+  else
+    return 2
+  fi
+}
+
+_run_hemlock_get_release() {
+  _menu_header "Get Hemlock from GitHub Releases"
+  local repo="${HEMLOCK_RELEASE_REPO:-drdeeks/hemlock-usb}"
+  _menu_subheader "release-first: pick the variant, pull to the stick, docker-load anywhere"
+  command -v curl >/dev/null 2>&1 || { _menu_error "curl not available on this host"; return 1; }
+  _menu_info "Querying latest release of $repo ..."
+  local lines rc=0
+  lines=$(_hemlock_release_json "$repo") || rc=$?
+  if [[ $rc -eq 2 ]]; then _menu_error "need jq or python3 to read the release listing"; return 1; fi
+  if [[ $rc -ne 0 || -z "$lines" ]]; then
+    _menu_error "No release found for $repo"
+    _menu_info  "Publish one first, or set HEMLOCK_RELEASE_REPO. Dev fallback: stage a local image (option 3)."
+    return 1
+  fi
+  local tag; tag=$(sed -n 's/^TAG|//p' <<<"$lines")
+  local -a names=() urls=() sizes=()
+  local l name url size
+  while IFS='|' read -r name url size; do
+    [[ "$name" == "TAG" || -z "$name" ]] && continue
+    # sha256 companions are fetched automatically with their asset, and the
+    # USB kit tarball is not an image — neither belongs in this picker.
+    [[ "$name" == *.sha256 || "$name" == hemlock-usb-kit-* ]] && continue
+    names+=("$name"); urls+=("$url"); sizes+=("$size")
+  done <<<"$lines"
+  [[ ${#names[@]} -eq 0 ]] && { _menu_error "Release $tag ships no image assets"; return 1; }
+  echo ""
+  _menu_subheader "Which Hemlock? (release $tag)"
+  local i variant
+  for i in "${!names[@]}"; do
+    variant=$(sed -nE 's/^hemlock[-_]?(minimal|lean|core|full|latest).*/\1/p' <<<"${names[$i]}")
+    printf "  ${CYAN}%d${NC}) %-14s %-38s %s MB\n" "$((i + 1))" "${variant:-image}" \
+      "${names[$i]}" "$(( ${sizes[$i]} / 1048576 ))"
+  done
+  _menu_prompt "Variant to pull [1]"
+  local sel; read -r sel; sel="${sel:-1}"
+  if ! [[ "$sel" =~ ^[0-9]+$ ]] || (( sel < 1 || sel > ${#names[@]} )); then
+    _menu_error "Bad selection: '$sel'"; return 1
+  fi
+  name="${names[$((sel - 1))]}"; url="${urls[$((sel - 1))]}"; size="${sizes[$((sel - 1))]}"
+  # Destination: the stick when mounted (the point of the exercise), else /tmp.
+  local vmp imgdir
+  if vmp=$(_resolve_ventoy_mount 2>/dev/null); then
+    imgdir="$vmp/usb-hemlock/images"
+  else
+    imgdir="/tmp/hemlock-images"
+    _menu_warn "Ventoy not mounted — downloading to $imgdir (re-run with the stick in to land it there)"
+  fi
+  local dest="$imgdir/$name"
+  if [[ -f "$dest" && -f "$dest.sha256" ]] && (cd "$imgdir" && sha256sum -c "$name.sha256" >/dev/null 2>&1); then
+    _menu_success "Already pulled and verified: $name"
+  else
+    local free_kb need_kb=$(( (size / 1024) * 2 ))
+    free_kb=$(df -k --output=avail "$imgdir" 2>/dev/null | tail -1 | tr -d ' ')
+    [[ -z "$free_kb" ]] && free_kb=$(df -k --output=avail "$(dirname "$imgdir")" 2>/dev/null | tail -1 | tr -d ' ')
+    if [[ -n "$free_kb" && "$free_kb" -lt "$need_kb" ]]; then
+      _menu_error "Not enough free space at $imgdir ($(( size / 1048576 )) MB asset)"; return 1
+    fi
+    if [[ "$DRY_RUN" == "true" ]]; then
+      _menu_info "DRY RUN: would download $name ($(( size / 1048576 )) MB) -> $dest"; return 0
+    fi
+    _menu_confirm "Download $name ($(( size / 1048576 )) MB) now?" || return 0
+    mkdir -p "$imgdir"
+    _menu_info "Downloading (streams straight to destination)..."
+    if ! curl -fL -o "$dest" "$url"; then _menu_error "download failed"; return 1; fi
+    # Verify against the release's own .sha256 companion when it ships one;
+    # otherwise record a local checksum so later loads can still be verified.
+    if grep -q "^${name}.sha256|" <<<"$lines"; then
+      curl -fsL -o "$dest.sha256" "$(sed -n "s/^${name}\.sha256|\([^|]*\)|.*/\1/p" <<<"$lines")" || true
+    fi
+    [[ -s "$dest.sha256" ]] || (cd "$imgdir" && sha256sum "$name" > "$name.sha256")
+    sync
+    if (cd "$imgdir" && sha256sum -c "$name.sha256" >/dev/null 2>&1); then
+      _menu_success "Pulled + verified: $name ($(du -h "$dest" | cut -f1))"
+    else
+      _menu_error "Checksum FAILED — do not trust this download"; return 1
+    fi
+  fi
+  if command -v docker >/dev/null 2>&1; then
+    _menu_confirm "docker load it on this host now?" || return 0
+    case "$name" in
+      *.tar.gz|*.tgz) gunzip -c "$dest" | docker load ;;
+      *)              docker load -i "$dest" ;;
+    esac && _menu_success "Loaded into docker" || _menu_error "docker load failed"
+  else
+    _menu_info "No docker here — load later with: docker load -i $dest"
+  fi
+}
+
+_run_hemlock_list_staged() {
+  _menu_header "Images on the Stick"
+  local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted"; return 1; }
+  local imgdir="$vmp/usb-hemlock/images" f ok
+  ls "$imgdir"/*.tar* >/dev/null 2>&1 || { _menu_info "(none — pull one from releases, option 1)"; return 0; }
+  for f in "$imgdir"/*.tar "$imgdir"/*.tar.gz; do
+    [[ -f "$f" && "$f" != *.sha256 ]] || continue
+    ok="no checksum"
+    [[ -f "$f.sha256" ]] && { (cd "$imgdir" && sha256sum -c "$(basename "$f").sha256" >/dev/null 2>&1) && ok="${GREEN}verified${NC}" || ok="${RED}CHECKSUM FAILED${NC}"; }
+    printf "  %-46s %-8s %b\n" "$(basename "$f")" "$(du -h "$f" | cut -f1)" "$ok"
+  done
+}
+
+_run_hemlock_load_staged() {
+  _menu_header "Load Staged Image"
+  local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted"; return 1; }
+  command -v docker >/dev/null 2>&1 || { _menu_error "docker not available on this host"; return 1; }
+  local imgdir="$vmp/usb-hemlock/images"
+  local -a files=(); local f
+  for f in "$imgdir"/*.tar "$imgdir"/*.tar.gz; do [[ -f "$f" ]] && files+=("$f"); done
+  [[ ${#files[@]} -eq 0 ]] && { _menu_info "(nothing staged — pull from releases first)"; return 0; }
+  local i; for i in "${!files[@]}"; do
+    printf "  ${CYAN}%d${NC}) %s (%s)\n" "$((i + 1))" "$(basename "${files[$i]}")" "$(du -h "${files[$i]}" | cut -f1)"
+  done
+  _menu_prompt "Image to load [1]"
+  local sel; read -r sel; sel="${sel:-1}"
+  if ! [[ "$sel" =~ ^[0-9]+$ ]] || (( sel < 1 || sel > ${#files[@]} )); then _menu_error "Bad selection"; return 1; fi
+  f="${files[$((sel - 1))]}"
+  if [[ -f "$f.sha256" ]] && ! (cd "$imgdir" && sha256sum -c "$(basename "$f").sha256" >/dev/null 2>&1); then
+    _menu_error "Checksum FAILED for $(basename "$f") — refusing to load"; return 1
+  fi
+  [[ "$DRY_RUN" == "true" ]] && { _menu_info "DRY RUN: would docker load $(basename "$f")"; return 0; }
+  case "$f" in
+    *.tar.gz|*.tgz) gunzip -c "$f" | docker load ;;
+    *)              docker load -i "$f" ;;
+  esac && _menu_success "Loaded: $(basename "$f")" || _menu_error "docker load failed"
+}
+
+_run_hemlock_images() {
+  _menu_header "Hemlock Images (USB)"
+  _menu_subheader "release-first — the stick carries the image; every host just loads it"
+  echo ""
+  _menu_item "1" "Pull from GitHub releases"    "" "pick variant -> usb-hemlock/images/ + sha256 (primary)"
+  _menu_item "2" "Load staged image into docker" "" "verify checksum, then docker load"
+  _menu_item "3" "List + verify staged images"   "" "what the stick carries"
+  _menu_item "4" "Stage local docker image"      "" "docker save (dev/offline fallback)"
+  _menu_item "0" "Back"
+  _menu_prompt "Select option"
+  local choice; read -r choice
+  case "$choice" in
+    1) _run_hemlock_get_release ;;
+    2) _run_hemlock_load_staged ;;
+    3) _run_hemlock_list_staged ;;
+    4) _run_hemlock_stage_image ;;
+    0) return 0 ;;
+    *) _menu_error "Invalid option: $choice" ;;
+  esac
+}
+
 # Stage the hemlock image on the stick so any host (or the booted live system)
 # can `docker load` it without a registry. Writes usb-hemlock/images/
 # hemlock-<12-char-id>.tar plus a .sha256 alongside; verifies after copy and
 # prunes older staged hemlock images (moved to the stick's .trash, never rm'd
-# blind). Source-first: this replaces the hand-copied tarball workflow.
+# blind). CL-047: demoted to the dev/offline fallback — pulling a release
+# image (_run_hemlock_get_release) is the primary path.
 _run_hemlock_stage_image() {
   _menu_header "Stage Hemlock Image on USB"
   local vmp; vmp=$(_resolve_ventoy_mount) || { _menu_error "Ventoy not mounted — mount USB first"; return 1; }
@@ -4138,7 +4356,7 @@ _run_hemlock_manager() {
   _menu_item "10" "Register agent on-chain (stub)"   "" "registrar: create+register agent (CL-020)"
   _menu_item "11" "Registry audit"                   "" "list registrar entries + verify attestations"
   _menu_item "12" "Install / deploy runtime"          "" "install.sh — build variant, load release, USB, native"
-  _menu_item "13" "Stage image on USB"                 "" "docker save <variant> -> usb-hemlock/images/ + sha256"
+  _menu_item "13" "Hemlock images (USB)"               "" "pick variant + pull from GitHub releases; load/verify/stage"
   _menu_item "0" "Back"
   _menu_prompt "Select option"
   local choice; read -r choice
@@ -4155,7 +4373,7 @@ _run_hemlock_manager() {
     10) _run_hemlock_register_agent ;;
     11) _run_hemlock_registry_audit ;;
     12) _run_hemlock_install ;;
-    13) _run_hemlock_stage_image ;;
+    13) _run_hemlock_images ;;
     0) return 0 ;;
     *) _menu_error "Invalid option: $choice" ;;
   esac

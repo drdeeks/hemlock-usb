@@ -7,7 +7,36 @@ This file is append-only. New entries are added at the top under the appropriate
 
 ## [Unreleased]
 
-(nothing yet)
+### 2026-07-10 — Release-first images + Hemlock USB kit (CL-047)
+
+**Images come from GitHub releases, not hand-staging.**
+- Hemlock Manager option 13 is now the "Hemlock images (USB)" submenu:
+  pull the variant you want from the latest GitHub release straight into
+  `usb-hemlock/images/` (sha256-verified, release companion checksum used
+  when shipped), load a staged image (checksum-gated), list + verify what
+  the stick carries. `docker save` staging remains as the dev/offline
+  fallback. `HEMLOCK_RELEASE_REPO` overrides the default repo.
+- New `scripts/build-usb-kit.sh` — assembles the actual package the stick
+  carries: master menu + USB-first system + strictly the host-side hemlock
+  management subset (install.sh, compose, scripts/) — ~200 files / 28MB.
+  No runtime source, no vendored engine, no skills, no image tars: the
+  release supplies the image. `--out` builds the release-asset tarball
+  (+.sha256); `--sync` deploys the tree (one manifest, both modes).
+- USB deploy (USB Access & Boot option 13) now defaults to the kit; the
+  full source mirror stays as the dev choice. Master Deploy degrades
+  gracefully on kit deployments (no DEPLOY.sh — release-driven by design).
+- `install.sh --release` recognizes `hemlock-usb-kit-*` assets and extracts
+  them instead of feeding them to docker load.
+
+**Verified (docket-style, this session):**
+- Container/tooling isolation: compose mounts named `hemlock_*` volumes +
+  imports/exports binds ONLY; `/opt/tooling` and `persistence/*.dat` never
+  appear in any container mount (static sweep + live `hemlock:minimal`
+  check — path absent in-container). tooling.dat is host-side only
+  (loop-mounted by startup-orchestrator), clean ext4, 1170 files.
+- USB-first identity: portable-usb-manager is USB-first with zero Hemlock
+  dependency; Hemlock surfaces only with `-H`/`HEMLOCK_ENABLED=true` AND a
+  detected runtime — built in, never forced.
 
 ## [v1.0.0] — 2026-07-09 — Initial release
 
