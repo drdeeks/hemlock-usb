@@ -9,7 +9,7 @@ The skill_enhance.py validator rejects hardcoded paths in SKILL.md and scripts.
 - `~/.hermes/` — tilde paths in SKILL.md content
 
 **Use instead:**
-- `<HERMES_HOME>` — for Hermes config/skill paths
+- `<HEMLOCK_HOME>` — for Hermes config/skill paths
 - `<WORKSPACE_ROOT>` — for project/workspace paths
 - Runtime detection in scripts: `os.environ.get("WORKSPACE_ROOT", os.path.join(os.path.expanduser("~"), "qwen-cloud-2026"))`
 

@@ -43,7 +43,7 @@ python3 ~/agent-toolkit-v14/skills/skill-creator/scripts/skill_enhance.py update
 - ❌ `/Users/...`
 
 **USE placeholders:**
-- ✅ `<HERMES_HOME>` — Hermes home directory
+- ✅ `<HEMLOCK_HOME>` — Hermes home directory
 - ✅ `<WORKSPACE_ROOT>` — Workspace root directory
 - ✅ `~/.hermes` — User Hermes directory
 - ✅ `$HOME` — Home directory

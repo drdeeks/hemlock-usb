@@ -62,7 +62,7 @@ python3 scripts/wire-kanban-to-chain.py <crew-id> <chain-name>
 ### 8. Start Dispatcher
 
 ```bash
-hermes gateway start
+hemlock-agent gateway start
 # Embedded dispatcher runs every 60s
 # Reads chain state, dispatches next active phase
 ```
@@ -141,17 +141,17 @@ def validate_phase_0(project_root: Path) -> bool:
 
 **Before starting:**
 ```bash
-python3 ${HERMES_HOME}/skills/devops/loop-enforcer/scripts/chain.py check {project} {project}-blueprint .phase-{n}-{flag}.marker
+python3 ${HEMLOCK_HOME}/skills/devops/loop-enforcer/scripts/chain.py check {project} {project}-blueprint .phase-{n}-{flag}.marker
 ```
 If state is `locked` → STOP. Prior phase not complete.
 
 **After completing work:**
 ```bash
 # 1. Verify deliverables
-python3 ${HERMES_HOME}/skills/devops/loop-enforcer/scripts/chain.py verify {project} {project}-blueprint .phase-{n}-{flag}.marker
+python3 ${HEMLOCK_HOME}/skills/devops/loop-enforcer/scripts/chain.py verify {project} {project}-blueprint .phase-{n}-{flag}.marker
 
 # 2. Complete step (unlocks next phase)
-python3 ${HERMES_HOME}/skills/devops/loop-enforcer/scripts/chain.py complete {project} {project}-blueprint .phase-{n}-{flag}.marker
+python3 ${HEMLOCK_HOME}/skills/devops/loop-enforcer/scripts/chain.py complete {project} {project}-blueprint .phase-{n}-{flag}.marker
 ```
 
 ## Checklist Reference

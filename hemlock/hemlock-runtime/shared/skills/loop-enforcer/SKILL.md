@@ -5,7 +5,7 @@ description: Enforce sequential dependency chains on files, tasks, and services.
   destructive ops by enforcing additive-only builds with chained verification gates.
   Use when building projects where files must be created in order, or when agents
   must not destroy existing work.
-version: 1.0.13
+version: 1.0.14
 license: MIT
 metadata:
   openclaw:
@@ -160,13 +160,13 @@ A wrapper that finds the chain, resolves the phase step, and calls chain.py:
 
 ```bash
 # Check if phase is active (exit 0 = proceed, exit 1 = blocked)
-python3 <HERMES_HOME>/scripts/chain_enforce.py check <project> <phase_num>
+python3 <HEMLOCK_HOME>/scripts/chain_enforce.py check <project> <phase_num>
 
 # Verify + complete phase after work is done
-python3 <HERMES_HOME>/scripts/chain_enforce.py complete <project> <phase_num>
+python3 <HEMLOCK_HOME>/scripts/chain_enforce.py complete <project> <phase_num>
 
 # Show chain status for a project
-python3 <HERMES_HOME>/scripts/chain_enforce.py status <project>
+python3 <HEMLOCK_HOME>/scripts/chain_enforce.py status <project>
 ```
 
 **chain_enforce.py searches for chains in this order:**
@@ -203,26 +203,26 @@ Projects live in `<WORKSPACE_ROOT>/qwen-cloud-2026/<project>/`. Symlinks at the 
 
 ```bash
 # 1. Initialize kanban DB
-hermes kanban init
+hemlock-agent kanban init
 
 # 2. Create project board
-hermes kanban boards create <board-name> --description "<desc>"
+hemlock-agent kanban boards create <board-name> --description "<desc>"
 
 # 3. Switch to board
-hermes kanban boards switch <board-name>
+hemlock-agent kanban boards switch <board-name>
 
 # 4. Create verification tasks for each project
-hermes kanban create "Project: Verify server starts, health endpoints, core API" --assignee <profile>
+hemlock-agent kanban create "Project: Verify server starts, health endpoints, core API" --assignee <profile>
 
 # 5. Start gateway (runs embedded dispatcher)
-hermes gateway start
+hemlock-agent gateway start
 
 # 6. Dispatch tasks
-hermes kanban dispatch
+hemlock-agent kanban dispatch
 
 # 7. Monitor progress
-hermes kanban watch
-hermes kanban list
+hemlock-agent kanban watch
+hemlock-agent kanban list
 ```
 
 ### Verified Task Template (All 5 Hackathon Projects)
@@ -244,7 +244,7 @@ hermes kanban list
 
 ### Key Findings (2026-07-06)
 
-1. **Gateway is internal A2A infrastructure** — not user-facing. Manage via `hermes kanban watch` / terminal.
+1. **Gateway is internal A2A infrastructure** — not user-facing. Manage via `hemlock-agent kanban watch` / terminal.
 2. **TV Sitcom MCP server (port 41208)** is the ONLY external-facing piece for company integration.
 3. **All 7 tasks completed** in ~20 minutes with zero cross-project dependencies.
 4. **Assignee must exist on disk** — `federation-gateway` and `skill-tester` profiles needed creation or reassignment to existing profiles.

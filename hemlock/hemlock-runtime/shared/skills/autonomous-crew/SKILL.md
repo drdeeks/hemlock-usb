@@ -6,7 +6,7 @@ description: Integrate agent identity architecture as the first layer in autonom
   Includes knowledge sharing system with dual-mode workspaces, agent-attributed documents,
   semantic indexing, and structured agent communication. Enterprise-grade with skill-creator
   validation.
-version: 1.2.2
+version: 1.2.3
 license: MIT
 metadata:
   category: devops

@@ -98,7 +98,7 @@ The validator FAILS on hardcoded paths like `/home/<user>/...` in scripts and re
 
 **Fix:** Replace with placeholders:
 - `$HOME/qwen-cloud-2026` → `${WORKSPACE_ROOT}/qwen-cloud-2026`
-- `$HOME/.hermes` → `${HERMES_HOME}` or `~/.hermes`
+- `$HOME/.hermes` → `${HEMLOCK_HOME}` or `~/.hermes`
 - `$HOME/projects` → `${WORKSPACE_ROOT}/projects`
 
 ---

@@ -34,7 +34,7 @@ Log: kanban_comment("Chain enforced: <chain> step <N> verified+complete")
 
 ## Helper Script: chain_enforce.py
 
-**Location:** `<HERMES_HOME>/scripts/chain_enforce.py` (or `<WORKSPACE_ROOT>/scripts/chain_enforce.py`)
+**Location:** `<HEMLOCK_HOME>/scripts/chain_enforce.py` (or `<WORKSPACE_ROOT>/scripts/chain_enforce.py`)
 
 **Commands:**
 ```bash
@@ -143,7 +143,7 @@ done
 
 ## Verification Checklist
 
-- [ ] `chain_enforce.py` at `<HERMES_HOME>/scripts/chain_enforce.py`
+- [ ] `chain_enforce.py` at `<HEMLOCK_HOME>/scripts/chain_enforce.py`
 - [ ] KANBAN_GUIDANCE step 2b in prompt_builder.py
 - [ ] All 5 projects have `.chain/<project>-blueprint.json`
 - [ ] Root dirs are symlinks to `qwen-cloud-2026/<project>`

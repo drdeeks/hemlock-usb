@@ -34,14 +34,14 @@ The TV Command Center / MCP gateway showed 20 agents "registered" but no real ac
 2. **Rewrote `task-poller.py`**:
    - Query by PROJECT: `WHERE id LIKE '<project>-%' AND status IN ('pending','in_progress','active')`.
    - For each leaf task, resolve assignee → role → profile via the map.
-   - Invoke `hermes -p <profile> -z "<task prompt>" --yolo` (cwd=project_dir).
+   - Invoke `hemlock-agent -p <profile> -z "<task prompt>" --yolo` (cwd=project_dir).
    - Write `last_heartbeat_at` every cycle.
    - On runtime FAILURE → leave task `ACTIVE` for retry (no fake completion).
    - On success → `verify_deliverables()` → `chain_enforce.py complete` → mark `completed`.
 
 ## Verification recipe (minimal test first)
 - Prove the execution primitive non-interactively:
-  `hermes -p <profile> -z "Create proof.txt with: AGENT_RUNTIME_OK" --yolo`
+  `hemlock-agent -p <profile> -z "Create proof.txt with: AGENT_RUNTIME_OK" --yolo`
   → confirms it writes a file in cwd without manual approval (`--yolo` bypasses
   `approvals.mode: manual`).
 - Controlled rollout: kill ONE old poller, launch the fixed one for one project,
@@ -49,7 +49,7 @@ The TV Command Center / MCP gateway showed 20 agents "registered" but no real ac
 - Watch for the fake-completion trap: a task that fails the runtime but gets
   marked `completed`. The fix leaves it `active`.
 - Common runtime failure: profile does not exist → `Profile 'X' does not exist`.
-  The map's `profile` MUST match a real `hermes profile` name (e.g. `mnemosyne-memory`,
+  The map's `profile` MUST match a real `hemlock-agent profile` name (e.g. `mnemosyne-memory`,
   NOT `mnemosyne-learning` — profiles are a different set than agent IDs).
 
 ## Outcome

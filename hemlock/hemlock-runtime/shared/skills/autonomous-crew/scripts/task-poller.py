@@ -18,8 +18,9 @@ from datetime import datetime, timezone
 
 KANBAN_DB = Path.home() / ".hermes" / "kanban.db"
 WORKSPACE_ROOT = Path(os.environ.get("WORKSPACE_ROOT", str(Path.home() / "qwen-cloud-2026")))
-HERMES_HOME = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
-CHAIN_ENFORCE_SCRIPT = HERMES_HOME / "scripts" / "chain_enforce.py"
+# HEMLOCK_HOME is canonical; HERMES_HOME kept as legacy fallback (older runtimes).
+HEMLOCK_HOME = Path(os.environ.get("HEMLOCK_HOME") or os.environ.get("HERMES_HOME") or (Path.home() / ".hermes"))
+CHAIN_ENFORCE_SCRIPT = HEMLOCK_HOME / "scripts" / "chain_enforce.py"
 AGENT_MODEL_MAP_PATH = WORKSPACE_ROOT / "agent-model-map.json"
 
 # Poller identity (set from argv[1], the crew name) — used for logging only.

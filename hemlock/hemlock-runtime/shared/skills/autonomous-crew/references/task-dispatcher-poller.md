@@ -60,7 +60,7 @@ The poller is launched **per project** (e.g. `task-poller.py <crew> <ws> <projec
 1. **Query by PROJECT, never by crew-name assignee.** `SELECT ... FROM tasks WHERE id LIKE '<project>-%' AND status IN ('pending','in_progress','active')`. The launch arg `<crew>` is the crew name (e.g. `mnemosyne-crew`); kanban tasks are assigned to SPECIFIC agent IDs (`mnemosyne-learning-1`), never the crew name. Querying `WHERE assignee = '<crew>'` matches ZERO rows → poller sleeps forever at 0% CPU. This was the fatal 3.8h stall.
 2. For each **leaf task** (`*-phase-NN-task-*` / `*-phase-NN-validation`), resolve assignee → `role` → execution `profile` via `agent-model-map.json`.
 3. Invoke the agent runtime (platform-agnostic via profile handle):
-   `hermes -p <profile> -z "<task prompt>" --yolo` with `cwd=<project_dir>`.
+   `hemlock-agent -p <profile> -z "<task prompt>" --yolo` with `cwd=<project_dir>`.
    The profile carries the concrete model+provider; the poller knows nothing about them.
 4. Update `last_heartbeat_at` (the kanban `tasks` table has this column; the poller MUST write it or status shows `hb=never`).
 5. On runtime success → `verify_deliverables()` → if true run `chain_enforce.py complete <project> <phase>` → mark `completed`.
@@ -102,7 +102,7 @@ else:
 
 **PITFALL — Fatal stall: poller queries `assignee = crew_name` (Session 2026-07-09).** The poller is launched with the crew name as its first arg (`task-poller.py mnemosyne-crew ...`), but kanban tasks carry SPECIFIC agent IDs as `assignee` (`mnemosyne-learning-1`), never the crew name. A query `WHERE assignee = 'mnemosyne-crew'` matches zero rows → `execute_task` returns `False` → poller sleeps at 0% CPU forever. All 5 crews stalled this way for 3.8h with zero deliverables. **Fix:** query `WHERE id LIKE '<project>-%'` (project-scoped). The crew name arg is only for logging.
 
-**PITFALL — Missing execution step (the real Defect B).** A poller that only checks `verify_deliverables()` (do the files already exist?) and marks complete is a verifier, not an executor. If nothing ever WRITES the code, deliverables never appear and the crew produces nothing. **The poller MUST invoke the agent runtime** (`hermes -p <profile> -z "<task>" --yolo`, cwd=project_dir) to generate the deliverables. `spawn-crew-agents.py` only starts an idle enforcer daemon — it does NOT start a code-generating runtime. The execution trigger lives in the poller.
+**PITFALL — Missing execution step (the real Defect B).** A poller that only checks `verify_deliverables()` (do the files already exist?) and marks complete is a verifier, not an executor. If nothing ever WRITES the code, deliverables never appear and the crew produces nothing. **The poller MUST invoke the agent runtime** (`hemlock-agent -p <profile> -z "<task>" --yolo`, cwd=project_dir) to generate the deliverables. `spawn-crew-agents.py` only starts an idle enforcer daemon — it does NOT start a code-generating runtime. The execution trigger lives in the poller.
 
 **PITFALL — Fake completion.** Never mark a task `completed` when the runtime invocation failed (bad profile, timeout, non-zero exit). Set it back to `active` for retry. The user bans fake completion absolutely; a "done" task with no real file on disk is the exact failure mode to prevent. `verify_deliverables()` is the gate, but only trust it AFTER a successful runtime run.
 
@@ -140,7 +140,7 @@ The poller resolves each kanban task's assignee to a concrete runtime via **`age
 
 **Rules:**
 - `role` is abstract: `reasoning | coding | creative | general | edge`. Never a model name.
-- `profile` is an opaque handle to an existing platform agent runtime (e.g. a Hermes profile). Verify the profile EXISTS (`hermes profile create <name>` if missing) — invoking a non-existent profile fails the runtime and the task is left `active` for retry (not fake-completed).
+- `profile` is an opaque handle to an existing platform agent runtime (e.g. a Hermes profile). Verify the profile EXISTS (`hemlock-agent profile create <name>` if missing) — invoking a non-existent profile fails the runtime and the task is left `active` for retry (not fake-completed).
 - The poller loads this map once per `execute_task` call; env overrides take precedence over the profile's own model/provider.
 - **Never hardcode model/provider in the map, the poller, or any crew script.** If a model name appears, the map is wrong.
 

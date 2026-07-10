@@ -15,9 +15,10 @@ from datetime import datetime, timezone
 def now_iso():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-# Resolve paths via environment variables with sensible defaults
-HERMES_HOME = Path(os.environ.get("HERMES_HOME", Path.home() / ".hermes"))
-AGENT_IDENTITY_SKILL = Path(os.environ.get("AGENT_IDENTITY_SKILL", HERMES_HOME / "skills/devops/agent-identity-architecture"))
+# Resolve paths via environment variables with sensible defaults.
+# HEMLOCK_HOME is canonical; HERMES_HOME kept as legacy fallback (older runtimes).
+HEMLOCK_HOME = Path(os.environ.get("HEMLOCK_HOME") or os.environ.get("HERMES_HOME") or (Path.home() / ".hermes"))
+AGENT_IDENTITY_SKILL = Path(os.environ.get("AGENT_IDENTITY_SKILL", HEMLOCK_HOME / "skills/devops/agent-identity-architecture"))
 ENFORCER_SOCKET_DIR = Path(os.environ.get("ENFORCER_SOCKET_DIR", "/run/agent-enforcer"))
 ENFORCER_LOG_DIR = Path(os.environ.get("ENFORCER_LOG_DIR", "/var/log/agent-enforcer"))
 

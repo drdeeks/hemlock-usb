@@ -24,13 +24,16 @@ def start_enforcer(agent_workspace, agent_id):
         except:
             pass  # Stale PID file
     
-    # Start enforcer
-    enforcer_script = Path.home() / ".hermes" / "skills" / "devops" / "agent-identity-architecture" / "scripts" / "enforcer_daemon.py"
-    
+    # Start enforcer.
+    # HEMLOCK_HOME is canonical; HERMES_HOME set too as legacy mirror (older runtimes).
+    home = os.environ.get("HEMLOCK_HOME") or os.environ.get("HERMES_HOME") or str(Path.home() / ".hermes")
+    enforcer_script = Path(home) / "skills" / "devops" / "agent-identity-architecture" / "scripts" / "enforcer_daemon.py"
+
     env = os.environ.copy()
     env["WORKSPACE_ROOT"] = str(agent_workspace)
     env["AGENT_ID"] = agent_id
-    env["HERMES_HOME"] = str(Path.home() / ".hermes")
+    env["HEMLOCK_HOME"] = home
+    env["HERMES_HOME"] = home
     
     try:
         proc = subprocess.Popen(
