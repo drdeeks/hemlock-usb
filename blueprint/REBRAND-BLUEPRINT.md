@@ -168,18 +168,42 @@ migration), not yet wired to anything.
    launcher/Dockerfile at `node_modules/openclaw/openclaw.mjs` as an
    implementation detail (cheap, invisible, principle-compliant), or
    (b) fork-rename the vendored lib (expensive, permanent maintenance).
+   **DECIDED (a) — alias, not fork.** The engine stays internally `openclaw`
+   in `node_modules`; it is exposed as **`hemlock-gateway`** (a repo-local
+   wrapper, copied into bin, that execs the openclaw engine) and shows as
+   "Hemlock Gateway" everywhere user-facing. IMPL PENDING: add the
+   `hemlock-gateway` wrapper + swap the `ln -s … /usr/local/bin/openclaw`
+   sites to also expose it, and fix the hardcoded dev-path in
+   `docker/openclaw-runtime/bin/openclaw`
+   (`/home/drdeek/.openclaw/...` → self-relative).
 3. **Semantic flattening.** Gateway and brain both became "Hemlock" —
    self-contradictory prose in `gen-hemlock-config.py` ("Hemlock runs its
    own agents with NO Hemlock brains… Hemlock is ignored"), fabricated
    `docs.hemlock.ai` domain, and five coexisting `HEMLOCK_*` meanings
    (`_HOME` agent, `_ROOT` gateway, `_DIR` menu repo path, `_DOCKER`,
    `_MINIMAL`). Needs a naming pass distinguishing gateway vs brain in prose.
+   **DECIDED naming:** **Hemlock Gateway** = control plane (the openclaw
+   engine, aliased); **Hemlock-loop** = the MCP server exposing the hermes
+   brain's tools to the gateway; **hermes** stays as the internal
+   cognition/implementation name. Prose becomes "Hemlock Gateway reaches the
+   brain over the Hemlock-loop MCP." IMPL PENDING: sweep `gen-*-config.py`
+   generated text, drop the fabricated `docs.hemlock.ai`, and document the
+   five `HEMLOCK_*` meanings. Depends on #2 (done deciding).
 4. **Dashboard wiring.** Nothing serves `hemlock-dashboard/`; decide where
    it mounts (gateway static assets vs menu-launched app-mode) — depends
    on item 2's decision.
-5. **Skills-repo coordination.** Curated skills instruct `hermes kanban …`
-   and `${HERMES_HOME}`; against the rebranded runtime those break, and
-   item 1 decides the replacement CLI name. Sweep skills AFTER 1 is fixed.
+5. **Skills-repo coordination. — RESOLVED 2026-07-09 (CL-045).**
+   Bake policy settled: every image variant (minimal included — crew/agents
+   share the runtime, brain MCP exposes `agent_skills_list`) bakes ONLY the
+   7-skill kernel — skill-creator, skill-installer, autonomous-crew,
+   enterprise-blueprint, loop-enforcer, agent-identity-architecture,
+   guardrail-enforcement — refreshed from canonical `~/hemlock/skills`.
+   Everything else auto-populates at runtime from github
+   (`skills-auto-update.sh`) plus operator-added sources via the new menu
+   option 21 (owner-namespaced, portable list). Amends CL-041. STILL TODO
+   (separate from the bake): the curated skills' own text that says
+   `hermes kanban …` / `${HERMES_HOME}` needs the CLI-name sweep to
+   `hemlock-agent` / the Hemlock env names (depends on #1, done).
 6. **Partial tree.** The drop contains only menu.sh + runtime + dashboard —
    integration is a merge into the repo, never a replace (usb/, blueprint/,
    README, CHANGELOG, dist/ live only here).
