@@ -168,14 +168,17 @@ migration), not yet wired to anything.
    launcher/Dockerfile at `node_modules/openclaw/openclaw.mjs` as an
    implementation detail (cheap, invisible, principle-compliant), or
    (b) fork-rename the vendored lib (expensive, permanent maintenance).
-   **DECIDED (a) — alias, not fork.** The engine stays internally `openclaw`
-   in `node_modules`; it is exposed as **`hemlock-gateway`** (a repo-local
-   wrapper, copied into bin, that execs the openclaw engine) and shows as
-   "Hemlock Gateway" everywhere user-facing. IMPL PENDING: add the
-   `hemlock-gateway` wrapper + swap the `ln -s … /usr/local/bin/openclaw`
-   sites to also expose it, and fix the hardcoded dev-path in
-   `docker/openclaw-runtime/bin/openclaw`
-   (`/home/drdeek/.openclaw/...` → self-relative).
+   **DECIDED (a) — alias, not fork. IMPL DONE 2026-07-09 (`e3c55af4`).**
+   The engine stays internally `openclaw` in `node_modules`; exposed as
+   **`hemlock-gateway`**. All four variants now symlink both
+   `/usr/local/bin/openclaw` (kept for the engine's internal self-reference)
+   and `/usr/local/bin/hemlock-gateway` → `openclaw-container`. Our own
+   launcher invocations (entrypoint.sh, entrypoint-minimal.sh,
+   health-check.sh) call `hemlock-gateway`, so ps/logs read "Hemlock Gateway".
+   The stray `docker/openclaw-runtime/bin/openclaw` dev-path
+   (`/home/drdeek/.openclaw/...`) was rewritten to resolve the engine relative
+   to itself (OPENCLAW_ROOT) with bundled-or-system node fallback; verified
+   portable. `.openclaw` config dir/keys untouched (engine-internal).
 3. **Semantic flattening.** Gateway and brain both became "Hemlock" —
    self-contradictory prose in `gen-hemlock-config.py` ("Hemlock runs its
    own agents with NO Hemlock brains… Hemlock is ignored"), fabricated
