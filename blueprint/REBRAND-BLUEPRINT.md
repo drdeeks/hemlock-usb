@@ -126,6 +126,33 @@ HEMLOCK_HOME alias · HEMLOCK_MODE toggle · image/container names · port 1437 
 pyproject name `hemlock` · host-isolation guards · workspace-template docs using
 $HEMLOCK_HOME · no-Hermes-only-image decision · installer/menu/release plumbing.
 
+## Canonical naming & env glossary (docket #3 — DECIDED 2026-07-09)
+
+Three names, three roles — use these consistently in ALL new prose:
+
+| Name | Role | Implementation detail (never in user-facing prose) |
+|------|------|-----------------------------------------------------|
+| **Hemlock Gateway** | control plane: platforms, routing, agent loop, workspace injection | the vendored `openclaw` engine, exposed as `hemlock-gateway`; its own schema keeps `.openclaw` config dir and `OPENCLAW_*` vars |
+| **Hemlock-loop** | the per-agent brain MCP: cognition + data ops, isolated per AGENT_ID | `agent_brain_mcp.py`, implemented by hermes |
+| **hermes** | internal cognition/implementation name only | `hermes_cli`, `/opt/hermes`, `HERMES_HOME` (legacy mirror) |
+
+Canonical sentence: *"The Hemlock Gateway reaches each agent's brain over its
+per-agent Hemlock-loop MCP."*
+
+**`HEMLOCK_*` environment variables** (the coexisting meanings, now documented):
+
+| Variable | Meaning | Set by |
+|----------|---------|--------|
+| `HEMLOCK_HOME` | THIS agent/crew's data home (its volume) — canonical; `HERMES_HOME` mirrors it for legacy | Dockerfiles (`/runtime`), re-pointed per agent by entrypoint.sh, per-brain by gen-openclaw-config.py |
+| `HEMLOCK_DIR` | path to the hemlock-runtime tree on the HOST (menu-side) | menu.sh auto-detect or operator |
+| `HEMLOCK_ENABLED` | menu-side opt-in flag for Hemlock options (`--hemlock`/`-H`) | menu.sh arg parsing |
+| `HEMLOCK_DOCKER` / `HEMLOCK_CONTAINER` | "running inside the Hemlock container" marker | Dockerfiles |
+| `HEMLOCK_MINIMAL` / `HEMLOCK_LEAN` / `HEMLOCK_CORE` | which image variant this is | each variant's Dockerfile |
+| `HEMLOCK_MODE`, `HEMLOCK_GATEWAY_PORT`, `HEMLOCK_KNOWLEDGE_DIR`, `HEMLOCK_VENTOY_MOUNT`, `HEMLOCK_NONINTERACTIVE` | runtime mode / port / knowledge dir / mount / no-prompt flags | operator or scripts |
+
+`OPENCLAW_ROOT`, `OPENCLAW_CONFIG`, `OPENCLAW_GATEWAY_PORT` are the engine's own
+names — implementation details, kept (Governing Principle 3).
+
 ## DOCKET — incoming rebranded drop audit (2026-07-09)
 
 An externally-produced full rebrand landed at

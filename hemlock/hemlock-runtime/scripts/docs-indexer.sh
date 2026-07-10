@@ -29,7 +29,7 @@
 # Examples:
 #   ./scripts/docs-indexer.sh index
 #   ./scripts/docs-indexer.sh search "agent management"
-#   ./scripts/docs-indexer.sh add-link "https://docs.hemlock.ai" "Hemlock Docs" core
+#   ./scripts/docs-indexer.sh add-link "https://github.com/drdeeks/skills" "Hemlock Skills Repo" core
 #   ./scripts/docs-indexer.sh --schedule daily
 #
 # Configuration:
@@ -758,7 +758,7 @@ while [[ $# -gt 0 ]]; do
             echo "Examples:"
             echo "  $0 index"
             echo "  $0 search 'agent management'"
-            echo "  $0 add-link 'https://docs.hemlock.ai' 'Hemlock Docs' core"
+            echo "  $0 add-link 'https://github.com/drdeeks/skills' 'Hemlock Skills Repo' core"
             exit 0
             ;;
         *)

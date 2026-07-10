@@ -36,6 +36,7 @@ FROM python:3.12-slim
 ENV HEMLOCK_DOCKER=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/opt/hermes:/opt/openclaw/lib \
+    HEMLOCK_HOME=/runtime \
     HERMES_HOME=/runtime \
     OPENCLAW_ROOT=/opt/openclaw \
     RUNTIME_ROOT=/data \

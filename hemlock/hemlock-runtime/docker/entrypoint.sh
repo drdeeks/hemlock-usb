@@ -229,12 +229,15 @@ elif [ ! -d "${HERMES_HOME}" ]; then
 fi
 
 log "=== Starting agent/crew: ${AGENT_ID} ==="
-log "HERMES_HOME: ${HERMES_HOME}"
+log "HEMLOCK_HOME: ${HERMES_HOME}"
 log "AGENT_ID: ${AGENT_ID}"
 log "USER: $(whoami) (uid=$(id -u), gid=$(id -g))"
 
 # ── Environment Setup ─────────────────────────────────────────────────────────
-export HERMES_HOME
+# HEMLOCK_HOME is the canonical name; HERMES_HOME mirrors it (internal/legacy).
+# The per-agent re-point above must move BOTH or they diverge.
+HEMLOCK_HOME="$HERMES_HOME"
+export HERMES_HOME HEMLOCK_HOME
 export OPENCLAW_ROOT="${OPENCLAW_ROOT:-/opt/openclaw}"
 import_path="/opt/hermes"
 if [ -d "/app/hermes-agent" ]; then

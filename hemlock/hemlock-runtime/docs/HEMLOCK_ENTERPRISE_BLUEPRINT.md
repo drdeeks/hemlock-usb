@@ -1025,7 +1025,7 @@ The documentation indexing system provides Cursor-like codebase knowledge:
 ./scripts/docs-indexer.sh search "agent management"
 
 # Add documentation link
-./scripts/docs-indexer.sh add-link "https://docs.hemlock.ai" "Hemlock Docs" core
+./scripts/docs-indexer.sh add-link "https://github.com/drdeeks/skills" "Hemlock Skills Repo" core
 
 # List indexed documents
 ./scripts/docs-indexer.sh list
@@ -1037,7 +1037,7 @@ The documentation indexing system provides Cursor-like codebase knowledge:
 ./scripts/docs-indexer.sh rebuild
 
 # Remove documentation link
-./scripts/docs-indexer.sh remove-link "https://docs.hemlock.ai"
+./scripts/docs-indexer.sh remove-link "https://github.com/drdeeks/skills"
 ```
 
 ### 11.3 Index Structure
