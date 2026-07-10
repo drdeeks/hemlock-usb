@@ -16,6 +16,12 @@ import re
 import sys
 from pathlib import Path
 
+if len(sys.argv) > 1 and sys.argv[1] in ("--help", "-h"):
+    print("Usage: blueprint_validator.py <step-file-path>")
+    print("Validates deliverables for a blueprint chain step.")
+    print("Called by chain.py via set-validator.")
+    sys.exit(0)
+
 def find_project_root(step_file):
     """Walk up from step file to find project root (contains .blueprint-chain)."""
     p = Path(step_file).resolve()

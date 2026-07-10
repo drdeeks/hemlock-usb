@@ -5,7 +5,7 @@ description: Enforce sequential dependency chains on files, tasks, and services.
   destructive ops by enforcing additive-only builds with chained verification gates.
   Use when building projects where files must be created in order, or when agents
   must not destroy existing work.
-version: 1.0.10
+version: 1.0.13
 license: MIT
 metadata:
   openclaw:
@@ -169,6 +169,13 @@ python3 <HERMES_HOME>/scripts/chain_enforce.py complete <project> <phase_num>
 python3 <HERMES_HOME>/scripts/chain_enforce.py status <project>
 ```
 
+**chain_enforce.py searches for chains in this order:**
+1. `.crew-*/.blueprint-chain/` (highest priority — crew-manager chains)
+2. `.blueprint-chain/` (standard location)
+3. `.chain/` (fallback)
+
+This means crew-manager.py creates chains in `.crew-<name>/.blueprint-chain/` and chain_enforce.py finds them automatically.
+
 ### Worker Flow
 
 1. Worker receives task: "Autopilot: Phase 2 — Workflow Orchestration"
@@ -233,7 +240,7 @@ hermes kanban list
 | Component | Assignee | Verification |
 |-----------|----------|--------------|
 | Federation Gateway | autopilot-architect | Port 41207, 5 projects, 600 agents, 20 rooms, TV room plugin |
-| 4 Core Skills | default | Enterprise validation: agent-identity-architecture, crew-knowledge-system, autonomous-crew-autonomous-crew-integration, loop-enforcer |
+| 4 Core Skills | default | Enterprise validation: agent-identity-architecture, autonomous-crew, autonomous-crew-autonomous-crew, loop-enforcer |
 
 ### Key Findings (2026-07-06)
 
@@ -265,6 +272,32 @@ The `KANBAN_GUIDANCE` in `prompt_builder.py` now includes step **2b. Chain enfor
 5. kanban_complete(summary, metadata)
 ```
 
+### CRITICAL: Chain Steps Must Include Specific Deliverables
+
+**Root cause of enterprise compliance failures:** Chain enforcement only tracked phase completion (Phase 0-6 marked "complete") without validating that specific deliverables were actually created.
+
+**The checklist.md is the source of truth.** Each phase in the chain MUST have sub-steps for every deliverable the checklist requires. Example:
+
+```
+Phase 6: Deployment & Operations
+├── Step 6.1: Create assignments.json
+│   └── Validation: File exists, has correct structure, all phases assigned
+├── Step 6.2: Create Dockerfile
+│   └── Validation: Docker builds successfully, HEALTHCHECK configured
+├── Step 6.3: Create docker-compose.yml
+│   └── Validation: Compose config validates, services defined
+├── Step 6.4: Create API.md
+│   └── Validation: All endpoints documented with examples
+└── Step 6.5: Run enterprise blueprint validation
+    └── Validation: All 58+ rules pass
+```
+
+**Never mark a phase as "complete" if deliverables are missing.** The chain.py complete command must verify ALL sub-steps before marking the parent phase complete.
+
+**Root cause analysis before patching.** When something goes wrong (missing deliverables, failed validation, incomplete work), always investigate WHY it happened before fixing. The user wants to understand the systemic issue, not just patch the symptom. Check: Were the tasks created correctly? Did the validation gate actually run? Was the checklist enforced? Document the root cause in your completion summary.
+
+**Production-ready, not just demos.** The blueprint must enforce ALL aspects of a production-ready application, not just code implementation. Every phase must include validation gates that verify the complete deliverable exists and functions — API documentation, deployment configuration, testing, monitoring, security, and full functionality.
+
 ### Pitfall: Empty phase markers
 
 NEVER create `.phase-*.marker` files as empty stubs. This signals "done" without
@@ -280,9 +313,14 @@ ln -s qwen-cloud-2026/<project> <WORKSPACE_ROOT>/<project>
 ```
 The chain JSON paths must point to the REAL directory, not the symlink.
 
-### Pitfall: Chain State Mismatch
+### Pitfall: Chain Directory Name Mismatch
 
-If chain points to wrong workspace path (e.g., `<WORKSPACE_ROOT>/hermes-agent/workspaces/hackathon-2026/` instead of `<WORKSPACE_ROOT>/qwen-cloud-2026/`), use `reset_chain.py <project>` to reset to clean state.
+`chain_enforce.py` searches for chains in multiple locations:
+1. `.crew-*/.blueprint-chain/` (highest priority — crew-manager chains)
+2. `.blueprint-chain/` (standard location)
+3. `.chain/` (fallback)
+
+If you have chains in multiple locations, the crew-manager chains take priority. This is by design — crew-manager.py creates chains in `.crew-<name>/.blueprint-chain/` and chain_enforce.py finds them automatically.
 
 ### Pitfall: Kanban Dispatcher Does Not Check Chain
 
@@ -305,6 +343,7 @@ The kanban dispatcher does NOT check chain state before dispatching. If you crea
 - `references/design-principles.md` — additive-only, verification gates, atomicity rules
 - `references/lessons/operational-lessons.md` — real operational learnings from building this skill
 - `references/operational-guide.md` — quick-start guide and operational patterns
+- `references/chain-deliverable-validation-failure.md` — CRITICAL: Why chain must validate specific deliverables, not just phase completion
 
 ## Sources
 
@@ -317,3 +356,7 @@ The kanban dispatcher does NOT check chain state before dispatching. If you crea
 ## See Also
 
 - `references/enterprise-validation-pitfalls.md` — Hardcoded paths, file type rules, tier requirements when using skill_enhance.py
+
+## File Index (validator-complete)
+
+- `references/chain-enforcement.md` — Chain Enforcement Integration with Kanban Workers

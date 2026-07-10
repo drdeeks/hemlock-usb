@@ -89,10 +89,28 @@ RUN cd /opt/aik/node && \
 # features are simply never started — the ONLY processes are gateway + brain MCP.
 COPY docker/hermes-agent/ /opt/hermes/
 COPY docker/gen-openclaw-config.py /opt/hermes/docker/gen-openclaw-config.py
+
+# ── Skills kernel (CL-045) ────────────────────────────────────────────────────
+# Even the minimal image bakes the 7-skill bootstrap kernel. Crew and agents
+# run the SAME runtime as everything else (crew is a structuring schematic, not
+# a separate engine) and the brain MCP exposes agent_skills_list, so the kernel
+# IS usable here. Everything beyond the kernel auto-populates at runtime from
+# github (skills-auto-update.sh) plus operator-added sources; the entrypoint
+# seeds /skills from /opt/skills_seed on first start (cp -a — no rsync in slim).
+COPY docker/skills-auto-update.sh /opt/hermes/docker/skills-auto-update.sh
+COPY shared/skills/skill-creator/               /opt/skills_seed/skill-creator/
+COPY shared/skills/skill-installer/             /opt/skills_seed/skill-installer/
+COPY shared/skills/autonomous-crew/             /opt/skills_seed/autonomous-crew/
+COPY shared/skills/enterprise-blueprint/        /opt/skills_seed/enterprise-blueprint/
+COPY shared/skills/loop-enforcer/               /opt/skills_seed/loop-enforcer/
+COPY shared/skills/agent-identity-architecture/ /opt/skills_seed/agent-identity-architecture/
+COPY shared/skills/guardrail-enforcement/       /opt/skills_seed/guardrail-enforcement/
+
 COPY docker/entrypoint-minimal.sh /opt/hermes/docker/entrypoint-minimal.sh
 RUN mkdir -p /app /runtime /data/agents /data/crews /skills /logs /config && \
     ln -sf /opt/hermes/agent_brain_mcp.py /app/agent_brain_mcp.py && \
-    chmod +x /opt/hermes/docker/entrypoint-minimal.sh /opt/hermes/docker/gen-openclaw-config.py
+    chmod +x /opt/hermes/docker/entrypoint-minimal.sh /opt/hermes/docker/gen-openclaw-config.py \
+             /opt/hermes/docker/skills-auto-update.sh
 
 # Health suite — stays in every variant
 COPY health/ /opt/hermes/health/

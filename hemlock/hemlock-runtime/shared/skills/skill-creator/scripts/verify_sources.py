@@ -7,6 +7,7 @@ Searches web/repos if no sources found.
 
 import os
 import sys
+sys.dont_write_bytecode = True  # never litter skills with __pycache__ (validator FAIL)
 import json
 import re
 from pathlib import Path

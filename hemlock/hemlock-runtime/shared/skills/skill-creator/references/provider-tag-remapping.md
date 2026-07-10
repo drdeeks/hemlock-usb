@@ -29,7 +29,7 @@ it copies canonical tags into each relevant provider block (additive, idempotent
 metadata:
   tags: [a, b, c, d, e, f, g]      # canonical — source of truth
   hermes:
-    tags: [a, b, c, d, e, f, g]    # copied — consumed by the Hermes skill registry
+    tags: [a, b, c, d, e, f, g]    # copied — consumed by the runtime skill registry
   openclaw:
     tags: [a, b, c, d, e, f, g]    # copied — reserved for OpenClaw promotion
 ```

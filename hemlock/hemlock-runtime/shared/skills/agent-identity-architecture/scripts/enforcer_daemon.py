@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Enforcer Daemon for synthesis-1
-Privileged process that owns agent workspace, validates all tool execution,
-enforces habits, and performs heartbeat validation.
+enforcer_daemon.py — Workspace guardian with enforcer RPC.
+
+Self-resolving: detects workspace from script location or agent-id argument.
+All paths use env vars with $HOME defaults — zero hardcoded paths.
 """
 
 import argparse
@@ -15,42 +16,45 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import stat
 
+# Self-resolving paths: script location > env var > $HOME fallback
+SCRIPT_DIR = Path(__file__).parent.resolve()
+WORKSPACE_ROOT = Path(os.environ.get("WORKSPACE_ROOT", str(SCRIPT_DIR.parent if (SCRIPT_DIR / ".agent").exists() else Path.home() / "agents")))
+ENFORCER_SOCKET_DIR = Path(os.environ.get("ENFORCER_SOCKET_DIR", str(Path.home() / "run" / "agent-enforcer")))
+ENFORCER_LOG_DIR = Path(os.environ.get("ENFORCER_LOG_DIR", str(Path.home() / "var" / "log" / "agent-enforcer")))
+
+
 def show_help():
     """Display usage information."""
-    print("""
+    print(f"""
 Enforcer Daemon - Workspace guardian with enforcer RPC
 
 Usage: python3 enforcer_daemon.py <agent-id> [--help]
 
 Arguments:
-  agent-id    Agent identifier (e.g., synthesis-1)
+  agent-id    Agent identifier (e.g., main, synthesis-1)
   
 Options:
   --help      Show this help message
 
 Environment:
-  WORKSPACE_ROOT      Root directory for agent workspaces (default: $HOME/agents)
+  WORKSPACE_ROOT      Root directory for agent workspaces (default: auto-detect from script location)
   ENFORCER_SOCKET_DIR Directory for enforcer Unix sockets (default: $HOME/run/agent-enforcer)
   ENFORCER_LOG_DIR    Directory for enforcer logs (default: $HOME/var/log/agent-enforcer)
 
 Example:
-  python3 enforcer_daemon.py synthesis-1
+  python3 enforcer_daemon.py main
 """)
     sys.exit(0)
-from pathlib import Path
 
-_DEFAULT_ROOT = str(Path.home() / "agents")
-
-WORKSPACE_ROOT = Path(os.environ.get("WORKSPACE_ROOT", _DEFAULT_ROOT))
-ENFORCER_SOCKET_DIR = Path(os.environ.get("ENFORCER_SOCKET_DIR", str(Path.home() / "run" / "agent-enforcer")))
-ENFORCER_LOG_DIR = Path(os.environ.get("ENFORCER_LOG_DIR", str(Path.home() / "var" / "log" / "agent-enforcer")))
 
 class EnforcerConfig:
     """Configuration for enforcer daemon"""
     
     def __init__(self, agent_id: str):
         self.agent_id = agent_id
-        self.workspace = WORKSPACE_ROOT / agent_id
+        # Self-resolving: check WORKSPACE_ROOT/agent_id, then SCRIPT_DIR, then WORKSPACE_ROOT
+        candidate = WORKSPACE_ROOT / agent_id
+        self.workspace = candidate if candidate.exists() and (candidate / ".agent").exists() else SCRIPT_DIR if (SCRIPT_DIR / ".agent").exists() else WORKSPACE_ROOT
         self.socket_path = ENFORCER_SOCKET_DIR / f"{agent_id}.sock"
         self.log_path = ENFORCER_LOG_DIR / agent_id / "audit.log"
         self.heartbeat_interval = 300  # 5 minutes
@@ -315,29 +319,46 @@ def main():
     parser = argparse.ArgumentParser(description="Enforcer Daemon", add_help=False)
     parser.add_argument("agent_id", nargs="?", help="Agent identifier")
     parser.add_argument("--help", "-h", action="store_true", help="Show help")
+    parser.add_argument("--install-service", action="store_true", help="Install systemd user service")
+    parser.add_argument("--uninstall-service", action="store_true", help="Uninstall systemd user service")
     
     args, _ = parser.parse_known_args()
     
     if args.help or not args.agent_id:
-        print("""
+        print(f"""
 Enforcer Daemon - Workspace guardian with enforcer RPC
 
-Usage: python3 enforcer_daemon.py <agent-id> [--help]
+Usage: python3 enforcer_daemon.py <agent-id> [options]
 
 Arguments:
-  agent-id    Agent identifier (e.g., synthesis-1)
+  agent-id    Agent identifier (e.g., main, synthesis-1)
   
 Options:
-  --help      Show this help message
+  --help              Show this help message
+  --install-service   Install systemd user service (recommended for security)
+  --uninstall-service Uninstall systemd user service
+
+Security:
+  The enforcer SHOULD run as a systemd service so the agent cannot modify,
+  patch, or kill it. Use --install-service to set this up automatically.
 
 Environment:
-  WORKSPACE_ROOT      Root directory for agent workspaces (default: $HOME/agents)
+  WORKSPACE_ROOT      Root directory for agent workspaces (default: auto-detect)
   ENFORCER_SOCKET_DIR Directory for enforcer Unix sockets (default: $HOME/run/agent-enforcer)
   ENFORCER_LOG_DIR    Directory for enforcer logs (default: $HOME/var/log/agent-enforcer)
 
 Example:
-  python3 enforcer_daemon.py synthesis-1
+  python3 enforcer_daemon.py main --install-service
+  python3 enforcer_daemon.py main
 """)
+        sys.exit(0)
+    
+    if args.install_service:
+        _install_systemd_service(args.agent_id)
+        sys.exit(0)
+    
+    if args.uninstall_service:
+        _uninstall_systemd_service(args.agent_id)
         sys.exit(0)
     
     parser.parse_args()
@@ -345,6 +366,74 @@ Example:
     config = EnforcerConfig(args.agent_id)
     enforcer = AgentEnforcer(config)
     asyncio.run(enforcer.run())
+
+
+def _install_systemd_service(agent_id: str):
+    """Install enforcer as systemd user service with security hardening"""
+    import subprocess
+    
+    service_content = f"""[Unit]
+Description=Agent Identity Enforcer Daemon ({agent_id})
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory={SCRIPT_DIR.parent}
+ExecStart=/usr/bin/python3 {SCRIPT_DIR / 'enforcer_daemon.py'} {agent_id}
+Restart=on-failure
+RestartSec=5
+Environment=HOME={Path.home()}
+Environment=ENFORCER_SOCKET_DIR={ENFORCER_SOCKET_DIR}
+Environment=ENFORCER_LOG_DIR={ENFORCER_LOG_DIR}
+
+# Security: agent cannot modify enforcer
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths={ENFORCER_SOCKET_DIR} {ENFORCER_LOG_DIR} {SCRIPT_DIR.parent / '.agent' / 'logs'} {SCRIPT_DIR.parent / '.agent' / 'metrics'}
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target
+"""
+    
+    service_dir = Path.home() / ".config" / "systemd" / "user"
+    service_dir.mkdir(parents=True, exist_ok=True)
+    service_file = service_dir / f"agent-enforcer-{agent_id}.service"
+    
+    service_file.write_text(service_content)
+    
+    # Create required directories
+    ENFORCER_SOCKET_DIR.mkdir(parents=True, exist_ok=True)
+    ENFORCER_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Reload and enable
+    subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
+    subprocess.run(["systemctl", "--user", "enable", f"agent-enforcer-{agent_id}.service"], check=True)
+    subprocess.run(["systemctl", "--user", "start", f"agent-enforcer-{agent_id}.service"], check=True)
+    
+    print(f"Service installed: agent-enforcer-{agent_id}.service")
+    print(f"  Socket: {ENFORCER_SOCKET_DIR / f'{agent_id}.sock'}")
+    print(f"  Status: systemctl --user status agent-enforcer-{agent_id}.service")
+    print(f"  Logs: journalctl --user -u agent-enforcer-{agent_id}.service -f")
+
+
+def _uninstall_systemd_service(agent_id: str):
+    """Uninstall enforcer systemd user service"""
+    import subprocess
+    
+    service_name = f"agent-enforcer-{agent_id}.service"
+    
+    subprocess.run(["systemctl", "--user", "stop", service_name], capture_output=True)
+    subprocess.run(["systemctl", "--user", "disable", service_name], capture_output=True)
+    
+    service_file = Path.home() / ".config" / "systemd" / "user" / service_name
+    if service_file.exists():
+        service_file.unlink()
+    
+    subprocess.run(["systemctl", "--user", "daemon-reload"], check=True)
+    
+    print(f"Service uninstalled: {service_name}")
 
 if __name__ == "__main__":
     main()

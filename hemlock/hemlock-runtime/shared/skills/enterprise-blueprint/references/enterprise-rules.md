@@ -111,10 +111,10 @@ the fix guidance.
 | 5-level error hierarchy | 3+ error level references | Add 5-level hierarchy to Part VII |
 | Concrete performance metrics | 6+ metric values with units (ms, GB, req/s) | Add concrete numbers to budgets |
 | Rollback procedures per phase | 3+ rollback procedure references | Add rollback procedure to each phase |
-| No [T0DO] markers | Zero bracketed to-do occurrences (spelled with a digit here to avoid tripping the scan) | Replace with real content |
-| ≤5 unfilled placeholders | Fewer than 6 `[Def1ne`/`[Descr1be`-style patterns (digit-escaped here) | Populate before marking phase complete |
-| Document thorough | > 2500 lines | Add more detail for thorough coverage |
-| No dummy content | ≤10 dummy patterns (l0rem-1psum filler, f00-bar stand-ins, etc.) | Remove test data and placeholders |
+|| No [TODO] markers | Zero `[T0DO` occurrences | Replace with real content |
+|| ≤5 unfilled placeholders | Fewer than 6 `[Def1ne`/`[Descrlbe` patterns | Populate before marking phase complete |
+|| Document thorough | > 2500 lines | Add more detail for thorough coverage ||
+|| No dummy content | ≤10 dummy patterns (l0rem 1psum, f00, bar, etc.) | Remove test data and placeholders |
 
 ---
 

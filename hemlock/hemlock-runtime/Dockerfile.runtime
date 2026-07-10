@@ -142,7 +142,17 @@ RUN mkdir -p /runtime /data/agents /data/crews /data/imports /data/exports /proj
 # NO network and NO host skills dir at runtime (entrypoint seeds /skills from
 # this on first start). CL-027: no git clone, no cron pull.
 RUN mkdir -p /opt/skills_seed
-COPY shared/skills/ /opt/skills_seed/
+# CL-045: bake ONLY the kernel skill set as the offline bootstrap. Everything
+# else auto-populates at runtime from github (skills-auto-update.sh) plus any
+# operator-added sources. Kernel = create/install skills, crew, blueprint,
+# loop, identity, guardrail — sourced from the canonical ~/hemlock/skills repo.
+COPY shared/skills/skill-creator/               /opt/skills_seed/skill-creator/
+COPY shared/skills/skill-installer/             /opt/skills_seed/skill-installer/
+COPY shared/skills/autonomous-crew/             /opt/skills_seed/autonomous-crew/
+COPY shared/skills/enterprise-blueprint/        /opt/skills_seed/enterprise-blueprint/
+COPY shared/skills/loop-enforcer/               /opt/skills_seed/loop-enforcer/
+COPY shared/skills/agent-identity-architecture/ /opt/skills_seed/agent-identity-architecture/
+COPY shared/skills/guardrail-enforcement/       /opt/skills_seed/guardrail-enforcement/
 RUN find /opt/skills_seed -type d -exec chmod 755 {} + && \
     find /opt/skills_seed -type f -exec chmod 644 {} +
 

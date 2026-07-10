@@ -13,6 +13,7 @@ Responsibilities:
 
 
 import sys
+sys.dont_write_bytecode = True  # never litter skills with __pycache__ (validator FAIL)
 import json
 import re
 import argparse

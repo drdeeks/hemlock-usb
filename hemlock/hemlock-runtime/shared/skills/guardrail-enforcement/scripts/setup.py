@@ -21,6 +21,7 @@ import json
 import os
 import secrets
 import sys
+sys.dont_write_bytecode = True  # never litter skills with __pycache__ (validator FAIL)
 from pathlib import Path
 
 GATE_CONFIG_NAME = ".gate.json"

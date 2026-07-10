@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """
-Memory Watcher/Curator for synthesis-1
-Runs at end of day to:
-1. Curate daily notes to weekly patterns
-2. Extract insights/lessons for long-term memory
-3. Build knowledge index from daily links
-4. Send summary heartbeat to enforcer
+memory_curator.py — Daily to weekly to long-term memory pipeline.
+
+Self-resolving: detects workspace from script location or agent-id argument.
+All paths use env vars with $HOME defaults — zero hardcoded paths.
 """
 
 import argparse
@@ -18,36 +16,42 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from collections import defaultdict
 
+# Self-resolving paths: script location > env var > $HOME fallback
+SCRIPT_DIR = Path(__file__).parent.resolve()
+WORKSPACE_ROOT = Path(os.environ.get("WORKSPACE_ROOT", str(SCRIPT_DIR.parent if (SCRIPT_DIR / ".agent").exists() else Path.home() / "agents")))
+
+
 def show_help():
     """Display usage information."""
-    print("""
+    print(f"""
 Memory Curator - Daily to weekly to long-term memory pipeline
 
 Usage: python3 memory_curator.py <agent-id> [--help] [--dry-run]
 
 Arguments:
-  agent-id    Agent identifier (e.g., synthesis-1)
+  agent-id    Agent identifier (e.g., main, synthesis-1)
   
 Options:
   --help      Show this help message
   --dry-run   Preview what would be curated without writing
 
 Environment:
-  WORKSPACE_ROOT      Root directory for agent workspaces (default: $HOME/agents)
+  WORKSPACE_ROOT      Root directory for agent workspaces (default: auto-detect from script location)
 
 Example:
-  python3 memory_curator.py synthesis-1
-  python3 memory_curator.py synthesis-1 --dry-run
+  python3 memory_curator.py main
+  python3 memory_curator.py main --dry-run
 """)
 
-_DEFAULT_ROOT = str(Path.home() / "agents")
 
 class MemoryCurator:
     """Curator for agent memory pipeline"""
     
-    def __init__(self, agent_id: str = "synthesis-1"):
+    def __init__(self, agent_id: str = "main"):
         self.agent_id = agent_id
-        self.workspace = Path(os.environ.get("WORKSPACE_ROOT", _DEFAULT_ROOT)) / agent_id
+        # Self-resolving: check WORKSPACE_ROOT/agent_id, then SCRIPT_DIR, then WORKSPACE_ROOT
+        candidate = WORKSPACE_ROOT / agent_id
+        self.workspace = candidate if candidate.exists() and (candidate / ".agent").exists() else SCRIPT_DIR if (SCRIPT_DIR / ".agent").exists() else WORKSPACE_ROOT
         self.memory_dir = self.workspace / "memory"
         self.daily_dir = self.memory_dir / "daily"
         self.weekly_dir = self.memory_dir / "weekly"

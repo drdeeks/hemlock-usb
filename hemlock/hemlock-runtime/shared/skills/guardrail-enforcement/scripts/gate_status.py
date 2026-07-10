@@ -14,6 +14,7 @@ Exit 0 only when the log exists AND its chain verifies; non-zero otherwise.
 import json
 import subprocess
 import sys
+sys.dont_write_bytecode = True  # never litter skills with __pycache__ (validator FAIL)
 from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parent.parent

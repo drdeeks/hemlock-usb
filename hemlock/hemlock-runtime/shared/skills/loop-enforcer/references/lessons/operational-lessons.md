@@ -2,17 +2,7 @@
 
 Real operational learnings from building and using this skill.
 
-## Lesson 1: NEVER Delete Existing Code — ALWAYS Build Additive
-
-**Context:** Destroyed mnemosyne project (demo.js, src/, tests/) thinking "clean slate" was faster.
-
-**Rule:** ALWAYS build ADDITIVE. Layer on top. Use chain-enforcer to lock existing files before touching anything.
-
-**Fix:** Chain-enforcer now enforces additive-only — validators can check git status for deletions.
-
-**User's Words:** "trash is always greater than purged." The enterprise blueprint explicitly forbids deletion — contributor rules, change control, rollback procedures prevent destructive ops. "Trash > purged" means NEVER delete existing code. Build ADDITIVE only — layer on top. Always git commit before touching anything. Chain-enforcer MUST be checked before ANY file modification. If locked, DO NOT touch.
-
-## Lesson 2: Validator Must Enforce Content, Not Just Structure
+## Lesson 1: Validator Must Enforce Content, Not Just Structure
 
 **Context:** Initial validator only checked file existence, line count, and placeholder patterns.
 

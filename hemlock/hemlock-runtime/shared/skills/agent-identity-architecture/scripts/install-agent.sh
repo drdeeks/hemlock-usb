@@ -3,7 +3,7 @@
 # Usage: sudo ./install-agent.sh <agent-id> [workspace-path] [--single|--standalone]
 #
 # Modes:
-#   Default (crew): Uses WORKSPACE_ROOT env or /data/agents/<id>
+#   Default (crew): Uses WORKSPACE_ROOT env or $HOME/agents/<id>
 #   --single / --standalone: Path-agnostic, uses $HOME/agents/<id> or custom path
 
 set -euo pipefail
@@ -25,7 +25,7 @@ Options:
   --help                   Show this help
 
 Environment:
-  WORKSPACE_ROOT     Root for crew agents (default: /data/agents)
+  WORKSPACE_ROOT     Root for crew agents (default: $HOME/agents)
   AGENT_IDENTITY_SKILL  Path to this skill (auto-detected)
   SKILL_DIR          Same as AGENT_IDENTITY_SKILL
 
@@ -83,7 +83,7 @@ elif [[ "$SINGLE_MODE" == "true" ]]; then
     WORKSPACE="${HOME}/agents/${AGENT_ID}"
 else
     # Crew mode - uses WORKSPACE_ROOT
-    WORKSPACE_ROOT="${WORKSPACE_ROOT:-/data/agents}"
+    WORKSPACE_ROOT="${WORKSPACE_ROOT:-$HOME/agents}"
     WORKSPACE="${WORKSPACE_ROOT}/${AGENT_ID}"
 fi
 

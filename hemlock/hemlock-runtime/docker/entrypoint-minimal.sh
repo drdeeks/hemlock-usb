@@ -19,5 +19,21 @@ else
     echo "[minimal] identity kit: no constitution at $AIK_WS/.agent/ — enforcer idle (templates: /opt/aik/node/examples)"
 fi
 
+# ── Skills (CL-045) ───────────────────────────────────────────────────────────
+# /skills is a named volume — empty on first start. Seed it with the baked
+# kernel (cp -a; the slim image has no rsync), then start the self-healing
+# updater to pull the rest from github + operator-added sources. Set
+# SKILLS_UPDATE_ENABLED=0 to stay fully offline (kernel only).
+if [ -d /opt/skills_seed ] && [ ! -f /skills/.hemlock_skills_seeded ]; then
+    echo "[minimal] seeding /skills from the baked kernel set (first start)"
+    cp -a /opt/skills_seed/. /skills/ 2>/dev/null || echo "[minimal]   seed copy incomplete"
+    date -Iseconds > /skills/.hemlock_skills_seeded
+fi
+UPDATER="/opt/hermes/docker/skills-auto-update.sh"
+if [ "${SKILLS_UPDATE_ENABLED:-1}" = "1" ] && [ -x "$UPDATER" ]; then
+    echo "[minimal] starting skills auto-updater (supervised; SKILLS_UPDATE_ENABLED=0 to disable)"
+    "$UPDATER" --supervise >>/logs/skills-sync.log 2>&1 &
+fi
+
 echo "[minimal] starting gateway daemon..."
 exec openclaw gateway run --allow-unconfigured

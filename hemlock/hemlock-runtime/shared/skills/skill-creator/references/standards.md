@@ -316,7 +316,7 @@ Skills must include a `metadata` section with at least one provider-specific har
 
 | Harness | Use Case | Example Fields |
 |---------|----------|----------------|
-| `openclaw` | OpenClaw/Hermes agents | `version`, `category`, `complexity`, `tags` |
+| `openclaw` | OpenClaw/Hemlock agents | `version`, `category`, `complexity`, `tags` |
 | `openai` | OpenAI-compatible (ChatGPT, vLLM, LM Studio) | `type`, `parameters`, `endpoints` |
 | `anthropic` | Claude API / Anthropic | `model`, `tools`, `max_tokens` |
 | `google` | Gemini / Vertex AI | `model`, `extensions`, `project` |

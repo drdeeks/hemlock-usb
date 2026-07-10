@@ -68,10 +68,10 @@ references/templates/crew/crew-phases.yaml
 ### 7. templates/ Directory Must Be at references/templates/
 ```bash
 # ❌ FAILS - templates/ at skill root
-autonomous-crew-integration/templates/
+autonomous-crew/templates/
 
 # ✅ PASSES - templates/ under references/
-autonomous-crew-integration/references/templates/
+autonomous-crew/references/templates/
 ```
 
 ### 8. __init__.py Required with Exports

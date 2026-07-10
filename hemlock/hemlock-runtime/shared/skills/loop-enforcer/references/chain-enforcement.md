@@ -86,7 +86,7 @@ python3 chain_enforce.py status <project>
 ```
 2b. **Chain enforcement (MANDATORY for phased tasks).** If your task title
 contains 'Phase' and a `.chain` directory exists in the project root
-(e.g. `/home/ubuntu/<project>/.chain/` or `qwen-cloud-2026/<project>/.chain/`),
+(e.g. `$HOME/<project>/.chain/` or `qwen-cloud-2026/<project>/.chain/`),
 you MUST enforce the loop-enforcer chain before doing ANY work:
 
 a) Identify the chain: `ls <project>/.chain/*.json`
@@ -107,7 +107,7 @@ g) Log the chain enforcement: `kanban_comment(body='Chain enforced: <chain_name>
 **Fix:** Delete empty markers, reset chain step to `active`. Markers only created by `chain.py complete` after verification.
 
 ### 2. Root Directory vs qwen-cloud-2026
-**Problem:** Chain JSON paths point to `/home/ubuntu/<project>` but code lives in `/home/ubuntu/qwen-cloud-2026/<project>`.
+**Problem:** Chain JSON paths point to `$HOME/<project>` but code lives in `$HOME/qwen-cloud-2026/<project>`.
 **Fix:** Ensure root dirs are symlinks. Chain paths must point to real directory. Reset chain if mismatched.
 
 ### 3. Chain State Mismatch

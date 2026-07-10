@@ -23,6 +23,19 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+if len(sys.argv) > 1 and sys.argv[1] in ("--help", "-h"):
+    print("Usage: enforce_blueprint.py <project-dir> [options]")
+    print("Chain enforcement for blueprint lifecycle.")
+    print("")
+    print("Options:")
+    print("  --init          Initialize chain from blueprint")
+    print("  --status        Show chain status")
+    print("  --phase N       Specify phase number")
+    print("  --verify        Verify phase completion")
+    print("  --complete      Mark phase as complete")
+    print("  --menu          Show interactive menu")
+    sys.exit(0)
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from scripts.generate_checklist import parse_phases, parse_modules, detect_tech_stack
 

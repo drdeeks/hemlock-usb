@@ -5,7 +5,7 @@
 The skill_enhance.py validator rejects hardcoded paths in SKILL.md and scripts.
 
 **Banned patterns:**
-- `/home/ubuntu/` — any absolute path with a username
+- `$HOME/` — any absolute path with a username
 - `~/.hermes/` — tilde paths in SKILL.md content
 
 **Use instead:**

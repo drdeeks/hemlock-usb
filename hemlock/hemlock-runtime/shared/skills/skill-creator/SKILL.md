@@ -9,7 +9,7 @@ description: Author, edit, audit, validate, package, and upgrade AgentSkills. Pr
   on phrases like 'create a skill', 'author a skill', 'tidy up a skill', 'audit the
   skill', 'package this skill', 'upgrade skill to enterprise'. Validator runs enterprise-strict
   by default; pass --basic for the lighter-count tier. Every script is directly invokable.
-version: 3.0.10
+version: 3.0.13
 license: MIT
 metadata:
   category: skill-authoring

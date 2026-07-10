@@ -1,10 +1,8 @@
-## Design Principles
+# Design Principles
 
-## 1. Additive Only (NON-NEGOTIABLE)
+## 1. Additive Only
 
-The chain enforces that work is additive. No step may delete, overwrite, or destroy work from a previous step. If a step needs to modify something a previous step created, it must do so by appending or extending, not replacing.
-
-**CRITICAL LESSON:** I destroyed the mnemosyne project (demo.js, src/, tests/) thinking "clean slate" was faster. User: "trash is always greater than purged." The enterprise blueprint explicitly forbids deletion — contributor rules, change control, rollback procedures prevent destructive ops. "Trash > purged" means NEVER delete existing code. Build ADDITIVE only — layer on top. Always git commit before touching anything. Chain-enforcer MUST be checked before ANY file modification. If locked, DO NOT touch.
+The chain enforces that work is additive. No step may delete, overwrite, or destroy work from a previous step. If a step needs to modify something a previous step created, it must be done through append or augmentation, not replacement.
 
 ## 2. Verification Before Progression
 

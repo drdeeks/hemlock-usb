@@ -129,7 +129,7 @@ Shipping `skill-creator.skill` alone gives a recipient pure, immediately-usable 
 ## Interactive setup (`gate/scripts/setup.py` sketch)
 
 ```
-? What directory are you gating? /home/drdeek/bin/_curated
+? What directory are you gating? $HOME/bin/_curated
 ? Git integration? [Y/n]:
 ? Which paired monitor should be verified before every loop run?
   [none | existing service | install new]:

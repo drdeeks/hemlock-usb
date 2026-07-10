@@ -28,6 +28,7 @@ Every function is read-only. CLI mirrors the API for shell callers:
 import argparse
 import json
 import sys
+sys.dont_write_bytecode = True  # never litter skills with __pycache__ (validator FAIL)
 from pathlib import Path
 
 # Directories never worth descending into during a scan — caches and VCS

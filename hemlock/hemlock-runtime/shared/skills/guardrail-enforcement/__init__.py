@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 __skill__ = "guardrail-enforcement"
-__version__ = "0.1.4"
+__version__ = "0.1.6"
 
 STARTER_CONFIG = {
     "pre_checks": [],

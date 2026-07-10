@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-Agent Runtime for synthesis-1
-Unprivileged agent process that proxies all tool execution through the enforcer daemon.
+agent_runtime.py — Unprivileged agent process that proxies all tool execution
+through the enforcer daemon.
+
+Self-resolving: detects workspace from script location or agent-id argument.
+All paths use env vars with $HOME defaults — zero hardcoded paths.
 """
 
 import argparse
@@ -14,9 +17,11 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, asdict
 
-# Derived defaults to avoid hardcoded path literal in enterprise validation
-_DEFAULT_ROOT = str(Path.home() / "agents")
-_DEFAULT_SOCKET = str(Path.home() / "run" / "agent-enforcer")
+# Self-resolving paths: script location > env var > $HOME fallback
+SCRIPT_DIR = Path(__file__).parent.resolve()
+WORKSPACE_ROOT = Path(os.environ.get("WORKSPACE_ROOT", str(SCRIPT_DIR.parent if (SCRIPT_DIR / ".agent").exists() else Path.home() / "agents")))
+ENFORCER_SOCKET_DIR = Path(os.environ.get("ENFORCER_SOCKET_DIR", str(Path.home() / "run" / "agent-enforcer")))
+
 
 @dataclass
 class AgentIdentity:
@@ -62,12 +67,14 @@ class Habit:
         return HabitResult(blocked=False)
 
 class Agent:
-    """Synthesis-1 autonomous agent runtime"""
+    """Autonomous agent runtime with identity layer"""
     
-    def __init__(self, agent_id: str = "synthesis-1"):
+    def __init__(self, agent_id: str = "main"):
         self.agent_id = agent_id
-        self.workspace = Path(os.environ.get("WORKSPACE_ROOT", _DEFAULT_ROOT)) / agent_id
-        self.enforcer_socket = Path(os.environ.get("ENFORCER_SOCKET_DIR", _DEFAULT_SOCKET)) / f"{agent_id}.sock"
+        # Self-resolving: check WORKSPACE_ROOT/agent_id, then SCRIPT_DIR, then WORKSPACE_ROOT
+        candidate = WORKSPACE_ROOT / agent_id
+        self.workspace = candidate if candidate.exists() and (candidate / ".agent").exists() else SCRIPT_DIR if (SCRIPT_DIR / ".agent").exists() else WORKSPACE_ROOT
+        self.enforcer_socket = str(ENFORCER_SOCKET_DIR / f"{agent_id}.sock")
         self.identity: Optional[AgentIdentity] = None
         self.habits: Dict[str, Habit] = {}
         self._load_identity()

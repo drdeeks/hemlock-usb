@@ -4,7 +4,7 @@ description: 'Graceful skill installation and lifecycle manager. Handles .skill 
   archives, directory-based skills, and remote packages with automatic validation
   against skill-creator. Use when: installing new skills, updating skills, extracting
   .skill files, importing skill packages, or validating skill integrity before deployment.'
-version: 1.0.14
+version: 1.0.15
 license: MIT
 metadata:
   author: skill-creator

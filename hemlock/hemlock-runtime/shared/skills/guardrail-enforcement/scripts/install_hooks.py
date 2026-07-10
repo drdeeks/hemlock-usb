@@ -31,6 +31,7 @@ import shutil
 import stat
 import subprocess
 import sys
+sys.dont_write_bytecode = True  # never litter skills with __pycache__ (validator FAIL)
 from pathlib import Path
 
 HOOKS = ("pre-commit", "post-commit", "pre-push")

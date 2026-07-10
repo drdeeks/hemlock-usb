@@ -21,10 +21,10 @@ RAM:  1.9G total, 429M available
 ```
 
 **Space eaters removed:**
-- `/home/ubuntu/projects/hemlock-test` (2.4G)
-- `/home/ubuntu/projects/GhostWriter` (1.6G)  
-- `/home/ubuntu/Downloads` (1G)
-- `/home/ubuntu/hackathon-submissions` (122M)
+- `$HOME/projects/hemlock-test` (2.4G)
+- `$HOME/projects/GhostWriter` (1.6G)  
+- `$HOME/Downloads` (1G)
+- `$HOME/hackathon-submissions` (122M)
 - `mnemosyne/node_modules` (60M)
 - `agent-sitcom/node_modules` (5.3M)
 
@@ -84,7 +84,7 @@ Timeout: 1800s
 ```
 
 ## Session Artifacts Created
-- `/home/ubuntu/hermes-agent/workspaces/hackathon-2026/agent-sitcom/` — real-time monitor (distraction)
+- `$HOME/hermes-agent/workspaces/hackathon-2026/agent-sitcom/` — real-time monitor (distraction)
 - Updated kanban tasks still running (need cleanup)
 
 ## Action Items

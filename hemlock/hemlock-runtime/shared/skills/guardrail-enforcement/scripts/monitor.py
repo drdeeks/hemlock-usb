@@ -52,6 +52,7 @@ import json
 import re
 import subprocess
 import sys
+sys.dont_write_bytecode = True  # never litter skills with __pycache__ (validator FAIL)
 from datetime import datetime, timezone
 from pathlib import Path
 
