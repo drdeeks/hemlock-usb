@@ -212,13 +212,20 @@ migration), not yet wired to anything.
    `docs.hemlock.ai` domain, and five coexisting `HEMLOCK_*` meanings
    (`_HOME` agent, `_ROOT` gateway, `_DIR` menu repo path, `_DOCKER`,
    `_MINIMAL`). Needs a naming pass distinguishing gateway vs brain in prose.
-   **DECIDED naming:** **Hemlock Gateway** = control plane (the openclaw
-   engine, aliased); **Hemlock-loop** = the MCP server exposing the hermes
-   brain's tools to the gateway; **hermes** stays as the internal
-   cognition/implementation name. Prose becomes "Hemlock Gateway reaches the
-   brain over the Hemlock-loop MCP." IMPL PENDING: sweep `gen-*-config.py`
-   generated text, drop the fabricated `docs.hemlock.ai`, and document the
-   five `HEMLOCK_*` meanings. Depends on #2 (done deciding).
+   **DECIDED naming + IMPL DONE for the current tree 2026-07-09
+   (`973ec6ee`, `8868ffdb`; skills repo `5f5f626`):** **Hemlock Gateway** =
+   control plane (the openclaw engine, aliased); **Hemlock-loop** = the MCP
+   server exposing the hermes brain's tools to the gateway; **hermes** stays
+   internal. Done: gen-openclaw-config.py prose/log lines; fabricated
+   `docs.hemlock.ai` replaced with the real skills repo URL (runtime scripts,
+   enterprise blueprint doc, knowledge-indexer); `HEMLOCK_*` env glossary
+   added above (canonical naming section); `HEMLOCK_HOME` now set in all four
+   image ENVs and mirrored at entrypoint.sh's per-agent re-point (the two
+   previously diverged); skills repo swept (`hermes <cmd>` → `hemlock-agent`,
+   docs to `HEMLOCK_HOME`, scripts prefer-with-fallback; 7 skills patch-bumped,
+   all validate PASS 0/0). REMAINING (drop-side only): the same pass over the
+   REBRANDED drop's `gen-hemlock-config.py` self-contradictions when #13
+   integration happens.
 4. **Dashboard wiring.** Nothing serves `hemlock-dashboard/`; decide where
    it mounts (gateway static assets vs menu-launched app-mode) — depends
    on item 2's decision.
