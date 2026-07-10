@@ -3,7 +3,7 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-x86__64%20Linux-informational?logo=linux&logoColor=white)
 ![Boot](https://img.shields.io/badge/boot-Ventoy%20multi--boot%20%2B%20persistence-orange)
-![Runtime](https://img.shields.io/badge/AI%20runtime-OpenClaw%20%2B%20Hermes%20%2B%20MCP-6f42c1)
+![Runtime](https://img.shields.io/badge/AI%20runtime-Hemlock%20Gateway%20%2B%20Hemlock--loop%20%2B%20MCP-6f42c1)
 ![Docker](https://img.shields.io/badge/container-opt--in%20Docker-2496ED?logo=docker&logoColor=white)
 ![Python](https://img.shields.io/badge/tooling-Python%203.8%2B%20stdlib-blue)
 ![Host](https://img.shields.io/badge/host-no%20traces%20after%20bridge-critical)
@@ -47,7 +47,7 @@ All operations route through one interactive menu (`menu.sh`) with whiptail TUI 
 | **Yank-aware mount lifecycle** | Every loop mount in menu.sh/install.sh: sync-before-umount, EXIT-trap sweep (no leaked mounts on crash/Ctrl-C), `e2fsck -p` journal replay before rw mounts, startup detection of mounts orphaned by surprise removal, unconditional sync on menu exit (exFAT profile writes). |
 | **Boot-profile autoload fixed + in use** | Default profile (`default: true`) in `usb-hemlock/profiles/` now correctly resolves `primary.file` against the mount; verified live with the registered `hemlock-main` profile. |
 | **One installer** | `hemlock/hemlock-runtime/install.sh`: `--variant full/lean/minimal`, `--load <tar>`, `--usb`, `--native`, `--release` (pulls latest GitHub release, dynamic options); host-awareness preflight; reachable via hidden `-H` menu. |
-| **Gateway port 1437** | Hemlock's gateway moved off 18789 — coexists with a host OpenClaw without collision; host env isolation (`run-native.sh` refuses foreign `OPENCLAW_*`/`HERMES_*`). |
+| **Gateway port 1437** | The Hemlock Gateway moved off 18789 — coexists with other engine installs on the host without collision; host env isolation (`run-native.sh` refuses conflicting gateway env from other installs). |
 | **validate-all-skills fixed** | Works on the host tree (`shared/skills` fallback) and no longer dies on `set -e` + `((var++))`; reports 17/17 valid. |
 
 ## What's New (Releases CL-026..CL-034, June 2026)
@@ -373,7 +373,7 @@ Dockerized AI agent orchestration platform. Provides:
 
 - **Agent lifecycle management** — create, start, stop, monitor, import, export, delete
 - **Crew management** — A2A protocol: join, leave, dissolve, start, stop, monitor
-- **Runtime validation** — health checks, Hermes Doctor, Docker env validation
+- **Runtime validation** — health checks, Runtime Doctor, Docker env validation
 - **Security hardening** — apply, check status, reset
 - **Staging bridge** — file transfers between host and container via `volumes/imports/.request`
 - **84 agent skill packages** — pre-built capabilities for common tasks
@@ -1052,7 +1052,7 @@ bash hemlock/hemlock-runtime/scripts/hemlock menu
 **TUI Features:**
 - Agent Management: Create, Import, Export, Delete, Start, Stop, Monitor, List
 - Crew Management (A2A): Create, Import, Export, Join, Leave, List All, Start, Monitor, Dissolve
-- Runtime Validation: Full validation, Hermes Doctor, Docker env check, Validate Configs
+- Runtime Validation: Full validation, Runtime Doctor, Docker env check, Validate Configs
 - Security Hardening: Apply, Check Status, Reset
 - System Monitoring: Runtime Logs, Agent Logs, System Health
 - Configuration: Edit Runtime Config, Edit Agent Config, View Current Config

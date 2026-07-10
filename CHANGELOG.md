@@ -7,6 +7,15 @@ This file is append-only. New entries are added at the top under the appropriate
 
 ## [Unreleased]
 
+(nothing yet)
+
+## [v1.0.0] — 2026-07-09 — Initial release
+
+First tagged release. The `hemlock:minimal` image built from this tree
+(all-Hemlock surface: CLI family, gateway alias, boot prose, Hemlock Control
+dashboard on :1437, 7-skill kernel + auto-populating sources, per-device
+config isolation) is the release image. Everything below ships in it.
+
 ### 2026-07-09 — Rebrand gates closed: naming, skills kernel, dashboard, drop harvested (CL-043..CL-046)
 
 **CL-043 — One TUI, no whiptail; slugs everywhere; compute-tier advisor.**

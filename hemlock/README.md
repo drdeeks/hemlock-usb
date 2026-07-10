@@ -1,6 +1,6 @@
 # Hemlock Agent Runtime
 
-Dockerized AI agent orchestration platform. Runs inside a container with Bash orchestration, Python health checks, and Node.js openclaw gateway.
+Dockerized AI agent orchestration platform. Runs inside a container with Bash orchestration, Python health checks, and the Node.js Hemlock Gateway.
 
 ---
 
@@ -96,7 +96,7 @@ Files are staged via a `volumes/imports/.request` protocol:
 
 | Port | Service |
 |------|---------|
-| 1437 | Openclaw gateway (Node.js) |
+| 1437 | Hemlock Gateway (Node.js) |
 | 41214 | MCP proxy |
 | 22 | SSH (forwarded from host) |
 
