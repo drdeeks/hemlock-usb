@@ -1027,7 +1027,7 @@ validation_menu() {
         clear_screen
         print_header "Runtime Validation"
         echo -e "  ${BOLD}1.${NC} Run Full Validation"
-        echo -e "  ${BOLD}2.${NC} Hermes Doctor (Interactive)"
+        echo -e "  ${BOLD}2.${NC} Hemlock Doctor (Interactive)"
         echo -e "  ${BOLD}3.${NC} Check Docker Environment"
         echo -e "  ${BOLD}4.${NC} Validate Configurations"
         echo -e "  ${BOLD}5.${NC} Back to Main Menu"
@@ -1056,7 +1056,7 @@ run_validation() {
 
 hermes_doctor() {
     clear_screen
-    print_header "Hermes Doctor - Interactive Validation"
+    print_header "Hemlock Doctor - Interactive Validation"
     echo ""
     "$SCRIPT_DIR/runtime-doctor.sh" --interactive
     echo ""

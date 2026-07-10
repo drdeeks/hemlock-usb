@@ -285,7 +285,7 @@ bash tools/secret.sh has X   # Check specific secret
 **Cause:** Network issue, or the auth service is down.
 **Fix:**
 ```bash
-hermes doctor                # Check configuration
+hemlock-agent doctor                # Check configuration
 hermes status                # Check component status
 ```
 
@@ -310,7 +310,7 @@ GET A SECRET:               docker exec oc-aton bash tools/secret.sh get neynar 
 SET A SECRET:               docker exec oc-aton bash tools/secret.sh set github token "ghp_xxx"
 LIST SECRETS:               docker exec oc-allman bash tools/secret.sh list
 RUN AUTH SCRIPT:            bash tools/auth-login.sh
-DOCTOR CHECK:               docker exec oc-titan hermes doctor
+DOCTOR CHECK:               docker exec oc-titan hemlock-agent doctor
 ```
 
 ---

@@ -379,7 +379,7 @@ bash hemlock/hemlock-runtime/scripts/hemlock menu
 **TUI Features:**
 - Agent Management: Create, Import, Export, Delete, Start, Stop, Monitor
 - Crew Management (A2A): Create, Join, Leave, Start, Monitor, Dissolve
-- Runtime Validation: Full validation, Hermes Doctor, Docker env check
+- Runtime Validation: Full validation, Hemlock Doctor, Docker env check
 - Security Hardening: Apply, Check Status, Reset
 - System Monitoring: Logs, Agent Logs, Health
 - Configuration: Edit runtime/agent config

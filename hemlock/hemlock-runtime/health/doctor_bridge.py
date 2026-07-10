@@ -6,12 +6,12 @@ Integrates all health validators (paths, env, identity, gateway, imports,
 adapters, orchestration, persistence) into a single check pipeline.
 
 Provides both human-readable and JSON output suitable for:
-  - OpenClaw pre-flight checks (hermes doctor bridge --json)
-  - Docker HEALTHCHECK (hermes doctor bridge --quick)
-  - Full diagnostic (hermes doctor bridge)
-  - Auto-fix mode (hermes doctor bridge --fix)
+  - Hemlock Gateway pre-flight checks (hemlock-agent doctor bridge --json)
+  - Docker HEALTHCHECK (hemlock-agent doctor bridge --quick)
+  - Full diagnostic (hemlock-agent doctor bridge)
+  - Auto-fix mode (hemlock-agent doctor bridge --fix)
 
-Used by OpenClaw to verify the agent runtime before starting.
+Used by the Hemlock Gateway to verify the agent runtime before starting.
 """
 
 import json

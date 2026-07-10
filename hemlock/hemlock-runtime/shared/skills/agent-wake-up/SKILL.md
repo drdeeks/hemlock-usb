@@ -452,7 +452,7 @@ Running validators is verification, not work. User frustration signal: "you don'
 
 ```bash
 # System
-hermes doctor                    # Health check
+hemlock-agent doctor                    # Health check
 hermes status                    # System status
 hermes model                     # Change model/provider
 hermes setup                     # Interactive setup wizard

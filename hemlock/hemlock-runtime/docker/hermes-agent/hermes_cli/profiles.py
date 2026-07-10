@@ -10,13 +10,13 @@ zero migration needed.
 
 Usage::
 
-    hermes profile create coder          # fresh profile + bundled skills
-    hermes profile create coder --clone  # also copy config, .env, SOUL.md
-    hermes profile create coder --clone-all  # full copy of source profile
+    hemlock-agent profile create coder          # fresh profile + bundled skills
+    hemlock-agent profile create coder --clone  # also copy config, .env, SOUL.md
+    hemlock-agent profile create coder --clone-all  # full copy of source profile
     coder chat                           # use via wrapper alias
     hermes -p coder chat                 # or via flag
-    hermes profile use coder             # set as sticky default
-    hermes profile delete coder          # remove profile + alias + service
+    hemlock-agent profile use coder             # set as sticky default
+    hemlock-agent profile delete coder          # remove profile + alias + service
 """
 
 import json
@@ -697,7 +697,7 @@ def set_active_profile(name: str) -> None:
     if name != "default" and not profile_exists(name):
         raise FileNotFoundError(
             f"Profile '{name}' does not exist. "
-            f"Create it with: hermes profile create {name}"
+            f"Create it with: hemlock-agent profile create {name}"
         )
 
     path = _get_active_profile_path()
@@ -893,7 +893,7 @@ def import_profile(archive_path: str, name: Optional[str] = None) -> Path:
     if not inferred_name:
         raise ValueError(
             "Cannot determine profile name from archive. "
-            "Specify it explicitly: hermes profile import <archive> --name <name>"
+            "Specify it explicitly: hemlock-agent profile import <archive> --name <name>"
         )
 
     # Archives exported from the default profile have "default/" as top-level
@@ -902,7 +902,7 @@ def import_profile(archive_path: str, name: Optional[str] = None) -> Path:
     if inferred_name == "default":
         raise ValueError(
             "Cannot import as 'default' — that is the built-in root profile (~/.hermes). "
-            "Specify a different name: hermes profile import <archive> --name <name>"
+            "Specify a different name: hemlock-agent profile import <archive> --name <name>"
         )
 
     validate_profile_name(inferred_name)
@@ -982,7 +982,7 @@ def rename_profile(old_name: str, new_name: str) -> Path:
 # ---------------------------------------------------------------------------
 
 def generate_bash_completion() -> str:
-    """Generate a bash completion script for hermes profile names."""
+    """Generate a bash completion script for hemlock-agent profile names."""
     return '''# Hermes Agent profile completion
 # Add to ~/.bashrc: eval "$(hermes completion bash)"
 
@@ -1032,7 +1032,7 @@ complete -F _hermes_completion hermes
 
 
 def generate_zsh_completion() -> str:
-    """Generate a zsh completion script for hermes profile names."""
+    """Generate a zsh completion script for hemlock-agent profile names."""
     return '''#compdef hermes
 # Hermes Agent profile completion
 # Add to ~/.zshrc: eval "$(hermes completion zsh)"
@@ -1078,7 +1078,7 @@ def resolve_profile_env(profile_name: str) -> str:
     if profile_name != "default" and not profile_dir.is_dir():
         raise FileNotFoundError(
             f"Profile '{profile_name}' does not exist. "
-            f"Create it with: hermes profile create {profile_name}"
+            f"Create it with: hemlock-agent profile create {profile_name}"
         )
 
     return str(profile_dir)

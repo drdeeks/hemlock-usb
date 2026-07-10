@@ -168,7 +168,7 @@ def show_status(args):
     nous_logged_in = bool(nous_status.get("logged_in"))
     print(
         f"  {'Nous Portal':<12}  {check_mark(nous_logged_in)} "
-        f"{'logged in' if nous_logged_in else 'not logged in (run: hermes model)'}"
+        f"{'logged in' if nous_logged_in else 'not logged in (run: hemlock-agent model)'}"
     )
     if nous_logged_in:
         portal_url = nous_status.get("portal_base_url") or "(unknown)"
@@ -183,7 +183,7 @@ def show_status(args):
     codex_logged_in = bool(codex_status.get("logged_in"))
     print(
         f"  {'OpenAI Codex':<12}  {check_mark(codex_logged_in)} "
-        f"{'logged in' if codex_logged_in else 'not logged in (run: hermes model)'}"
+        f"{'logged in' if codex_logged_in else 'not logged in (run: hemlock-agent model)'}"
     )
     codex_auth_file = codex_status.get("auth_store")
     if codex_auth_file:
@@ -253,7 +253,7 @@ def show_status(args):
             if key_val:
                 break
         configured = bool(key_val)
-        label = "configured" if configured else "not configured (run: hermes model)"
+        label = "configured" if configured else "not configured (run: hemlock-agent model)"
         print(f"  {pname:<16} {check_mark(configured)} {label}")
 
     # =========================================================================
@@ -265,7 +265,7 @@ def show_status(args):
     terminal_env = os.getenv("TERMINAL_ENV", "")
     if not terminal_env:
         # Fall back to config file value when env var isn't set
-        # (hermes status doesn't go through cli.py's config loading)
+        # (hemlock-agent status doesn't go through cli.py's config loading)
         try:
             _cfg = load_config()
             terminal_env = _cfg.get("terminal", {}).get("backend", "local")
@@ -344,7 +344,7 @@ def show_status(args):
                 rendered += ", ..."
             print(f"  PID(s):       {rendered}")
         else:
-            print("  Start with:   hermes gateway")
+            print("  Start with:   hemlock-agent gateway")
             print("  Note:         Android may stop background jobs when Termux is suspended")
 
     elif sys.platform.startswith('linux'):
@@ -460,6 +460,6 @@ def show_status(args):
     
     print()
     print(color("─" * 60, Colors.DIM))
-    print(color("  Run 'hermes doctor' for detailed diagnostics", Colors.DIM))
-    print(color("  Run 'hermes setup' to configure", Colors.DIM))
+    print(color("  Run 'hemlock-agent doctor' for detailed diagnostics", Colors.DIM))
+    print(color("  Run 'hemlock-agent setup' to configure", Colors.DIM))
     print()

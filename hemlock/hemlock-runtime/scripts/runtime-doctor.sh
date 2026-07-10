@@ -1,5 +1,5 @@
 #!/bin/bash
-# Hermes Doctor - Runtime Validation and Auto-Fix Tool
+# Hemlock Doctor - Runtime Validation and Auto-Fix Tool
 
 set -euo pipefail
 
@@ -21,7 +21,7 @@ AUTO_FIX=false
 display_header() {
     clear
     echo "============================================="
-    echo " Hermes Doctor - Runtime Validation Tool"
+    echo " Hemlock Doctor - Runtime Validation Tool"
     echo "============================================="
     echo "Runtime Directory: $RUNTIME_DIR"
     echo "---------------------------------------------"
@@ -359,7 +359,7 @@ interactive_validation() {
     
     while true; do
         display_header
-        echo "Hermes Doctor - Interactive Mode"
+        echo "Hemlock Doctor - Interactive Mode"
         echo "---------------------------------------------"
         echo "1. Check Docker Environment"
         echo "2. Check Runtime Structure"

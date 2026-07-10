@@ -373,7 +373,7 @@ Dockerized AI agent orchestration platform. Provides:
 
 - **Agent lifecycle management** — create, start, stop, monitor, import, export, delete
 - **Crew management** — A2A protocol: join, leave, dissolve, start, stop, monitor
-- **Runtime validation** — health checks, Runtime Doctor, Docker env validation
+- **Runtime validation** — health checks, Hemlock Doctor, Docker env validation
 - **Security hardening** — apply, check status, reset
 - **Staging bridge** — file transfers between host and container via `volumes/imports/.request`
 - **84 agent skill packages** — pre-built capabilities for common tasks
@@ -1052,7 +1052,7 @@ bash hemlock/hemlock-runtime/scripts/hemlock menu
 **TUI Features:**
 - Agent Management: Create, Import, Export, Delete, Start, Stop, Monitor, List
 - Crew Management (A2A): Create, Import, Export, Join, Leave, List All, Start, Monitor, Dissolve
-- Runtime Validation: Full validation, Runtime Doctor, Docker env check, Validate Configs
+- Runtime Validation: Full validation, Hemlock Doctor, Docker env check, Validate Configs
 - Security Hardening: Apply, Check Status, Reset
 - System Monitoring: Runtime Logs, Agent Logs, System Health
 - Configuration: Edit Runtime Config, Edit Agent Config, View Current Config
