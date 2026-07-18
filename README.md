@@ -1,5 +1,8 @@
 # USB-Hemlock Unified Compute Platform
 
+[![DrDeeks Project](https://img.shields.io/badge/DrDeeks%20Project-171718?style=flat-square&labelColor=b84d32)](https://github.com/drdeeks)
+
+
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Platform](https://img.shields.io/badge/platform-x86__64%20Linux-informational?logo=linux&logoColor=white)
 ![Boot](https://img.shields.io/badge/boot-Ventoy%20multi--boot%20%2B%20persistence-orange)
